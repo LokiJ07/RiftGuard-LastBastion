@@ -167,6 +167,30 @@ public final class RiftGameViewSmokeTest {
         assertTrue(number(view,"baseHp")<hp);
     }
 
+    @Test public void normalCombatActuallyClearsTheFirstWave() throws Exception {
+        start(0);
+        // Deterministic automated player: hold FIRE, periodically buy defenses.
+        // Enemy HP must fall from actual projectiles; no forced kills or wave skips.
+        set(view,"firing",true);
+        boolean cleared=false;
+        for (int frame=0;frame<2400;frame++) {
+            if(frame%22==0 && (Integer)value(view,"gold")>=55) {
+                int[] towers=(int[])value(view,"towers");
+                boolean available=false;
+                for(int tier:towers)if(tier<BattleRules.MAX_TOWER_TIER)available=true;
+                if(available)invoke(view,"build",new Class<?>[0]);
+            }
+            if(frame%220==110)invoke(view,"pulse",new Class<?>[0]);
+            advance(.05f);
+            if("LOSE".equals(value(view,"scene").toString()))break;
+            if((Integer)value(view,"wave")>=2 || "WIN".equals(value(view,"scene").toString())) {
+                cleared=true;break;
+            }
+        }
+        assertTrue("Normal turret and hero attacks must be able to beat wave one",cleared);
+        assertTrue("Kills must come from damage, not test manipulation",(Integer)value(view,"kills")>0);
+    }
+
     @Test public void pauseAndBackgroundClearStuckMovementOrFiring() throws Exception {
         start(0);
         long now=android.os.SystemClock.uptimeMillis();
