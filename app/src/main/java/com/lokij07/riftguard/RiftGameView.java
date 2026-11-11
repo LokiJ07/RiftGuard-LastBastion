@@ -45,6 +45,7 @@ public final class RiftGameView extends View {
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
     private final BiomeProps biomeProps;
+    private ResourcePacks.State resourceState;
     private volatile boolean resourceBusy=false;
     private volatile boolean resourceSuccess=false;
     private volatile int resourcePercent=0;
@@ -132,6 +133,7 @@ public final class RiftGameView extends View {
         characterArt=new CharacterArt(context.getResources());
         motionArt=new MotionArt(context);
         biomeProps=new BiomeProps(context);
+        resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -1175,7 +1177,7 @@ public final class RiftGameView extends View {
         text(c,"RESOURCE CENTER",113,117,54,GOLD,false);
         text(c,"OPTIONAL DOWNLOAD  •  NO ADS  •  OFFLINE PLAY",
                 116,161,25,INK,false);
-        ResourcePacks.State pack=ResourcePacks.state(getContext());
+        ResourcePacks.State pack=resourceState;
         round(c,110,193,1169,381,24,0xff284853);
         text(c,"RIFTGUARD ORIGINAL ART PACK",147,249,32,GOLD,false);
         text(c,"Cached files: "+pack.present+" / "+pack.total,150,298,26,INK,false);
@@ -1199,7 +1201,11 @@ public final class RiftGameView extends View {
         ResourcePacks.start(getContext(),(message,percent,done,success)->{
             resourceMessage=message;
             resourcePercent=percent;
-            if(done){resourceBusy=false;resourceSuccess=success;}
+            if(done){
+                resourceBusy=false;
+                resourceSuccess=success;
+                resourceState=ResourcePacks.state(getContext());
+            }
             invalidate();
         });
     }

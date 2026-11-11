@@ -71,6 +71,42 @@ public final class ResourcePacksTest {
         assertEquals("b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0",
                 ResourcePacks.gitBlobSha("hello".getBytes(StandardCharsets.UTF_8)));
     }
+    @Test public void corruptOfflineArtworkIsRejectedEvenWhenFilenameAndSizeMatch() throws Exception {
+        Context ctx=RuntimeEnvironment.getApplication();
+        java.io.File root=ResourcePacks.directory(ctx);
+        assertTrue(root.exists()||root.mkdirs());
+        java.io.File manifestFile=new java.io.File(root,"verified-manifest.json");
+        java.io.File file=new java.io.File(root,NAMES[0]);
+        byte[] bytes=new byte[500];
+        for(int i=0;i<bytes.length;i++)bytes[i]=(byte)(i*31);
+        JSONObject json=validManifest();
+        json.getJSONArray("assets").getJSONObject(0)
+                .put("git_sha",ResourcePacks.gitBlobSha(bytes));
+        try {
+            try(java.io.FileOutputStream out=new java.io.FileOutputStream(file)) {
+                out.write(bytes);
+            }
+            try(java.io.FileOutputStream out=new java.io.FileOutputStream(manifestFile)) {
+                out.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            assertNotNull("Correct verified cache should be accessible",
+                    ResourcePacks.installed(ctx,NAMES[0]));
+            assertEquals(1,ResourcePacks.state(ctx).present);
+            // Simulate on-disk tampering / silent bitrot with the same file length.
+            bytes[17]^=0x43;
+            try(java.io.FileOutputStream out=new java.io.FileOutputStream(file)) {
+                out.write(bytes);
+            }
+            assertNull("Corrupt content must never be used",ResourcePacks.installed(ctx,NAMES[0]));
+            assertEquals(0,ResourcePacks.state(ctx).present);
+            assertNotNull("Bundle fallback must remain available",
+                    ResourcePacks.decodeOrBundled(ctx,R.drawable.riftguard_atlas,NAMES[0],1024,768));
+        } finally {
+            file.delete();
+            manifestFile.delete();
+        }
+    }
+
     @Test public void offlineFallbackHasAllOriginalArt() {
         Context ctx=RuntimeEnvironment.getApplication();
         assertNull(ResourcePacks.installed(ctx,"../../secret"));

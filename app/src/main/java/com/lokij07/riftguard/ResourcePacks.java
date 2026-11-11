@@ -38,6 +38,7 @@ public final class ResourcePacks {
             "/app/src/main/res/drawable-nodpi/";
     private static final long MAX_FILE_BYTES=20L*1024*1024;
     private static final int MAX_MANIFEST_BYTES=32*1024;
+    private static final String VERIFIED_MANIFEST="verified-manifest.json";
     private static final String[] APPROVED={
         "riftguard_atlas.webp",
         "riftguard_castle_game.webp",
@@ -116,21 +117,49 @@ public final class ResourcePacks {
     public static File directory(Context context) {
         return new File(context.getNoBackupFilesDir(),"riftguard-resources");
     }
+    // Only report files whose metadata and content match a previously verified pack.
+    // A leftover .partial or corrupt image must never count as an offline resource.
+    private static Manifest offlineManifest(File root) {
+        File stored=new File(root,VERIFIED_MANIFEST);
+        if(!stored.isFile()||stored.length()<20||stored.length()>MAX_MANIFEST_BYTES)
+            return null;
+        try(InputStream in=new FileInputStream(stored);
+            java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream()){
+            byte[] buffer=new byte[4096];int n;
+            while((n=in.read(buffer))!=-1) {
+                if(out.size()+n>MAX_MANIFEST_BYTES)return null;
+                out.write(buffer,0,n);
+            }
+            return parseManifest(new String(out.toByteArray(),StandardCharsets.UTF_8));
+        }catch(Exception ex){return null;}
+    }
     public static State state(Context context) {
         File root=directory(context);
+        Manifest recorded=offlineManifest(root);
+        if(recorded==null)return new State(0,APPROVED.length,0);
         int count=0;long size=0;
-        for(String name:APPROVED){
-            File file=new File(root,name);
-            if(file.isFile()&&file.length()>0&&file.length()<MAX_FILE_BYTES) {
-                count++;size+=file.length();
-            }
+        for(Asset asset:recorded.assets) {
+            try{
+                File file=new File(root,asset.name);
+                if(matchesGitBlob(file,asset)){count++;size+=file.length();}
+            }catch(Exception ignored){/* invalid file is never counted */}
         }
         return new State(count,APPROVED.length,size);
     }
     public static File installed(Context context,String name) {
         if(!approved(name))return null;
-        File f=new File(directory(context),name);
-        return f.isFile()&&f.length()>100&&f.length()<=MAX_FILE_BYTES?f:null;
+        File root=directory(context);
+        Manifest record=offlineManifest(root);
+        if(record==null)return null;
+        for(Asset asset:record.assets){
+            if(!asset.name.equals(name))continue;
+            File file=new File(root,name);
+            try {
+                if(matchesGitBlob(file,asset))return file;
+            }catch(Exception ignored){}
+            return null;
+        }
+        return null;
     }
     public static Bitmap decodeOrBundled(Context context,int drawable,String name,
                                           int width,int height) {
@@ -237,6 +266,20 @@ public final class ResourcePacks {
             throw new java.io.IOException("Cannot activate "+asset.name);
         }
     }
+    private static void writeVerifiedManifest(File root,String raw) throws Exception {
+        File temp=new File(root,VERIFIED_MANIFEST+".partial");
+        if(temp.exists()&&!temp.delete())
+            throw new java.io.IOException("Cannot reset manifest download");
+        try(FileOutputStream out=new FileOutputStream(temp)) {
+            out.write(raw.getBytes(StandardCharsets.UTF_8));
+            out.getFD().sync();
+        }
+        File destination=new File(root,VERIFIED_MANIFEST);
+        if(!temp.renameTo(destination)) {
+            temp.delete();
+            throw new java.io.IOException("Cannot activate verified resource manifest");
+        }
+    }
     private static void callback(Handler handler,Listener listener,String msg,
                                  int pct,boolean done,boolean success) {
         handler.post(()->listener.onStatus(msg,pct,done,success));
@@ -247,7 +290,8 @@ public final class ResourcePacks {
         Thread worker=new Thread(()->{
             try {
                 callback(handler,listener,"Checking GitHub resource pack...",0,false,false);
-                Manifest manifest=parseManifest(getManifest());
+                String downloadedManifest=getManifest();
+                Manifest manifest=parseManifest(downloadedManifest);
                 File root=directory(app);
                 if(!root.isDirectory()&&!root.mkdirs())
                     throw new java.io.IOException("No storage for resources");
@@ -257,6 +301,9 @@ public final class ResourcePacks {
                             (int)(i*100f/manifest.assets.length),false,false);
                     download(root,asset);
                 }
+                // Commit the complete manifest last: offline callers see only
+                // verified, cohesive art packs, never a mixture of partial downloads.
+                writeVerifiedManifest(root,downloadedManifest);
                 callback(handler,listener,"Downloaded and verified. Reopen to apply.",
                         100,true,true);
             }catch(Exception ex){
