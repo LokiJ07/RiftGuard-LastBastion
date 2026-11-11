@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.6.1 — difficulty, 10 world-boss finales, four defense families and stage identities
+## Current version: V0.6.2 — difficulty, 10 world-boss finales, four defense families and stage identities
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -51,3 +51,11 @@ Debug CI builds are not a release-signed APK. Reinstall conflicts may occur acro
 - Battle lower control strip has translucent gradient to prevent scenery overpowering touch controls.
 - Non-16:9 devices now show palette-matched gutters instead of black pillars, preserving touch hitboxes.
 - Robolectric screenshots cover ultrawide layouts and actual boss combat.
+
+## V0.6.2 — regional progression route
+- World Atlas retains its 10 selectable kingdoms. Entering a realm now opens a **separate 10-location map** with paths, animated markers, distinct settlement silhouettes, boss destination and unlock/clear status.
+- Tap a level location to select it, then choose Map A/B/C and difficulty before deploying.
+- **World** button returns to kingdom overview; all 100 level IDs and 300 stage unlocks remain unchanged.
+- Real-time layered illustration and independent hitboxes (not a static screenshot with numbers).
+- Screenshot regression checks now capture both the world overview and the regional journey.
+- This remains procedural 2D environmental artwork, not the target fully authored high-fidelity landscape.

@@ -83,6 +83,7 @@ public final class RiftGameView extends View {
     private int unlocked;
     private int supplies, fortressRank, equippedWeapon, difficultyMode;
     private int selectedLevel=1, selectedMap=0, stage=0;
+    private boolean regionalMap=false;
     private int wave, remaining, gold, kills;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
@@ -1408,7 +1409,10 @@ public final class RiftGameView extends View {
         text(c,"100 LEVELS   /   300 MISSIONS",917,82,21,INK,false);
         round(c,64,111,879,578,21,0xff9f845f);
         int current=(selectedLevel-1)/10;
-        AtlasArt.draw(c,current,unlocked,gameTime);
+        if(regionalMap)
+            RegionJourney.draw(c,current,selectedLevel,unlocked,gameTime);
+        else AtlasArt.draw(c,current,unlocked,gameTime);
+        button(c,729,48,873,93,regionalMap?"WORLD":"EXPLORE",0xff416c71);
         round(c,893,111,1216,576,20,0xff182f3a);
         text(c,Campaign.WORLDS[current].toUpperCase(),912,155,23,GOLD,false);
         text(c,"LEVEL "+selectedLevel+" / 100",916,185,22,INK,false);
@@ -1659,11 +1663,22 @@ public final class RiftGameView extends View {
             if(x>880 && y>555 && y<654)scene=Scene.HOME;
             else if(x>110 && x<865 && y>555 && y<655)beginResourceDownload();
         }else if(scene==Scene.MAP) {
-            if(x>65 && x<882 && y>109 && y<581) {
-                int picked=AtlasArt.hitRegion(x,y);
-                if(picked>=0){
-                    selectedLevel=picked*10+1;
-                    selectedMap=0;
+            if(x>725 && x<881 && y>43 && y<99){
+                regionalMap=!regionalMap;
+            }else if(x>65 && x<882 && y>109 && y<581) {
+                if(regionalMap) {
+                    int stop=RegionJourney.hitLevel(x,y);
+                    if(stop>=0) {
+                        selectedLevel=((selectedLevel-1)/10)*10+stop+1;
+                        selectedMap=0;
+                    }
+                }else{
+                    int picked=AtlasArt.hitRegion(x,y);
+                    if(picked>=0) {
+                        selectedLevel=picked*10+1;
+                        selectedMap=0;
+                        regionalMap=true;
+                    }
                 }
             }else if(x>902 && x<1210 && y>=203 && y<523) {
                 int map=(int)((y-203)/108);

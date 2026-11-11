@@ -71,6 +71,9 @@ public class ScreenGalleryTest {
         tap(view,1020,601); // return home, no network required
         tap(view,270,450); // realm atlas
         capture(view,"02-atlas");
+        tap(view,190,470); // Open Greenhaven's own route (ten locations)
+        capture(view,"13-greenhaven-mission-route");
+        tap(view,776,70); // Go back to full world overview
         tap(view,100,639);
         tap(view,215,544); // armory
         capture(view,"03-armory");
