@@ -87,6 +87,19 @@ public class ScreenGalleryTest {
             py.setFloat(enemy,640-(kind%3)*102);
         }
         capture(view,"05-battle");
+        // Exercise actual movement and weapon attack state and capture the renderer.
+        java.lang.reflect.Field axis=RiftGameView.class.getDeclaredField("axisX");
+        axis.setAccessible(true);axis.setFloat(view,.9f);
+        java.lang.reflect.Method update=RiftGameView.class.getDeclaredMethod("update",float.class);
+        update.setAccessible(true);
+        for(int i=0;i<8;i++)update.invoke(view,.04f);
+        capture(view,"08-warden-running");
+        axis.setFloat(view,0f);
+        java.lang.reflect.Field firing=RiftGameView.class.getDeclaredField("firing");
+        firing.setAccessible(true);firing.setBoolean(view,true);
+        update.invoke(view,.12f);
+        firing.setBoolean(view,false);
+        capture(view,"09-weapon-attack");
         // Render the two other genuine battlefield variants for visual regression.
         java.lang.reflect.Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
         start.setAccessible(true);

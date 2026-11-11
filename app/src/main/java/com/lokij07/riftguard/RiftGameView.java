@@ -43,6 +43,7 @@ public final class RiftGameView extends View {
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
     private final CharacterArt characterArt;
+    private final MotionArt motionArt;
     private final SharedPreferences prefs;
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
@@ -61,13 +62,15 @@ public final class RiftGameView extends View {
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     private String notice="";
-    private boolean waiting, paused, active=true, firing;
+    private boolean waiting, paused, active=true, firing, heroMoving;
+    private float walkClock;
     private int joyPointer=-1, attackPointer=-1;
     private float axisX=0, axisY=0;
     private long lastNs=0;
 
     private static final class Enemy {
-        float x,y,hp,maxHp,phase,attackTimer;
+        float x,y,hp,maxHp,phase,attackTimer,attackAnim;
+        boolean moving;
         int kind;
         Enemy(float x,float y,int kind,float hp,float phase) {
             this.x=x; this.y=y; this.kind=kind; this.hp=hp; this.maxHp=hp; this.phase=phase;
@@ -105,6 +108,7 @@ public final class RiftGameView extends View {
         setLayerType(View.LAYER_TYPE_HARDWARE,null);
         painted=new PaintedArt(context.getResources());
         characterArt=new CharacterArt(context.getResources());
+        motionArt=new MotionArt(context.getResources());
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -167,6 +171,8 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false;
+        motionArt.prepareTerrain(s);
+        walkClock=0;heroMoving=false;
         heroX=BASE_X; heroY=BASE_Y+180; heroHp=100;
         baseHp=Progression.maxCoreHp(fortressRank);
         wave=1; remaining=Campaign.enemies(stage,wave);
@@ -198,11 +204,14 @@ public final class RiftGameView extends View {
         waveNotice=Math.max(0,waveNotice-dt);
         noticeTimer=Math.max(0,noticeTimer-dt);
         float speed=245f;
+        float previousHeroX=heroX,previousHeroY=heroY;
         // Independent X/Y collision resolution allows sliding along walls.
         float nextX=MovementRules.heroNextX(heroX,heroY,axisX*speed*dt);
         if (!hitsBuiltTower(nextX,heroY)) heroX=nextX;
         float nextY=MovementRules.heroNextY(heroX,heroY,axisY*speed*dt);
         if (!hitsBuiltTower(heroX,nextY)) heroY=nextY;
+        heroMoving=distance(heroX,heroY,previousHeroX,previousHeroY)>.3f;
+        if(heroMoving)walkClock+=dt;
         if (Math.abs(axisX)+Math.abs(axisY)>.1f) heroDir=(float)Math.atan2(axisY,axisX);
         if (firing) fire();
         if (!waiting) {
@@ -236,12 +245,14 @@ public final class RiftGameView extends View {
                 puff(e.x,e.y,9,GLOWS[Campaign.world(stage)]);
                 it.remove();continue;
             }
+            e.attackAnim=Math.max(0,e.attackAnim-dt);
             float dHero=distance(e.x,e.y,heroX,heroY);
             boolean hunt=MovementRules.huntsHero(dHero,e.kind);
             float tx=hunt?heroX:BASE_X,ty=hunt?heroY:BASE_Y;
             float d=distance(e.x,e.y,tx,ty);
             float stop=MovementRules.enemyStopDistance(hunt,e.kind);
-            if(d>stop) {
+            e.moving=d>stop;
+            if(e.moving) {
                 float speedFactor=(e.kind==3?1.15f:1f);
                 float step=Math.min(d-stop,BattleRules.enemySpeed(e.kind)*speedFactor*dt);
                 e.x+=(tx-e.x)/Math.max(1,d)*step;
@@ -261,6 +272,7 @@ public final class RiftGameView extends View {
             }
             if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0) {
                 heroHp-=e.kind==2?20:11;
+                e.attackAnim=.42f;
                 hurtCooldown=.8f; puff(heroX,heroY,6,0xffff8086);
                 if(heroHp<=0){heroHp=0;scene=Scene.LOSE;return;}
             }
@@ -269,6 +281,7 @@ public final class RiftGameView extends View {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
                     baseHp-=e.kind==2?30:(e.kind==5?18:12);
+                    e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.7f:2.2f;
                     puff(BASE_X,BASE_Y,6,0xffff9f74);
                     if(baseHp<=0){baseHp=0;scene=Scene.LOSE;return;}
@@ -471,9 +484,11 @@ public final class RiftGameView extends View {
     }
 
     private void drawTerrain(Canvas c,int biome) {
-        p.setShader(new LinearGradient(0,0,WORLD_W,WORLD_H,
-                lighten(GROUNDS[biome],.13f),darken(GROUNDS[biome],.34f),Shader.TileMode.CLAMP));
-        c.drawRect(0,0,WORLD_W,WORLD_H,p);p.setShader(null);
+        if(!motionArt.terrain(c)){
+            p.setShader(new LinearGradient(0,0,WORLD_W,WORLD_H,
+                    lighten(GROUNDS[biome],.13f),darken(GROUNDS[biome],.34f),Shader.TileMode.CLAMP));
+            c.drawRect(0,0,WORLD_W,WORLD_H,p);p.setShader(null);
+        }
         // Ground tiles and subtle road markings.
         for(int x=0;x<=WORLD_W;x+=95) line(c,x,0,x,WORLD_H,0x163c4d4c,1);
         for(int y=0;y<=WORLD_H;y+=95) line(c,0,y,WORLD_W,y,0x163c4d4c,1);
@@ -805,7 +820,9 @@ public final class RiftGameView extends View {
         for(int j=0;j<tier;j++)circle(c,x-25+j*12,y+10,4,GOLD);
     }
     private void drawEnemy(Canvas c,Enemy e) {
-        if(characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,e.hp<e.maxHp*.2f)) {
+        float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
+        if(motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,attack,e.hp<e.maxHp*.20f)
+                || characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,e.hp<e.maxHp*.2f)) {
             if(e.hp<e.maxHp) {
                 float w=e.kind==5?52:28;
                 rect(c,e.x-w,e.y-(e.kind==5?110:78),e.x+w,e.y-(e.kind==5?104:72),0xff20313a);
@@ -826,8 +843,9 @@ public final class RiftGameView extends View {
         oval(c,-21,-24,21,14,body);
         oval(c,-15,-36,15,-7,lighten(body,.2f));
         if(e.kind==3){
-            polygon(c,new float[]{-18,-20,-46,-34,-35,5,-17,0},0xffb7a3e4);
-            polygon(c,new float[]{18,-20,46,-34,35,5,17,0},0xffb7a3e4);
+            float flap=(float)Math.sin(e.phase*3.6f)*22f;
+            polygon(c,new float[]{-18,-20,-46,-37-flap,-35,5,-17,0},0xffb7a3e4);
+            polygon(c,new float[]{18,-20,46,-37-flap,35,5,17,0},0xffb7a3e4);
         }else if(e.kind==2){
             polygon(c,new float[]{-12,-32,-27,-61,0,-40},0xffd7d1b4);
             polygon(c,new float[]{12,-32,27,-61,0,-40},0xffd7d1b4);
@@ -875,6 +893,11 @@ public final class RiftGameView extends View {
         circle(c,x+15,y-23,3,0xfff9edbe);
     }
     private void drawHero(Canvas c) {
+        float attackProgress=fireFlash>0?1-fireFlash/.23f:-1f;
+        float castProgress=pulseFlash>0?1-pulseFlash/.55f:-1f;
+        if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
+                heroDir,heroMoving,attackProgress,castProgress,
+                hurtCooldown>.1f,equippedWeapon))return;
         if(characterArt.available()) {
             boolean moving=Math.abs(axisX)+Math.abs(axisY)>.1f;
             characterArt.hero(c,heroX,heroY,gameTime,moving,fireFlash>0,hurtCooldown>.1f);
@@ -931,7 +954,8 @@ public final class RiftGameView extends View {
         }
         if(noticeTimer>0) text(c,notice,640,207,30,GOLD,true);
         text(c,"MOVE",153,688,17,0xffb5cfc5,true);
-        WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
+        if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
+            WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
                 624,703,17,GOLD,true);
     }
@@ -1056,7 +1080,8 @@ public final class RiftGameView extends View {
                     i==equippedWeapon?GOLD:0xff49616b);
             round(c,x,y,x+340,y+192,14,available?0xff294955:0xff293640);
             round(c,x+12,y+15,x+128,y+167,12,0xff172d39);
-            WorldArt.drawWeapon(c,i,x+69,y+96,1.14f,gameTime);
+            if(!motionArt.weaponIcon(c,i,x+69,y+96,100,125))
+                WorldArt.drawWeapon(c,i,x+69,y+96,1.14f,gameTime);
             text(c,w.name,x+146,y+54,24,available?INK:0xffa2a6aa,false);
             text(c,w.type,x+147,y+85,19,w.color,false);
             text(c,"DMG "+(int)w.damage+"  •  RANGE "+(int)w.range,

@@ -2,10 +2,12 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.4 — real painted scene and animated character assets bundled in APK
+## Current version: V0.5 — state-driven character and weapon animation plus texture-based terrain
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
-- **Actual sprite imagery in gameplay**: 624×300 original Warden and creature sprite atlas (WebP with alpha); hero and monster movement/combat animations use these independent sprites. Some winged creatures retain their procedural artwork. Not frame-by-frame sprite animation yet.
+- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
+- **Separate raster weapon attachment**: six generated-asset-derived weapon images anchored at the hero's hand, with frame-synchronized swinging, spell glows, projectile muzzle effects and slash trails. No permanently attached second weapon.
+- **Textured living battleground**: ten biome palettes and four illustrated texture variations per biome replace the plain solid-color floor. Atlas is assembled into one cached scene texture per mission for Android performance.
 - **Living world map**: ten clickable region nodes and three A/B/C mission previews over the illustrated world. Progression remains controlled in code, not baked into painting.
 - **New permanent fortress upgrade**: five ranks, supplies earned on mission wins, castle appearance/core HP/starting towers progress, saved after reopening the app.
 - **New Armory**: six visible weapon designs with unlock rules, equip selection, persistent loadout and distinct attack stats/effects (crossbow, greatsword, fire sabre, arc staff, siege repeater, frost lance).
