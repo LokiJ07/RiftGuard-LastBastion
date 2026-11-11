@@ -40,13 +40,13 @@ public final class BiomeProps {
     }
     public static float groundDepth(float y) { return y+5; }
     public static boolean overlapsHero(float x,float y,float scale,float hx,float hy) {
-        return Math.abs(x-hx)<55*scale && y>hy-20 && y<hy+78;
+        return Math.abs(x-hx)<90*scale && y>hy-20 && y<hy+78;
     }
     public boolean draw(Canvas c,int biome,int variant,float x,float y,float scale,
                         float time,int alpha) {
         if(!ready() || biome<0 || biome>=BIOMES ||
            variant<0 || variant>=VARIANTS || scale<=0) return false;
-        float size=scale*(variant<2?1.12f:variant==4?.94f:.84f);
+        float size=scale*(variant<2?.84f:variant==4?.72f:variant==3?.72f:.68f);
         float width=TILE_W*size,height=TILE_H*size;
         float sway=(variant<2?(float)Math.sin(time*1.7f + x*.021f)*2.1f:0);
         int left=variant*TILE_W,top=biome*TILE_H;

@@ -45,7 +45,7 @@ public final class RiftGameView extends View {
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
     private final BiomeProps biomeProps;
-    private static final float BATTLE_ZOOM=1.14f;
+    private static final float BATTLE_ZOOM=1.10f;
     private static final int DECOR=0, KEEP=1, TOWER=2, MONSTER=3, DROP=4, WARDEN=5;
     private static final class DepthItem {
         float depth;
@@ -204,12 +204,24 @@ public final class RiftGameView extends View {
         if(fortressRank>=4)towers[1]=1;
         if(fortressRank>=5)towers[2]=1;
         Random r=new Random(Campaign.seed(stage));
-        for (int i=0;i<125;i++) {
-            float x=50+r.nextFloat()*(WORLD_W-100);
-            float y=50+r.nextFloat()*(WORLD_H-100);
-            if (distance(x,y,BASE_X,BASE_Y)<250) continue;
-            if (distance(x,y,heroX,heroY)<95) continue;
-            decor.add(new Decor(x,y, .65f+r.nextFloat()*.8f,r.nextInt(6)));
+        // Scatter environmental art with deliberate negative space around the keep.
+        // Poisson-like rejection prevents overlapping forests and improves combat readability.
+        int attempts=0;
+        while(decor.size()<88 && attempts++<1800) {
+            float x=55+r.nextFloat()*(WORLD_W-110);
+            float y=55+r.nextFloat()*(WORLD_H-110);
+            if(distance(x,y,BASE_X,BASE_Y)<327)continue;
+            if(distance(x,y,heroX,heroY)<212)continue;
+            int chance=r.nextInt(100);
+            int kind=chance<12?0:chance<24?1:chance<49?2:
+                     chance<78?3:chance<88?4:5;
+            boolean crowded=false;
+            for(Decor other:decor) {
+                float min=(kind<=1||other.kind<=1)?123:78;
+                if(distance(x,y,other.x,other.y)<min){crowded=true;break;}
+            }
+            if(crowded)continue;
+            decor.add(new Decor(x,y,.75f+r.nextFloat()*.30f,kind));
         }
         random.setSeed(Campaign.seed(stage)^0xDDEEFF);
         clearTouchControls();
