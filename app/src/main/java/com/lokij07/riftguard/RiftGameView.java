@@ -1223,6 +1223,37 @@ public final class RiftGameView extends View {
                 line(c,39-back,-20,46-back,0,0xfff2d3ff,3);
         }
         c.restore();
+        // Each purchase physically modifies the gun, not just its level text.
+        if(tier>=2) {
+            polygon(c,new float[]{x-34,top-2,x-17,top-20,x-14,top+18,x-35,top+30},
+                    0xff9daeb0);
+            polygon(c,new float[]{x+34,top-2,x+17,top-20,x+14,top+18,x+35,top+30},
+                    0xff75898e);
+            circle(c,x-27,top+4,5,accent);
+            circle(c,x+27,top+4,5,accent);
+        }
+        if(tier>=3) {
+            // Auxiliary barrel housings and metallic cooling vanes.
+            round(c,x-31,top-28,x-17,top-4,4,0xff3f555e);
+            round(c,x+17,top-28,x+31,top-4,4,0xff3f555e);
+            circle(c,x-24,top-25,6,accent);
+            circle(c,x+24,top-25,6,accent);
+        }
+        if(tier>=4) {
+            float pulse=3+(float)Math.sin(gameTime*3+slot)*2;
+            circleStroke(c,x,top-18,33+pulse,accent&0x99ffffff,3);
+            for(int k=0;k<4;k++){
+                float a=k*1.57f+gameTime*.6f;
+                circle(c,x+(float)Math.cos(a)*35,
+                        top-18+(float)Math.sin(a)*21,3.7f,accent);
+            }
+        }
+        if(tier>=5) {
+            polygon(c,new float[]{x-15,top-32,x,top-54,x+15,top-32},accent);
+            line(c,x-5,top-31,x-5,top-48,0xffe5f7ef,2);
+            circle(c,x,top-44,5,0xffefffff);
+            circle(c,x,top-19,13,accent&0x55ffffff);
+        }
         for(int j=0;j<tier;j++)
             circle(c,x-24+j*12,y+18,3.2f,accent);
         if(recoil>0) {
