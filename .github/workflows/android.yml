@@ -33,7 +33,16 @@ jobs:
         with:
           gradle-version: '8.10.2'
       - name: Build and test
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+        run: gradle --no-daemon --info :app:testDebugUnitTest :app:assembleDebug
+      - name: Upload JUnit and HTML test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RiftGuard-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
