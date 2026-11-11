@@ -1354,6 +1354,18 @@ public final class RiftGameView extends View {
         c.restore();
     }
 
+
+    /** Fixed-height camera with safe, responsive HUD on 18:9–21:9 phones. */
+    private float hudSideBleed() {
+        float scale=Math.min(getWidth()/W,getHeight()/H);
+        if(scale<=0)return 0;
+        return Math.max(0,Math.min(220f,(getWidth()/scale-W)*.5f));
+    }
+    private float stickHudX(){return 153f-hudSideBleed()*.75f;}
+    private float buildHudX(){return 849f+hudSideBleed()*.49f;}
+    private float pulseHudX(){return 974f+hudSideBleed()*.65f;}
+    private float attackHudX(){return 1130f+hudSideBleed()*.8f;}
+
     private void drawHud(Canvas c,int biome) {
         drawHudTop(c,biome);
         // Separate safe-area panel keeps game props behind—not over—touch controls.
@@ -1363,22 +1375,24 @@ public final class RiftGameView extends View {
         p.setShader(null);
         boolean bossActive=drawBossHud(c);
         // Left joystick and right action cluster: no UI obstruction in the center.
-        circle(c,153,568,94,0x77202c38);circleStroke(c,153,568,93,0x77d3ede6,3);
-        circle(c,153+axisX*61,568+axisY*61,45,0xbba3c4c6);
-        circle(c,153+axisX*61,568+axisY*61,26,0xff416578);
+        float stickX=stickHudX();
+        circle(c,stickX,568,94,0x77202c38);
+        circleStroke(c,stickX,568,93,0x77d3ede6,3);
+        circle(c,stickX+axisX*61,568+axisY*61,45,0xbba3c4c6);
+        circle(c,stickX+axisX*61,568+axisY*61,26,0xff416578);
         int nextTier=nextTowerTier();
-        action(c,849,589,50,0xff4c837d,"BUILD",
+        action(c,buildHudX(),589,50,0xff4c837d,"BUILD",
                 nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":""+BattleRules.towerCost(nextTier));
-        action(c,974,593,49,0xff6476a6,"PULSE",
+        action(c,pulseHudX(),593,49,0xff6476a6,"PULSE",
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
-        action(c,1130,560,70,0xffb3684c,"ATTACK","FIRE");
+        action(c,attackHudX(),560,70,0xffb3684c,"ATTACK","FIRE");
         if(waveNotice>0 && !bossActive) {
             String text=waiting?"WAVE CLEARED!  +25 GOLD":"WAVE "+wave+"  •  DEFEND THE CORE";
             text(c,text,640,159,34,0xfff2e4bf,true);
         }
         if(noticeTimer>0 && !bossActive)
             text(c,notice,640,207,30,GOLD,true);
-        text(c,"MOVE",153,688,17,0xffb5cfc5,true);
+        text(c,"MOVE",stickX,688,17,0xffb5cfc5,true);
         if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
             WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
@@ -1898,10 +1912,10 @@ public final class RiftGameView extends View {
                 if(x>450 && x<830 && y>330 && y<421) { paused=false;clearTouchControls(); }
                 else if(x>450 && x<830 && y>435 && y<525) {scene=Scene.MAP;paused=false;clearTouchControls();}
             }else if(x>1138 && y<112) {paused=true;clearTouchControls();}
-            else if(x<350 && y>367) {joyPointer=id;updateStick(x,y);}
-            else if(distance(x,y,1130,560)<82) {attackPointer=id;firing=true;fire();}
-            else if(distance(x,y,974,593)<62) pulse();
-            else if(distance(x,y,849,589)<65) build();
+            else if(distance(x,y,stickHudX(),568)<150) {joyPointer=id;updateStick(x,y);}
+            else if(distance(x,y,attackHudX(),560)<82) {attackPointer=id;firing=true;fire();}
+            else if(distance(x,y,pulseHudX(),593)<62) pulse();
+            else if(distance(x,y,buildHudX(),589)<65) build();
         }else if(action==MotionEvent.ACTION_MOVE) {
             if(joyPointer!=-1){
                 int at=ev.findPointerIndex(joyPointer);
@@ -1918,7 +1932,7 @@ public final class RiftGameView extends View {
         return true;
     }
     private void updateStick(float x,float y) {
-        float dx=x-153,dy=y-568,d=(float)Math.hypot(dx,dy);
+        float dx=x-stickHudX(),dy=y-568,d=(float)Math.hypot(dx,dy);
         axisX=d>0?dx/d*Math.min(d/90f,1f):0;
         axisY=d>0?dy/d*Math.min(d/90f,1f):0;
     }
