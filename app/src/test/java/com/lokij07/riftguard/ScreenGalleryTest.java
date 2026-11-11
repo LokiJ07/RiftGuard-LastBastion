@@ -168,6 +168,10 @@ public class ScreenGalleryTest {
             weaponField.setInt(view,weapon);
             capture(view,"25-equipped-weapon-"+weapon);
         }
+        for(int turretTier:new int[]{1,3,5}){
+            for(int slot=0;slot<4;slot++)battlements[slot]=turretTier;
+            capture(view,"26-upgraded-turrets-tier-"+turretTier);
+        }
         // Layout audit for ultrawide phones (safe-area side extensions).
         view.layout(0,0,1780,720);
         Bitmap panorama=Bitmap.createBitmap(1780,720,Bitmap.Config.ARGB_8888);

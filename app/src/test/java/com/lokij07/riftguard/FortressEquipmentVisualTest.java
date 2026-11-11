@@ -90,6 +90,31 @@ public final class FortressEquipmentVisualTest {
                 assertNotEquals("Weapon "+i+" and "+j+" rendered identically",
                         samples[i],samples[j]);
     }
+    @Test public void everyPurchasedTurretTierChangesActualWeaponArt() throws Exception {
+        Context ctx=RuntimeEnvironment.getApplication();
+        RiftGameView game=new RiftGameView(ctx);
+        Method draw=RiftGameView.class.getDeclaredMethod("drawTower",Canvas.class,
+                float.class,float.class,int.class,int.class,int.class);
+        draw.setAccessible(true);
+        for(int slot=0;slot<4;slot++){
+            int[] hashes=new int[5];
+            for(int tier=1;tier<=5;tier++){
+                Bitmap bitmap=Bitmap.createBitmap(420,420,Bitmap.Config.ARGB_8888);
+                Canvas c=new Canvas(bitmap);
+                draw.invoke(game,c,210f,280f,tier,slot,0);
+                int hash=0x811c9dc5;
+                for(int y=185;y<340;y+=3)
+                    for(int x=145;x<275;x+=3)
+                        hash=(hash^bitmap.getPixel(x,y))*0x01000193;
+                hashes[tier-1]=hash;
+                bitmap.recycle();
+            }
+            for(int tier=1;tier<5;tier++)
+                assertNotEquals("Turret family "+slot+" upgrades look identical",
+                        hashes[tier-1],hashes[tier]);
+        }
+    }
+
     @Test public void allCommonViewportAspectRatiosRenderWithoutThrowing() throws Exception {
         Context ctx=RuntimeEnvironment.getApplication();
         ctx.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)

@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.8.3 — fortress silhouette, integrated mount & camera framing improvements
+## Current version: V0.8.4 — visually upgraded tiered turrets, castle mounting and wrist-linked hero weapons
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -97,3 +97,6 @@ Important honesty: the original hero sprite atlas has some painted equipment bak
 
 ## V0.8.3 camera and visibility fix
 Real rendered screenshot inspection exposed a cropped fortress on the left. The camera is now recentered on the castle–hero lane, with the keep fully inside the battle viewport and the four mounting weapons slightly reduced to preserve visibility. A regression test asserts the castle bounds within 16:9 gameplay.
+
+## V0.8.4 visible turret tier stages
+Every turret family visibly changes across tiers 1 to 5 with reinforcing armor, auxiliary barrels, active energy rings and an upgraded crown. Screenshot gallery compares tier 1/3/5 guns in actual gameplay. The weapons and fortress remain native Canvas illustrated assets, not finished AAA-quality 3D skeletal models.
