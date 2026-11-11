@@ -59,6 +59,9 @@ public class ScreenGalleryTest {
         RiftGameView view=new RiftGameView(context);
         view.layout(0,0,1280,720);
         capture(view,"01-home");
+        tap(view,220,388); // optional, ad-free resource download screen
+        capture(view,"10-resources-offline");
+        tap(view,1020,601); // return home, no network required
         tap(view,270,450); // realm atlas
         capture(view,"02-atlas");
         tap(view,100,639);

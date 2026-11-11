@@ -74,6 +74,21 @@ public final class RiftGameViewSmokeTest {
         image.recycle();
     }
 
+    @Test public void resourcesScreenWorksWithoutInternetOrDownloading() throws Exception {
+        paint();
+        tap(220,385);
+        assertEquals("RESOURCES",value(view,"scene").toString());
+        paint();
+        tap(1020,601); // Leave resource center without starting network operation.
+        assertEquals("HOME",value(view,"scene").toString());
+        paint();
+        tap(250,450);
+        assertEquals("MAP",value(view,"scene").toString());
+        tap(640,610);
+        assertEquals("PLAY",value(view,"scene").toString());
+        paint();
+    }
+
     @Test public void homeMapAndBattleRenderWithoutRuntimeException() throws Exception {
         paint();
         tap(250,451); // ENTER CAMPAIGN

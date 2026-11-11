@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.5.2 — 60 biome prop sprites, layered battlefield, animated combat assets
+## Current version: V0.5.4 — optional ad-free online resource downloads with offline fallback
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -16,6 +16,12 @@ Mobile-first, fully offline Android fortress-defense action game.
 
 ## Important visual scope
 This build combines **original generative painting assets** in interactive screens with original procedural vector gameplay artwork. The game does **not** yet include hand-painted high-resolution sprite atlases, animated skeleton rigs, 1,000+ imported art assets, or 300 artist-authored unique map scenes. Those are planned V3–V5 improvements. See [production pack](docs/CONTENT_INTEGRATION_V1.md).
+
+## Optional downloadable resources
+
+The game works **offline immediately**, because all current essential game resources remain bundled. The new **Home → Resources** screen lets players download/verify the original art pack from GitHub over HTTPS. The app stores checked assets in private storage; on the next app launch it uses those assets offline. There are **no ads, account requirements, tracking SDKs, or forced network checks**.
+
+The current initial downloadable pack contains the same art that ships with the APK: it demonstrates secure downloading and offline caching. It **does not yet introduce new ultra-HD artwork**. Future independently generated and optimized layers can be shipped by updating `game-content/manifest.json`. See [resource pack guide](docs/RESOURCE_PACKS.md).
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).

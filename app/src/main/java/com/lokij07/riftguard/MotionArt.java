@@ -1,6 +1,7 @@
 package com.lokij07.riftguard;
 
 import android.content.res.Resources;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -33,11 +34,28 @@ public final class MotionArt {
     private int cachedStage=-1;
 
     public MotionArt(Resources resources) {
-        heroes=decode(resources,R.drawable.riftguard_hero_motion);
-        monsters=decode(resources,R.drawable.riftguard_enemy_motion);
-        weapons=decode(resources,R.drawable.riftguard_weapons_motion);
-        tiles=decode(resources,R.drawable.riftguard_terrain_tiles);
-        castle=decode(resources,R.drawable.riftguard_castle_game);
+        this(resources,null);
+    }
+    public MotionArt(Context context) {
+        this(context.getResources(),context);
+    }
+    private MotionArt(Resources resources,Context context) {
+        heroes=decode(resources,context,R.drawable.riftguard_hero_motion,
+                "riftguard_hero_motion.webp",656,752);
+        monsters=decode(resources,context,R.drawable.riftguard_enemy_motion,
+                "riftguard_enemy_motion.webp",896,882);
+        weapons=decode(resources,context,R.drawable.riftguard_weapons_motion,
+                "riftguard_weapons_motion.webp",768,144);
+        tiles=decode(resources,context,R.drawable.riftguard_terrain_tiles,
+                "riftguard_terrain_tiles.webp",1024,2560);
+        castle=decode(resources,context,R.drawable.riftguard_castle_game,
+                "riftguard_castle_game.webp",420,338);
+    }
+    private static Bitmap decode(Resources resources,Context context,int id,
+                                 String file,int width,int height) {
+        if(context!=null)
+            return ResourcePacks.decodeOrBundled(context,id,file,width,height);
+        return decode(resources,id);
     }
     private static Bitmap decode(Resources resources,int id) {
         try {

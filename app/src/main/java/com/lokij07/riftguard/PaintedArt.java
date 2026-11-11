@@ -1,6 +1,7 @@
 package com.lokij07.riftguard;
 
 import android.content.res.Resources;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -30,12 +31,13 @@ public final class PaintedArt {
 
     public PaintedArt(Resources resources) {
         Bitmap image=null;
-        try {
-            image=BitmapFactory.decodeResource(resources,R.drawable.riftguard_atlas);
-        } catch(RuntimeException ignored) {
-            // Native Canvas fallback is drawn if a device cannot decode WebP.
-        }
+        try {image=BitmapFactory.decodeResource(resources,R.drawable.riftguard_atlas);}
+        catch(RuntimeException ignored) {}
         atlas=image;
+    }
+    public PaintedArt(Context context) {
+        atlas=ResourcePacks.decodeOrBundled(context,R.drawable.riftguard_atlas,
+                "riftguard_atlas.webp",1024,768);
     }
     public boolean available() {
         return atlas!=null&&!atlas.isRecycled()&&atlas.getWidth()==1024&&atlas.getHeight()==768;

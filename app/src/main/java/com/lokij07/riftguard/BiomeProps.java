@@ -1,6 +1,7 @@
 package com.lokij07.riftguard;
 
 import android.content.res.Resources;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -22,6 +23,10 @@ public final class BiomeProps {
     private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG |
             Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
 
+    public BiomeProps(Context context) {
+        atlas=ResourcePacks.decodeOrBundled(context,R.drawable.riftguard_world_props,
+                "riftguard_world_props.webp",TILE_W*VARIANTS,TILE_H*BIOMES);
+    }
     public BiomeProps(Resources resources) {
         Bitmap image=null;
         try {

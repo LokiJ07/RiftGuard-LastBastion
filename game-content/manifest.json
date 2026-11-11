@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "title": "RiftGuard Optional Artwork Pack",
+  "description": "Current original artwork bundled in APK, also available as offline cached downloads; updated art versions can be delivered via this manifest.",
+  "assets": [
+    {
+      "name": "riftguard_atlas.webp",
+      "bytes": 180220,
+      "git_sha": "05b8d43e6f6c7131d90910f1bd95597d3ab2e629",
+      "url": "https://raw.githubusercontent.com/LokiJ07/RiftGuard-LastBastion/1ae38631f21ef343ebd769f362135e63589facf9/app/src/main/res/drawable-nodpi/riftguard_atlas.webp"
+    },
+    {
+      "name": "riftguard_castle_game.webp",
+      "bytes": 41406,
+      "git_sha": "a7ead4e04d026f3b3412524c14a8b8c3546e76b4",
+      "url": "https://raw.githubusercontent.com/LokiJ07/RiftGuard-LastBastion/1ae38631f21ef343ebd769f362135e63589facf9/app/src/main/res/drawable-nodpi/riftguard_castle_game.webp"
+    },
+    {
+      "name": "riftguard_enemy_motion.webp",
+      "bytes": 256284,
+      "git_sha": "ea8bb49808793213a87cdc4ac1c9372ad04725c3",
+      "url": "https://raw.githubusercontent.com/LokiJ07/RiftGuard-LastBastion/1ae38631f21ef343ebd769f362135e63589facf9/app/src/main/res/drawable-nodpi/riftguard_enemy_motion.webp"
+    },
+    {
+      "name": "riftguard_hero_motion.webp",
+      "bytes": 133544,
+      "git_sha": "90044fe73fe9e4744c114833ab37a128a946e528",
+      "url": "https://raw.githubusercontent.com/LokiJ07/RiftGuard-LastBastion/1ae38631f21ef343ebd769f362135e63589facf9/app/src/main/res/drawable-nodpi/riftguard_hero_motion.webp"
+    },
+    {
+      "name": "riftguard_terrain_tiles.webp",
+      "bytes": 588516,
+      "git_sha": "1bbb5cca1c44cb9a5b42babd2022ac393eb40a95",
+      "url": "https://raw.githubusercontent.com/LokiJ07/RiftGuard-LastBastion/1ae38631f21ef343ebd769f362135e63589facf9/app/src/main/res/drawable-nodpi/riftguard_terrain_tiles.webp"
+    },
+    {
+      "name": "riftguard_weapons_motion.webp",
+      "bytes": 37684,
+      "git_sha": "f2d404fefed041828bb008d2188efcfbb100d114",
+      "url": "https://raw.githubusercontent.com/LokiJ07/RiftGuard-LastBastion/1ae38631f21ef343ebd769f362135e63589facf9/app/src/main/res/drawable-nodpi/riftguard_weapons_motion.webp"
+    },
+    {
+      "name": "riftguard_world_props.webp",
+      "bytes": 380096,
+      "git_sha": "4795427da87e4ed03e12eb28c9bee0c0ec07ea19",
+      "url": "https://raw.githubusercontent.com/LokiJ07/RiftGuard-LastBastion/1ae38631f21ef343ebd769f362135e63589facf9/app/src/main/res/drawable-nodpi/riftguard_world_props.webp"
+    }
+  ]
+}

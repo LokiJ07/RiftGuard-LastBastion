@@ -38,13 +38,17 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, FORTRESS, PLAY, WIN, LOSE }
+    private enum Scene { HOME, MAP, ARMORY, FORTRESS, RESOURCES, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
     private final BiomeProps biomeProps;
+    private volatile boolean resourceBusy=false;
+    private volatile boolean resourceSuccess=false;
+    private volatile int resourcePercent=0;
+    private volatile String resourceMessage="The bundled base art works without internet.";
     private static final float BATTLE_ZOOM=1.10f;
     private static final int DECOR=0, KEEP=1, TOWER=2, MONSTER=3, DROP=4, WARDEN=5;
     private static final class DepthItem {
@@ -124,10 +128,10 @@ public final class RiftGameView extends View {
     public RiftGameView(Context context) {
         super(context);
         setLayerType(View.LAYER_TYPE_HARDWARE,null);
-        painted=new PaintedArt(context.getResources());
+        painted=new PaintedArt(context);
         characterArt=new CharacterArt(context.getResources());
-        motionArt=new MotionArt(context.getResources());
-        biomeProps=new BiomeProps(context.getResources());
+        motionArt=new MotionArt(context);
+        biomeProps=new BiomeProps(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -178,6 +182,7 @@ public final class RiftGameView extends View {
         else if (scene==Scene.MAP) drawMap(canvas);
         else if (scene==Scene.ARMORY) drawArmory(canvas);
         else if (scene==Scene.FORTRESS) drawFortress(canvas);
+        else if (scene==Scene.RESOURCES) drawResources(canvas);
         else {
             drawBattle(canvas);
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
@@ -1066,12 +1071,13 @@ public final class RiftGameView extends View {
         rect(c,93,259,577,264,0xff709c9d);
         text(c,"RECLAIM THE TEN REALMS",94,318,26,0xffe2b995,false);
         text(c,"Defend • Earn Supplies • Upgrade • Unlock",94,355,23,INK,false);
+        button(c,95,368,590,409,"RESOURCES  /  OFFLINE ART PACK",0xff33596c);
         button(c,95,415,590,490,"CAMPAIGN  /  WORLD MAP",0xffa56a49);
         button(c,95,509,328,572,"ARMORY",0xff3d6971);
         button(c,348,509,590,572,"FORTRESS",0xff44645c);
         text(c,"FORTRESS RANK "+fortressRank+"   •   SUPPLIES "+supplies,
                 98,614,21,GOLD,false);
-        text(c,"V0.2 VISUAL & EQUIPMENT FOUNDATION",101,643,15,0xff9eb8bb,false);
+        text(c,"NO ADS  •  OFFLINE PLAY  •  OPTIONAL DOWNLOADS",101,643,15,0xff9eb8bb,false);
     }
 
     private void roundedPanel(Canvas c,float l,float t,float r,float b) {
@@ -1127,6 +1133,41 @@ public final class RiftGameView extends View {
         text(c,"BACK",81,652,24,INK,false);
         text(c,"CLEARED: "+unlocked+" / 300",981,650,21,GOLD,false);
     }
+    private void drawResources(Canvas c) {
+        drawBackdrop(c);
+        round(c,65,44,1215,669,29,0xee172d36);
+        text(c,"RESOURCE CENTER",113,117,54,GOLD,false);
+        text(c,"OPTIONAL DOWNLOAD  •  NO ADS  •  OFFLINE PLAY",
+                116,161,25,INK,false);
+        ResourcePacks.State pack=ResourcePacks.state(getContext());
+        round(c,110,193,1169,381,24,0xff284853);
+        text(c,"RIFTGUARD ORIGINAL ART PACK",147,249,32,GOLD,false);
+        text(c,"Cached files: "+pack.present+" / "+pack.total,150,298,26,INK,false);
+        text(c,"Device storage used: "+(pack.bytes/1024)+" KB",
+                150,340,20,0xffa8cecc,false);
+        text(c,"The base game already works without an internet connection.",
+                116,427,23,INK,false);
+        text(c,"After download, the artwork stays on the phone for offline use.",
+                116,469,23,INK,false);
+        text(c,resourceMessage,116,512,20,resourceSuccess?0xff9fe4b2:0xffffd0ac,false);
+        bar(c,116,530,1043,16,resourcePercent/100f,0xff8bd6b2);
+        button(c,117,564,859,638,resourceBusy?"DOWNLOADING...":
+                "DOWNLOAD / VERIFY ART PACK",resourceBusy?0xff566a72:0xffae704c);
+        button(c,888,564,1158,638,"BACK",0xff42606b);
+        text(c,"Reopen app to apply the downloaded artwork.",118,666,16,0xffb4c9cb,false);
+    }
+    private void beginResourceDownload() {
+        if(resourceBusy)return;
+        resourceBusy=true;resourceSuccess=false;resourcePercent=0;
+        resourceMessage="Connecting to GitHub...";
+        ResourcePacks.start(getContext(),(message,percent,done,success)->{
+            resourceMessage=message;
+            resourcePercent=percent;
+            if(done){resourceBusy=false;resourceSuccess=success;}
+            invalidate();
+        });
+    }
+
     private void drawArmory(Canvas c) {
         drawBackdrop(c);
         round(c,43,28,1237,695,25,0xf0172d35);
@@ -1290,9 +1331,13 @@ public final class RiftGameView extends View {
     }
     private void tapMenu(float x,float y) {
         if(scene==Scene.HOME) {
-            if(x>93 && x<610 && y>408 && y<492)scene=Scene.MAP;
+            if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
+            else if(x>93 && x<610 && y>408 && y<492)scene=Scene.MAP;
             else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
             else if(x>345 && x<610 && y>502 && y<580)scene=Scene.FORTRESS;
+        }else if(scene==Scene.RESOURCES) {
+            if(x>880 && y>555 && y<654)scene=Scene.HOME;
+            else if(x>110 && x<865 && y>555 && y<655)beginResourceDownload();
         }else if(scene==Scene.MAP) {
             if(x>65 && x<882 && y>109 && y<581) {
                 // Region nodes are live hitboxes; clicking them selects that world's first level.
