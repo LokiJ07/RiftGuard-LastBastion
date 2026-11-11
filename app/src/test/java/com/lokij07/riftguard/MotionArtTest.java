@@ -38,6 +38,7 @@ public final class MotionArtTest {
     @Test public void bundledAssetsDecodeAtExactProductionSheetDimensions() {
         MotionArt art=art();
         assertTrue("Animation and terrain resources must be bundled",art.ready());
+        assertTrue("A separately layered painted castle must load",art.fortressReady());
     }
     @Test public void allRunAndAttackFramesShowRealPoseChanges() {
         MotionArt a=art();
@@ -62,6 +63,16 @@ public final class MotionArtTest {
         assertEquals(3,MotionArt.eventFrame(.99f));
         assertEquals(3,MotionArt.frame(0.3f,10f,4));
     }
+    @Test public void fortressArtRendersOnlyAtStoneKeepOrHigher() {
+        MotionArt a=art();
+        Bitmap b=Bitmap.createBitmap(480,520,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(b);
+        assertFalse(a.fortress(c,240,400,1,1.0f));
+        assertTrue(a.fortress(c,240,400,3,1.0f));
+        assertNotEquals(0,b.getPixel(240,300));
+        b.recycle();
+    }
+
     @Test public void originalTerrainDrawsIntoActualAndroidCanvas() {
         MotionArt art=art();
         art.prepareTerrain(0);

@@ -733,6 +733,18 @@ public final class RiftGameView extends View {
     }
 
     private void drawBase(Canvas c,int biome) {
+        if(fortressRank>=3 && motionArt.fortress(c,BASE_X,BASE_Y,fortressRank,gameTime)) {
+            // Damage and ambient smoke are independent of the painted building image.
+            if(baseHp<Progression.maxCoreHp(fortressRank)*.48f) {
+                for(int i=0;i<4;i++) {
+                    float tx=BASE_X-122+i*79;
+                    float drift=(gameTime*22+i*23)%92;
+                    circle(c,tx+(float)Math.sin(gameTime+i)*8,
+                            BASE_Y-152-drift,13+drift*.23f,0x44545a65);
+                }
+            }
+            return;
+        }
         if(fortressRank<3 && Campaign.map(stage)!=2) {
             drawWoodOutpost(c,biome);
             return;

@@ -24,7 +24,11 @@ public final class MotionArt {
     private static final int TILE=256;
     private static final int WORLD_W=1900,WORLD_H=1050;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG|Paint.DITHER_FLAG);
-    private final Bitmap heroes,monsters,weapons,tiles;
+    private final Bitmap heroes,monsters,weapons,tiles,castle;
+    private static final int[] BASE={
+        0xff3f704e,0xff2c5346,0xff415e4a,0xff8c5b3f,0xff91acbc,
+        0xff6c736a,0xff4b7282,0xff50637a,0xff46415d,0xff784349
+    };
     private Bitmap cachedTerrain;
     private int cachedStage=-1;
 
@@ -33,6 +37,7 @@ public final class MotionArt {
         monsters=decode(resources,R.drawable.riftguard_enemy_motion);
         weapons=decode(resources,R.drawable.riftguard_weapons_motion);
         tiles=decode(resources,R.drawable.riftguard_terrain_tiles);
+        castle=decode(resources,R.drawable.riftguard_castle_game);
     }
     private static Bitmap decode(Resources resources,int id) {
         try {
@@ -45,7 +50,9 @@ public final class MotionArt {
     public boolean enemiesReady(){return valid(monsters,896,882);}
     public boolean weaponsReady(){return valid(weapons,768,144);}
     public boolean terrainReady(){return valid(tiles,1024,2560);}
-    public boolean ready(){return heroReady()&&enemiesReady()&&weaponsReady()&&terrainReady();}
+    public boolean fortressReady(){return valid(castle,420,338);}
+    public boolean ready(){return heroReady()&&enemiesReady()&&weaponsReady()
+            &&terrainReady()&&fortressReady();}
     private static boolean valid(Bitmap b,int w,int h) {
         return b!=null&&!b.isRecycled()&&b.getWidth()==w&&b.getHeight()==h;
     }
@@ -75,18 +82,17 @@ public final class MotionArt {
         cachedTerrain=Bitmap.createBitmap(WORLD_W,WORLD_H,Bitmap.Config.RGB_565);
         Canvas c=new Canvas(cachedTerrain);
         int biome=Campaign.world(stage);
-        c.drawColor(0xff395a4b);
-        for(int y=0;y<WORLD_H;y+=TILE){
-            for(int x=0;x<WORLD_W;x+=TILE){
-                int xIndex=x/TILE,yIndex=y/TILE;
-                // Four texture variations per biome; each tile is real pixel artwork.
+        c.drawColor(BASE[biome]);
+        p.setColor(Color.WHITE);p.setAlpha(255);
+        // Feathered 256px texture patches overlap on a 160px grid.
+        // Their transparent edges blend naturally rather than exposing hard square seams.
+        for(int y=-128;y<WORLD_H+TILE;y+=160){
+            for(int x=-128;x<WORLD_W+TILE;x+=160){
+                int xIndex=Math.floorDiv(x,160),yIndex=Math.floorDiv(y,160);
                 int v=Math.floorMod((xIndex*73856093)^(yIndex*19349663)^
                         Campaign.seed(stage),4);
                 Rect src=new Rect(v*TILE,biome*TILE,(v+1)*TILE,(biome+1)*TILE);
-                Rect dst=new Rect(x,y,Math.min(WORLD_W,x+TILE),Math.min(WORLD_H,y+TILE));
-                // Source crop at the world edge to avoid squeezing the final tile.
-                if(dst.width()<TILE)src.right=src.left+dst.width();
-                if(dst.height()<TILE)src.bottom=src.top+dst.height();
+                Rect dst=new Rect(x,y,x+TILE,y+TILE);
                 c.drawBitmap(tiles,src,dst,p);
             }
         }
@@ -105,6 +111,40 @@ public final class MotionArt {
         p.setColor(Color.WHITE);
         p.setAlpha(255);
         c.drawBitmap(cachedTerrain,0,0,p);
+        return true;
+    }
+
+    /** Separate painted castle structure with animated lights and rank-specific layers. */
+    public boolean fortress(Canvas c,float x,float y,int rank,float time) {
+        if(rank<3||!fortressReady())return false;
+        p.setColor(0x9907161c);p.setAlpha(85);
+        c.drawOval(new RectF(x-180,y+82,x+182,y+135),p);
+        p.setColor(Color.WHITE);p.setAlpha(255);
+        c.drawBitmap(castle,null,new RectF(x-219,y-301,x+219,y+128),p);
+        Paint fx=new Paint(Paint.ANTI_ALIAS_FLAG);
+        // Animated lanterns have physical positions separate from the castle texture.
+        for(int i=0;i<4;i++) {
+            float tx=x+(i%2==0?-145:145);
+            float ty=y-45-(i/2)*115;
+            float glow=6+(float)Math.sin(time*5+i*2.3f)*2.5f;
+            fx.setColor(0x66ffc774);c.drawCircle(tx,ty,glow*2.7f,fx);
+            fx.setColor(0xffffd39a);c.drawCircle(tx,ty,glow*.68f,fx);
+        }
+        if(rank>=4) {
+            float pulse=(float)Math.sin(time*3f)*3f;
+            fx.setStyle(Paint.Style.STROKE);fx.setStrokeWidth(4);
+            fx.setColor(0xaaa2efff);
+            c.drawOval(new RectF(x-154-pulse,y-82-pulse,
+                    x+154+pulse,y+112+pulse),fx);
+            fx.setStyle(Paint.Style.FILL);
+        }
+        if(rank>=5) {
+            float pulse=(float)Math.sin(time*2.4f)*9;
+            fx.setColor(0x448be5ff);
+            c.drawCircle(x,y-234,37+pulse,fx);
+            fx.setColor(0xffb4f3ff);
+            c.drawCircle(x,y-234,12+pulse*.2f,fx);
+        }
         return true;
     }
 
