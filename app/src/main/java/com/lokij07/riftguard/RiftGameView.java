@@ -622,7 +622,9 @@ public final class RiftGameView extends View {
         // front of the hero while structures and monsters retain proper layering.
         drawQueue.clear();
         for(Decor d:decor)layer(DECOR,BiomeProps.groundDepth(d.y),d,0);
-        layer(KEEP,BASE_Y+115,null,0);
+        // The castle walls and masonry mounts render before the working guns.
+        // Previously upper turret weapons were depth-sorted behind the castle art.
+        layer(KEEP,BASE_Y-305,null,0);
         for(int i=0;i<towers.length;i++)layer(TOWER,towerY[i]+31,null,i);
         for(Enemy e:enemies)layer(MONSTER,e.y+8,e,0);
         for(Pickup drop:pickups)layer(DROP,drop.y+12,drop,0);
@@ -630,7 +632,11 @@ public final class RiftGameView extends View {
         drawQueue.sort((a,b)->Float.compare(a.depth,b.depth));
         for(DepthItem entry:drawQueue) {
             if(entry.type==DECOR)drawDecor(c,(Decor)entry.entity,biome);
-            else if(entry.type==KEEP)drawBase(c,biome);
+            else if(entry.type==KEEP) {
+                drawBase(c,biome);
+                FortressStructures.turretMounts(c,BASE_X,BASE_Y,
+                        fortressRank,towerX,towerY,gameTime);
+            }
             else if(entry.type==TOWER)drawTower(c,towerX[entry.slot],
                     towerY[entry.slot],towers[entry.slot],entry.slot,biome);
             else if(entry.type==MONSTER)drawEnemy(c,(Enemy)entry.entity);

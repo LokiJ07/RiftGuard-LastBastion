@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.8.1 — playable biome hazards and responsive widescreen combat HUD
+## Current version: V0.8.2 — fortress structures, mounted turret layering, wrist-synced weapon grips
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -85,3 +85,12 @@ New `StageHazards` positions 1–4 animated objects along the actual route per s
 
 ## V0.8.1 — mobile aspect-ratio controls
 On 18:9, 19.5:9 and 21:9 displays, the battle joystick, BUILD, PULSE and ATTACK controls shift toward the actual device edges while keeping their real touch hitboxes aligned. The combat and character art are not stretched. 16:9 devices retain their original touch layout. Test coverage exercises all four controls on a 1780×720 virtual device. More adaptive native layout work is still needed for tall and foldable devices.
+
+## V0.8.2 — fortress and equipment improvement
+- Keep and turret render order fixed: upper turret guns no longer disappear behind the castle artwork.
+- All four weapon slots have visual masonry platforms joining the fortress rather than floating on the outer corners.
+- Rank 3 Stone Keep, Rank 4 War Stronghold (side bastions, flags, causeway) and Rank 5 Arc Citadel (crystal spires, animated magical barrier) now have distinctly different silhouettes. Ranks 1–2 retain wooden outpost/reinforced camp artwork.
+- The six hero weapons use separate animated wrist sockets, a shoulder-elbow-hand chain and a gauntlet drawn over the grip; attack animations move the wrist instead of simply turning a sticker.
+- Robolectric screenshots include 3 castle upgrade ranks and six equipped weapon modes. Tests cover image differences, mounted supports and seven viewport sizes.
+
+Important honesty: the original hero sprite atlas has some painted equipment baked into character frames. This update improves anatomical weapon attachment but **does not complete a skeletal rig or truly weapon-free hero animation set**. Similarly, viewport tests are not universal physical-device certification.

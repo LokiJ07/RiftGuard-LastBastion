@@ -139,6 +139,7 @@ public final class MotionArt {
         c.drawOval(new RectF(x-180,y+82,x+182,y+135),p);
         p.setColor(Color.WHITE);p.setAlpha(255);
         c.drawBitmap(castle,null,new RectF(x-219,y-301,x+219,y+128),p);
+        FortressStructures.rankStructures(c,x,y,rank,time);
         Paint fx=new Paint(Paint.ANTI_ALIAS_FLAG);
         // Animated lanterns have physical positions separate from the castle texture.
         for(int i=0;i<4;i++) {
@@ -202,48 +203,71 @@ public final class MotionArt {
         }
         return true;
     }
+    /**
+     * Wrist-anchored layered rig: the shoulder and elbow move with each
+     * weapon class and the drawn gauntlet covers the weapon's actual grip.
+     * Uses the original art; full separated skeletal sprites remain future work.
+     */
     private void drawHeldWeapon(Canvas c,int weaponId,float time,
                                 float attackProgress,float castProgress) {
         int id=Math.max(0,Math.min(5,weaponId));
-        boolean melee=id==1||id==2;
-        float angle=melee?15f:-17f;
-        if(melee&&attackProgress>=0){
-            float swing=clamp01(attackProgress);
-            angle=-108+208*(swing*swing*(3-2*swing));
-            if(swing>.07f&&swing<.92f){
-                Paint arc=new Paint(Paint.ANTI_ALIAS_FLAG);
-                arc.setStyle(Paint.Style.STROKE);
-                arc.setStrokeCap(Paint.Cap.ROUND);
-                int tint=id==2?0xffff9d55:0xffb2edff;
-                arc.setStrokeWidth(10f*(1-swing*.35f));
-                arc.setColor(tint);
-                arc.setAlpha((int)(180*Math.sin(Math.PI*swing)));
-                c.drawArc(-74,-113,77,35,-190+165*swing,95,false,arc);
-                arc.setStrokeWidth(3);
-                arc.setColor(Color.WHITE);
-                arc.setAlpha((int)(180*Math.sin(Math.PI*swing)));
-                c.drawArc(-77,-116,78,36,-190+165*swing,89,false,arc);
-            }
-        }else if(attackProgress>=0) {
-            angle=-37+(float)Math.sin(clamp01(attackProgress)*Math.PI)*27;
+        WeaponRig.Pose pose=WeaponRig.pose(id,attackProgress,castProgress,time);
+        boolean blade=id==1||id==2;
+        if(blade && attackProgress>=.07f && attackProgress<.92f){
+            float t=clamp01(attackProgress);
+            Paint arc=new Paint(Paint.ANTI_ALIAS_FLAG);
+            arc.setStyle(Paint.Style.STROKE);
+            arc.setStrokeCap(Paint.Cap.ROUND);
+            int tint=id==2?0xffff9d55:0xffb2edff;
+            arc.setStrokeWidth(10f*(1-t*.35f));
+            arc.setColor(tint);
+            arc.setAlpha((int)(180*Math.sin(Math.PI*t)));
+            c.drawArc(-76,-143,89,25,-192+171*t,100,false,arc);
+            arc.setStrokeWidth(3);
+            arc.setColor(Color.WHITE);
+            arc.setAlpha((int)(180*Math.sin(Math.PI*t)));
+            c.drawArc(-80,-145,91,27,-192+171*t,94,false,arc);
         }
-        if(castProgress>=0) angle=-30+50*(float)Math.sin(Math.PI*clamp01(castProgress));
-        angle+=(float)Math.sin(time*2.1f)*2.5f;
+        // Shoulder joint and segmented pauldron/forearm, with articulated elbow.
+        Paint arm=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+        arm.setStrokeCap(Paint.Cap.ROUND);
+        arm.setStyle(Paint.Style.STROKE);
+        arm.setColor(0xff21394b);arm.setStrokeWidth(15);
+        c.drawLine(pose.shoulderX,pose.shoulderY,
+                pose.elbowX,pose.elbowY,arm);
+        c.drawLine(pose.elbowX,pose.elbowY,pose.handX,pose.handY,arm);
+        arm.setColor(0xff7c9db1);arm.setStrokeWidth(9);
+        c.drawLine(pose.shoulderX-1,pose.shoulderY-1,
+                pose.elbowX-1,pose.elbowY-2,arm);
+        c.drawLine(pose.elbowX-1,pose.elbowY-2,
+                pose.handX-1,pose.handY-1,arm);
+        arm.setStyle(Paint.Style.FILL);
+        arm.setColor(0xffc2b078);
+        c.drawCircle(pose.elbowX,pose.elbowY,5,arm);
+        // Weapon image is positioned by the grip socket, not screen-space sticker.
         c.save();
-        c.translate(25,-48);
-        c.rotate(angle);
+        c.translate(pose.handX,pose.handY);
+        c.rotate(pose.angle);
         Rect source=new Rect(id*WEAPON_W,0,(id+1)*WEAPON_W,WEAPON_H);
-        // Held art shares a pivot near the gauntlet and rotates independently.
-        c.drawBitmap(weapons,source,new RectF(-20,-74,20,12),p);
+        p.setColor(Color.WHITE);p.setAlpha(255);
+        // Lower portion of the atlas sprite is the handle/grip.
+        c.drawBitmap(weapons,source,new RectF(-19,-77,19,9),p);
         c.restore();
-        if(attackProgress>=0&&!melee) {
+        // The hand is drawn over the handle, so visibly gripping the weapon.
+        arm.setColor(0xff293d4e);
+        c.drawCircle(pose.handX,pose.handY,9,arm);
+        arm.setColor(0xffc3d4d8);
+        c.drawCircle(pose.handX-1,pose.handY-2,6,arm);
+        arm.setColor(0xffd8b47d);
+        c.drawCircle(pose.handX+2,pose.handY+2,2.7f,arm);
+        if(attackProgress>=0&&!blade) {
             Paint glow=new Paint(Paint.ANTI_ALIAS_FLAG);
             int color=id==5?0xffaafaff:id==3?0xffaca5ff:0xffffce8c;
             glow.setColor(color);
             glow.setAlpha((int)(170*(1-clamp01(attackProgress))));
-            c.drawCircle(37,-103,13,glow);
+            c.drawCircle(pose.handX+17,pose.handY-54,14,glow);
             glow.setAlpha(240);
-            c.drawCircle(37,-103,4,glow);
+            c.drawCircle(pose.handX+17,pose.handY-54,4,glow);
         }
     }
 

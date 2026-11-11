@@ -154,6 +154,20 @@ public class ScreenGalleryTest {
         remainingField.setInt(view,1);
         spawn.invoke(view);
         capture(view,"11-world-boss-defenses");
+        // Capture three actual fortress upgrade ranks, with all four weapons mounted.
+        java.lang.reflect.Field rankField=RiftGameView.class.getDeclaredField("fortressRank");
+        rankField.setAccessible(true);
+        for(int rank=3;rank<=5;rank++){
+            rankField.setInt(view,rank);
+            capture(view,"24-fortress-rank-"+rank);
+        }
+        rankField.setInt(view,5);
+        java.lang.reflect.Field weaponField=RiftGameView.class.getDeclaredField("equippedWeapon");
+        weaponField.setAccessible(true);
+        for(int weapon=0;weapon<6;weapon++){
+            weaponField.setInt(view,weapon);
+            capture(view,"25-equipped-weapon-"+weapon);
+        }
         // Layout audit for ultrawide phones (safe-area side extensions).
         view.layout(0,0,1780,720);
         Bitmap panorama=Bitmap.createBitmap(1780,720,Bitmap.Config.ARGB_8888);
