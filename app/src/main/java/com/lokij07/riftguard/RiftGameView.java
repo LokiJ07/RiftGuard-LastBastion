@@ -94,7 +94,7 @@ public final class RiftGameView extends View {
     private long lastNs=0;
 
     private static final class Enemy {
-        float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer;
+        float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer,specialTimer,specialCharge;
         boolean moving,boss;
         int kind;
         Enemy(float x,float y,int kind,float hp,float phase) {
@@ -178,6 +178,13 @@ public final class RiftGameView extends View {
             if (scene==Scene.PLAY && !paused) update(dt);
         }
         canvas.drawColor(0xff101e22);
+        // Portrait/notch/ultrawide letterbox gutters now extend the scene palette
+        // instead of leaving distracting black pillars. The 16:9 touch layout is
+        // preserved without stretching/cropping gameplay or critical controls.
+        p.setShader(new LinearGradient(0,0,getWidth(),getHeight(),
+                0xff284c52,0xff10252f,Shader.TileMode.CLAMP));
+        canvas.drawRect(0,0,getWidth(),getHeight(),p);
+        p.setShader(null);
         float scale=Math.min(getWidth()/W,getHeight()/H);
         if (scale<=0) return;
         canvas.save();
@@ -332,6 +339,33 @@ public final class RiftGameView extends View {
                 else
                     e.y=BASE_Y+(wallDy<0?-134:134);
             }
+            if(e.boss){
+                e.specialTimer-=dt;
+                if(e.specialCharge<=0 && e.specialTimer<=0 &&
+                        distance(e.x,e.y,BASE_X,BASE_Y)<440f){
+                    e.specialCharge=.86f; // visible charge-up before the blast
+                    e.specialTimer=7.3f;
+                }else if(e.specialCharge>0) {
+                    e.specialCharge-=dt;
+                    if(e.specialCharge<=0) {
+                        float strength=DifficultyRules.enemyDamage(difficultyMode);
+                        if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
+                            baseHp-=28f*strength;
+                            puff(BASE_X,BASE_Y,19,0xffffac83);
+                        }
+                        if(distance(e.x,e.y,heroX,heroY)<265){
+                            heroHp-=21f*strength;
+                            puff(heroX,heroY,18,0xffe5a0fa);
+                        }
+                        if(baseHp<=0||heroHp<=0){
+                            baseHp=Math.max(0,baseHp);
+                            heroHp=Math.max(0,heroHp);
+                            scene=Scene.LOSE;return;
+                        }
+                        announce("BOSS SHOCKWAVE!");
+                    }
+                }
+            }
             if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0) {
                 heroHp-=(e.kind==2?20:11)*
                         DifficultyRules.enemyDamage(difficultyMode);
@@ -446,6 +480,7 @@ public final class RiftGameView extends View {
         if(elite)hp*=DifficultyRules.finalBossMultiplier(stage);
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
         enemy.boss=elite;
+        if(elite)enemy.specialTimer=5.0f;
         enemies.add(enemy);
         if(elite) {
             waveNotice=2.7f;
@@ -1087,6 +1122,23 @@ public final class RiftGameView extends View {
         }
     }
     private void drawEnemy(Canvas c,Enemy e) {
+        if(e.boss) {
+            float pulse=(float)Math.sin(gameTime*4)*5;
+            float outer=e.specialCharge>0?115-30*e.specialCharge:78+pulse;
+            circle(c,e.x,e.y-38,outer,0x335a2c85);
+            circleStroke(c,e.x,e.y-38,outer,0x99b98dff,e.specialCharge>0?7:3);
+            for(int i=0;i<9;i++){
+                float angle=i*.698f+gameTime*.4f;
+                circle(c,e.x+(float)Math.cos(angle)*outer*.9f,
+                        e.y-38+(float)Math.sin(angle)*outer*.43f,
+                        4,0xffdbb0ef);
+            }
+            if(e.specialCharge>0) {
+                circleStroke(c,e.x,e.y-38,95+e.specialCharge*25,
+                        0xffffc18f,5);
+                text(c,"CHARGING",e.x,e.y-118,19,0xffffcb9c,true);
+            }
+        }
         float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
         if(motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,attack,e.hp<e.maxHp*.20f)
                 || characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,e.hp<e.maxHp*.2f)) {
@@ -1206,6 +1258,12 @@ public final class RiftGameView extends View {
 
     private void drawHud(Canvas c,int biome) {
         drawHudTop(c,biome);
+        // Separate safe-area panel keeps game props behind—not over—touch controls.
+        p.setShader(new LinearGradient(0,510,0,H,0x00112631,0xe8172b37,
+                Shader.TileMode.CLAMP));
+        c.drawRect(0,516,W,H,p);
+        p.setShader(null);
+        boolean bossActive=drawBossHud(c);
         // Left joystick and right action cluster: no UI obstruction in the center.
         circle(c,153,568,94,0x77202c38);circleStroke(c,153,568,93,0x77d3ede6,3);
         circle(c,153+axisX*61,568+axisY*61,45,0xbba3c4c6);
@@ -1216,7 +1274,7 @@ public final class RiftGameView extends View {
         action(c,974,593,49,0xff6476a6,"PULSE",
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
         action(c,1130,560,70,0xffb3684c,"ATTACK","FIRE");
-        if(waveNotice>0) {
+        if(waveNotice>0 && !bossActive) {
             String text=waiting?"WAVE CLEARED!  +25 GOLD":"WAVE "+wave+"  •  DEFEND THE CORE";
             text(c,text,640,159,34,0xfff2e4bf,true);
         }
@@ -1227,6 +1285,22 @@ public final class RiftGameView extends View {
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
                 624,703,17,GOLD,true);
     }
+    /** Boss display is a real HP snapshot, not a painted label. */
+    private boolean drawBossHud(Canvas c) {
+        for(Enemy e:enemies)if(e.boss&&e.hp>0) {
+            round(c,415,109,865,166,14,0xe91f2536);
+            String name=DifficultyRules.worldBoss(stage)?
+                    DifficultyRules.worldBossName(stage):"ELITE SIEGE COMMANDER";
+            text(c,name,640,130,20,0xffffd2a0,true);
+            bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
+            if(e.specialCharge>0)
+                text(c,"INCOMING SHOCKWAVE  •  MOVE!",640,190,21,
+                        0xffffc18f,true);
+            return true;
+        }
+        return false;
+    }
+
     private int nextTowerTier() {
         int tier=BattleRules.MAX_TOWER_TIER;
         for(int t:towers) tier=Math.min(tier,t);
@@ -1350,6 +1424,10 @@ public final class RiftGameView extends View {
             c.restore();
             rect(c,905,top+67,1204,top+99,0xee182e37);
             text(c,(char)('A'+m)+"  "+Campaign.MAPS[m],914,top+90,19,INK,false);
+            if(DifficultyRules.worldBoss(mission)) {
+                round(c,1090,top+4,1197,top+28,6,0xdd71384e);
+                text(c,"WORLD BOSS",1143,top+22,15,0xffffdfbc,true);
+            }
             text(c,accessible?(mission<unlocked?"DONE":"GO"):"LOCK",
                     1173,top+91,15,accessible?0xffb6e3a0:0xffffb5a4,true);
         }

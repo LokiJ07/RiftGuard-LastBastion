@@ -133,5 +133,19 @@ public class ScreenGalleryTest {
         remainingField.setInt(view,1);
         spawn.invoke(view);
         capture(view,"11-world-boss-defenses");
+        // Layout audit for ultrawide phones (safe-area side extensions).
+        view.layout(0,0,1780,720);
+        Bitmap panorama=Bitmap.createBitmap(1780,720,Bitmap.Config.ARGB_8888);
+        view.draw(new Canvas(panorama));
+        File wideRoot=new File(System.getProperty("user.dir"));
+        File wideFolder=new File(wideRoot,new File("app/build.gradle").exists()
+                ?"app/build/screenshots":"build/screenshots");
+        File wide=new File(wideFolder,"12-ultrawide-battle.png");
+        try(FileOutputStream stream=new FileOutputStream(wide)){
+            assertTrue(panorama.compress(Bitmap.CompressFormat.PNG,100,stream));
+        }
+        assertTrue(wide.length()>4000);
+        panorama.recycle();
+        view.layout(0,0,1280,720);
     }
 }
