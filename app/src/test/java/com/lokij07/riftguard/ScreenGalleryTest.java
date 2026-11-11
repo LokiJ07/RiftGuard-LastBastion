@@ -125,6 +125,13 @@ public class ScreenGalleryTest {
         start.invoke(view,2); // Siege: separate battlefield path and monster
         spawn.invoke(view);
         capture(view,"07-fortress-siege");
+        // Verify that different levels, not only ABC, produce different actual roads.
+        start.invoke(view,Campaign.stage(1,0));
+        capture(view,"14-route-greenhaven-1A");
+        start.invoke(view,Campaign.stage(5,0));
+        capture(view,"15-route-greenhaven-5A");
+        start.invoke(view,Campaign.stage(27,0));
+        capture(view,"16-route-venom-27A");
         // Render a named world-boss siege with four distinct mounted defenses.
         start.invoke(view,Campaign.stage(10,2));
         int[] battlements=(int[])getField(view,"towers");

@@ -233,7 +233,7 @@ public final class RiftGameView extends View {
             float y=55+r.nextFloat()*(WORLD_H-110);
             if(distance(x,y,BASE_X,BASE_Y)<327)continue;
             if(distance(x,y,heroX,heroY)<212)continue;
-            if(LaneRules.coversPath(Campaign.map(stage),x,y))continue;
+            if(LaneRules.stageCoversPath(stage,x,y))continue;
             int chance=r.nextInt(100);
             int kind=chance<12?0:chance<24?1:chance<49?2:
                      chance<78?3:chance<88?4:5;
@@ -310,15 +310,17 @@ public final class RiftGameView extends View {
             e.slowTimer=Math.max(0,e.slowTimer-dt);
             float dHero=distance(e.x,e.y,heroX,heroY);
             boolean hunt=MovementRules.huntsHero(dHero,e.kind);
-            int route=Campaign.map(stage);
-            float tx=hunt?heroX:LaneRules.targetX(e.x,route);
-            float ty=hunt?heroY:LaneRules.targetY(e.x,route);
+            // Follow the actual stage-specific painted lane, not a separate
+            // invisible straight line. Hero aggro can temporarily interrupt it.
+            boolean traveling=!hunt && e.x>LaneRules.CASTLE_GATE_X+120f;
+            float tx=hunt?heroX:traveling?
+                    LaneRules.stageWaypointX(e.x,stage):BASE_X;
+            float ty=hunt?heroY:traveling?
+                    LaneRules.stageWaypointY(e.x,stage):BASE_Y;
             float d=distance(e.x,e.y,tx,ty);
-            // Intermediate bend is a waypoint, not a combat stopping point.
-            // Only the final fortress perimeter uses the monster stand-off range.
-            boolean passingWaypoint=!hunt &&
-                    e.x>LaneRules.waypointX(route)+20f;
-            float stop=passingWaypoint?3f:MovementRules.enemyStopDistance(hunt,e.kind);
+            // Final fortress boundary, not each intermediate lane sample,
+            // determines how close monsters may stop to attack.
+            float stop=traveling?3f:MovementRules.enemyStopDistance(hunt,e.kind);
             e.moving=d>stop;
             if(e.moving) {
                 float speedFactor=(e.kind==3?1.15f:1f)*
@@ -469,7 +471,7 @@ public final class RiftGameView extends View {
     }
     private void spawnEnemy() {
         float x=LaneRules.ENEMY_SPAWN_X-random.nextFloat()*26f;
-        float y=LaneRules.spawnY(Campaign.map(stage),random.nextFloat()*116f-58f);
+        float y=LaneRules.stageEnemyY(stage,random.nextFloat()*96f-48f);
         int pool=Math.min(6,2+Campaign.world(stage)/2+(wave>=3?1:0));
         int kind=random.nextInt(Math.max(1,pool));
         // The Forest Boar becomes a recognizable charging enemy from wave two.
@@ -640,22 +642,20 @@ public final class RiftGameView extends View {
         for(int x=0;x<=WORLD_W;x+=95) line(c,x,0,x,WORLD_H,0x163c4d4c,1);
         for(int y=0;y<=WORLD_H;y+=95) line(c,0,y,WORLD_W,y,0x163c4d4c,1);
         drawEnvironmentFeatures(c,biome);
-        p.setColor(0x665e6457);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(96);
+        // True stage-unique lane: renderer, hitbox exclusion, enemy pathing,
+        // spawn locations and progress share one pure route definition.
         Path road=new Path();
-        if(Campaign.map(stage)==0) {
-            road.moveTo(WORLD_W,510);
-            road.cubicTo(1640,480,1350,520,LaneRules.CASTLE_GATE_X,510);
-        }else if(Campaign.map(stage)==1){
-            road.moveTo(WORLD_W,405);
-            road.cubicTo(1720,375,1565,550,LaneRules.waypointX(1),LaneRules.waypointY(1));
-            road.cubicTo(1350,570,1210,515,LaneRules.CASTLE_GATE_X,510);
-        }else{
-            road.moveTo(WORLD_W,598);
-            road.cubicTo(1680,610,1530,450,LaneRules.waypointX(2),LaneRules.waypointY(2));
-            road.cubicTo(1300,430,1180,512,LaneRules.CASTLE_GATE_X,510);
-        }
+        road.moveTo(WORLD_W,LaneRules.stagePathY(stage,WORLD_W));
+        for(float x=WORLD_W-18;x>=LaneRules.CASTLE_GATE_X-28;x-=18)
+            road.lineTo(x,LaneRules.stagePathY(stage,x));
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setColor(0x663d473b);p.setStrokeWidth(110);
         c.drawPath(road,p);
-        p.setColor(0xff9a9173);p.setStrokeWidth(5);c.drawPath(road,p);
+        p.setColor(0xb06f6a50);p.setStrokeWidth(88);
+        c.drawPath(road,p);
+        p.setColor(0x55d3b58a);p.setStrokeWidth(4);
+        c.drawPath(road,p);
         p.setStyle(Paint.Style.FILL);
         for(int i=0;i<10;i++){
             float px=120+i*187,py=75+(i*143)%860;
