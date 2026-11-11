@@ -191,6 +191,28 @@ public final class RiftGameViewSmokeTest {
         assertTrue("Kills must come from damage, not test manipulation",(Integer)value(view,"kills")>0);
     }
 
+    @Test public void normalCombatCompletesAllWavesOfFirstStage() throws Exception {
+        start(0);
+        set(view,"firing",true);
+        boolean won=false;
+        for(int frame=0;frame<7200;frame++) {
+            if(frame%22==0 && (Integer)value(view,"gold")>=55) {
+                int[] towers=(int[])value(view,"towers");
+                boolean available=false;
+                for(int tier:towers)if(tier<BattleRules.MAX_TOWER_TIER)available=true;
+                if(available)invoke(view,"build",new Class<?>[0]);
+            }
+            if(frame%220==110)invoke(view,"pulse",new Class<?>[0]);
+            advance(.05f);
+            String scene=value(view,"scene").toString();
+            if("WIN".equals(scene)){won=true;break;}
+            if("LOSE".equals(scene))break;
+        }
+        assertTrue("Actual combat, not forced wave completion, should win Level 1-A",won);
+        assertEquals(1,value(view,"unlocked"));
+        assertTrue((Integer)value(view,"kills")>=6);
+    }
+
     @Test public void pauseAndBackgroundClearStuckMovementOrFiring() throws Exception {
         start(0);
         long now=android.os.SystemClock.uptimeMillis();
