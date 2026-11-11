@@ -247,7 +247,15 @@ public final class RiftGameViewSmokeTest {
     }
 
     @Test public void monsterSpawnRouteAndCameraStayConsistentAcrossABC() throws Exception {
-        assertEquals(1380f,LaneRules.VIEW_CENTER_X,.001f);
+        assertEquals(1242f,LaneRules.VIEW_CENTER_X,.001f);
+        assertEquals(447f,LaneRules.VIEW_CENTER_Y,.001f);
+        // All keep sides must fit inside the 16:9 battle scene.
+        float castleLeft=640+(950-219-LaneRules.VIEW_CENTER_X)*1.10f;
+        float castleRight=640+(950+219-LaneRules.VIEW_CENTER_X)*1.10f;
+        float castleTop=360+(510-301-LaneRules.VIEW_CENTER_Y)*1.10f;
+        assertTrue("Fortress cropped off the left edge",castleLeft>=45);
+        assertTrue("Fortress right edge should remain left of combat center",castleRight<600);
+        assertTrue("Fortress spires hidden under battle header",castleTop>=90);
         for(int stage=0;stage<3;stage++) {
             start(stage);
             assertEquals(LaneRules.startX(),number(view,"heroX"),.001f);
