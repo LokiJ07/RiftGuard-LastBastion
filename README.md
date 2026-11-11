@@ -2,9 +2,11 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.3 — first generated art actually bundled in APK
+## Current version: V0.4 — real painted scene and animated character assets bundled in APK
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
-- **Real bundled art**: first original AI-generated paintings are packed into a WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails. Live clickable region nodes and progression remain independent of the picture. This first compressed preview is deliberately low resolution, not final artwork.
+- **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
+- **Actual sprite imagery in gameplay**: 624×300 original Warden and creature sprite atlas (WebP with alpha); hero and monster movement/combat animations use these independent sprites. Some winged creatures retain their procedural artwork. Not frame-by-frame sprite animation yet.
+- **Living world map**: ten clickable region nodes and three A/B/C mission previews over the illustrated world. Progression remains controlled in code, not baked into painting.
 - **New permanent fortress upgrade**: five ranks, supplies earned on mission wins, castle appearance/core HP/starting towers progress, saved after reopening the app.
 - **New Armory**: six visible weapon designs with unlock rules, equip selection, persistent loadout and distinct attack stats/effects (crossbow, greatsword, fire sabre, arc staff, siege repeater, frost lance).
 - Upgradable turrets, touch joystick, hold-to-attack, Arc Pulse, monster classes, win/lose, pause/resume, responsive HUD.

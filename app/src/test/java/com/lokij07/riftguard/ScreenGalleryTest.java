@@ -69,6 +69,23 @@ public class ScreenGalleryTest {
         tap(view,120,654); // home
         tap(view,250,449);
         tap(view,630,613); // deploy
+        // Show actual moving enemies for screenshot verification, not an empty map.
+        java.lang.reflect.Method spawn=RiftGameView.class.getDeclaredMethod("spawnEnemy");
+        spawn.setAccessible(true);
+        java.lang.reflect.Field enemiesField=RiftGameView.class.getDeclaredField("enemies");
+        enemiesField.setAccessible(true);
+        java.util.List<?> living=(java.util.List<?>)enemiesField.get(view);
+        for(int kind=0;kind<=6;kind++) {
+            spawn.invoke(view);
+            Object enemy=living.get(living.size()-1);
+            java.lang.reflect.Field type=enemy.getClass().getDeclaredField("kind");
+            java.lang.reflect.Field px=enemy.getClass().getDeclaredField("x");
+            java.lang.reflect.Field py=enemy.getClass().getDeclaredField("y");
+            type.setAccessible(true);px.setAccessible(true);py.setAccessible(true);
+            type.setInt(enemy,kind);
+            px.setFloat(enemy,680+kind*85);
+            py.setFloat(enemy,640-(kind%3)*102);
+        }
         capture(view,"05-battle");
     }
 }

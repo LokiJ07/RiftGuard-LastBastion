@@ -42,6 +42,7 @@ public final class RiftGameView extends View {
     private Scene scene=Scene.HOME;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
+    private final CharacterArt characterArt;
     private final SharedPreferences prefs;
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
@@ -103,6 +104,7 @@ public final class RiftGameView extends View {
         super(context);
         setLayerType(View.LAYER_TYPE_HARDWARE,null);
         painted=new PaintedArt(context.getResources());
+        characterArt=new CharacterArt(context.getResources());
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -340,7 +342,9 @@ public final class RiftGameView extends View {
         float y=BattleRules.clamp(BASE_Y+(float)Math.sin(angle)*radius,35,WORLD_H-35);
         int pool=Math.min(6,2+Campaign.world(stage)/2+(wave>=3?1:0));
         int kind=random.nextInt(Math.max(1,pool));
-        if (wave==Campaign.waves(stage) && remaining==1 && Campaign.map(stage)==2) kind=2;
+        // The Forest Boar becomes a recognizable charging enemy from wave two.
+        if(wave>=2 && random.nextFloat()<.15f)kind=6;
+        if (wave==Campaign.waves(stage) && remaining==1 && Campaign.map(stage)==2) kind=5;
         float hp=BattleRules.enemyHealth(stage,kind);
         if (wave==Campaign.waves(stage) && remaining==1 && Campaign.map(stage)==2) hp*=4;
         enemies.add(new Enemy(x,y,kind,hp,random.nextFloat()*6.28f));
@@ -675,6 +679,16 @@ public final class RiftGameView extends View {
         for(int j=0;j<tier;j++)circle(c,x-25+j*12,y+10,4,GOLD);
     }
     private void drawEnemy(Canvas c,Enemy e) {
+        if(characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,e.hp<e.maxHp*.2f)) {
+            if(e.hp<e.maxHp) {
+                float w=e.kind==5?52:28;
+                rect(c,e.x-w,e.y-(e.kind==5?110:78),e.x+w,e.y-(e.kind==5?104:72),0xff20313a);
+                rect(c,e.x-w+1,e.y-(e.kind==5?109:77),
+                        e.x-w+1+(w*2-2)*Math.max(0,e.hp/e.maxHp),
+                        e.y-(e.kind==5?105:73),0xfffc987d);
+            }
+            return;
+        }
         float bob=(float)Math.sin(e.phase)*4,scale=e.kind==2?1.6f:e.kind==1?.76f:1f;
         c.save();c.translate(e.x,e.y+bob);c.scale(scale,scale);
         oval(c,-24,15,24,27,0x66000000);
@@ -735,6 +749,16 @@ public final class RiftGameView extends View {
         circle(c,x+15,y-23,3,0xfff9edbe);
     }
     private void drawHero(Canvas c) {
+        if(characterArt.available()) {
+            boolean moving=Math.abs(axisX)+Math.abs(axisY)>.1f;
+            characterArt.hero(c,heroX,heroY,gameTime,moving,fireFlash>0,hurtCooldown>.1f);
+            // The currently equipped weapon still changes independently of hero art.
+            c.save(); c.translate(heroX+22,heroY-27);
+            c.rotate(fireFlash>0?28:0);
+            WorldArt.drawWeapon(c,equippedWeapon,0,0,.38f,gameTime);
+            c.restore();
+            return;
+        }
         float bob=(Math.abs(axisX)+Math.abs(axisY)>.1f)?
                 (float)Math.sin(gameTime*14)*4:(float)Math.sin(gameTime*3)*2;
         c.save();c.translate(heroX,heroY+bob);

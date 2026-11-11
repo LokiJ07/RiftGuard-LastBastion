@@ -15,11 +15,11 @@ public final class BattleRules {
     public static float enemyHealth(int stage, int type) {
         Campaign.checkStage(stage);
         float factor = 1f + stage * 0.029f;
-        float[] multipliers = {1f, .63f, 3.1f, .88f, 1.45f, 2f};
+        float[] multipliers = {1f, .63f, 3.1f, .88f, 1.45f, 2f, 1.8f};
         return 25f * factor * multipliers[Math.floorMod(type, multipliers.length)];
     }
     public static float enemySpeed(int type) {
-        float[] speeds = {57f, 93f, 34f, 77f, 52f, 46f};
+        float[] speeds = {57f, 93f, 34f, 77f, 52f, 46f, 83f};
         return speeds[Math.floorMod(type, speeds.length)];
     }
     public static float towerDamage(int tier) {

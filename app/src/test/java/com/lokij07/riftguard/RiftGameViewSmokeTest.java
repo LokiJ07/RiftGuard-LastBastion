@@ -141,6 +141,20 @@ public final class RiftGameViewSmokeTest {
         paint();
     }
 
+    @Test public void realCharacterSpriteAtlasLoadsAndAllClassesCanRender() throws Exception {
+        CharacterArt art=new CharacterArt(RuntimeEnvironment.getApplication().getResources());
+        assertTrue("Original Warden and enemy assets must ship within the APK",art.available());
+        Bitmap sheet=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        Canvas canvas=new Canvas(sheet);
+        art.hero(canvas,200,300,1,true,true,false);
+        for(int kind=0;kind<=6;kind++){
+            boolean drawn=art.enemy(canvas,kind,260+kind*100,340,kind*.3f,false);
+            if(kind==3)assertFalse("Flying monster keeps winged drawing",drawn);
+            else assertTrue("Monster type must have its own art: "+kind,drawn);
+        }
+        sheet.recycle();
+    }
+
     @Test public void joystickInputMovesHeroAndStopsOnRelease() throws Exception {
         start(0);
         float before=number(view,"heroX");
