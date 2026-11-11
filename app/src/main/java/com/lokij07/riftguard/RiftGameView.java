@@ -1410,7 +1410,7 @@ public final class RiftGameView extends View {
         round(c,64,111,879,578,21,0xff9f845f);
         int current=(selectedLevel-1)/10;
         if(regionalMap)
-            RegionJourney.draw(c,current,selectedLevel,unlocked,gameTime);
+            RegionJourney.draw(c,current,selectedLevel,unlocked,gameTime,biomeProps);
         else AtlasArt.draw(c,current,unlocked,gameTime);
         button(c,729,48,873,93,regionalMap?"WORLD":"EXPLORE",0xff416c71);
         round(c,893,111,1216,576,20,0xff182f3a);

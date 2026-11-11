@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.6.2 — difficulty, 10 world-boss finales, four defense families and stage identities
+## Current version: V0.6.3 — difficulty, 10 world-boss finales, four defense families and stage identities
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -59,3 +59,8 @@ Debug CI builds are not a release-signed APK. Reinstall conflicts may occur acro
 - Real-time layered illustration and independent hitboxes (not a static screenshot with numbers).
 - Screenshot regression checks now capture both the world overview and the regional journey.
 - This remains procedural 2D environmental artwork, not the target fully authored high-fidelity landscape.
+
+## V0.6.3 — textured regional environments
+- Region maps now render independent transparent **biome-specific ground props** (the original 60-asset atlas) behind selectable ten-stop routes, landmarks and dynamic progress markers.
+- Path hitboxes remain separate interactive data; images are never used as unclickable UI screenshots.
+- Still procedurally laid-out content, not 100 hand-painted regional locations or HD cinematics.

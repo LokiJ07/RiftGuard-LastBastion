@@ -49,6 +49,10 @@ public final class RegionJourney {
         p.setStyle(Paint.Style.FILL);p.setColor(color);c.drawText(value,x,y,p);
     }
     public static void draw(Canvas c,int world,int selectedLevel,int unlocked,float time) {
+        draw(c,world,selectedLevel,unlocked,time,null);
+    }
+    public static void draw(Canvas c,int world,int selectedLevel,int unlocked,
+                            float time,BiomeProps environment) {
         final float l=73,t=120,r=870,b=569;
         c.save();c.clipRect(l,t,r,b);
         WorldArt.drawScene(c,world,world%3,l,t,r-l,b-t,time);
@@ -56,6 +60,22 @@ public final class RegionJourney {
         c.drawRect(l,t,r,b,p);p.setShader(null);
         // Additional outposts and terrain ornaments, unique to this biome.
         int seed=Campaign.seed(Campaign.stage(world*10+1,0));
+        // Actual original, transparent asset layers from the game's regional
+        // scenery atlas. They sway independently from markers/roads/fortresses.
+        if(environment!=null && environment.ready()) {
+            for(int i=0;i<26;i++) {
+                float x=l+55+((seed>>>3)+i*139)%688;
+                float y=t+87+((seed>>>9)+i*97)%352;
+                boolean nearMission=false;
+                for(int j=0;j<X.length;j++) {
+                    float dx=x-X[j],dy=y-Y[j];
+                    if(dx*dx+dy*dy<3200){nearMission=true;break;}
+                }
+                if(nearMission)continue;
+                environment.draw(c,world,(i+world)%6,x,y,
+                        .31f+(i%4)*.055f,time,220);
+            }
+        }
         for(int i=0;i<26;i++) {
             float x=l+39+((seed>>>4)+(i*113))%715;
             float y=t+23+((seed>>>8)+(i*73))%396;
