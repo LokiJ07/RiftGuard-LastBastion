@@ -32,6 +32,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+      - name: Verify public downloadable resources
+        run: python3 scripts/verify_resource_pack.py
       - name: Build and test
         run: gradle --no-daemon --info :app:testDebugUnitTest :app:assembleDebug
       - name: Upload JUnit and HTML test reports
