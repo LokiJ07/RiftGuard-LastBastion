@@ -286,7 +286,11 @@ public final class RiftGameView extends View {
             boolean hunt=MovementRules.huntsHero(dHero,e.kind);
             float tx=hunt?heroX:BASE_X,ty=hunt?heroY:BASE_Y;
             float d=distance(e.x,e.y,tx,ty);
-            float stop=MovementRules.enemyStopDistance(hunt,e.kind);
+            // Intermediate bend is a waypoint, not a combat stopping point.
+            // Only the final fortress perimeter uses the monster stand-off range.
+            boolean passingWaypoint=!hunt &&
+                    e.x>LaneRules.waypointX(route)+20f;
+            float stop=passingWaypoint?3f:MovementRules.enemyStopDistance(hunt,e.kind);
             e.moving=d>stop;
             if(e.moving) {
                 float speedFactor=(e.kind==3?1.15f:1f);
@@ -351,8 +355,10 @@ public final class RiftGameView extends View {
                 puff(shot.target.x,shot.target.y,7,impact);
                 sit.remove();
             } else {
-                shot.x+=(shot.target.x-shot.x)/Math.max(1,d)*shot.speed*dt;
-                shot.y+=(shot.target.y-10-shot.y)/Math.max(1,d)*shot.speed*dt;
+                // Clamp each step to target distance, preventing projectile oscillation.
+                float step=Math.min(d,shot.speed*dt);
+                shot.x+=(shot.target.x-shot.x)/Math.max(1,d)*step;
+                shot.y+=(shot.target.y-10-shot.y)/Math.max(1,d)*step;
             }
         }
         Iterator<Spark> pit=sparks.iterator();

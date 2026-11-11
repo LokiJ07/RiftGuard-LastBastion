@@ -129,7 +129,8 @@ public final class RiftGameViewSmokeTest {
         @SuppressWarnings("unchecked")
         List<Object> foes=(List<Object>)value(reloaded,"enemies");
         Object enemy=foes.get(0);
-        set(enemy,"x",1030f);set(enemy,"y",690f);
+        set(enemy,"x",number(reloaded,"heroX")+78f);
+        set(enemy,"y",number(reloaded,"heroY"));
         set(enemy,"hp",300f);set(enemy,"maxHp",300f);
         invoke(reloaded,"fire",new Class<?>[0]);
         assertTrue("Equipped Ember Sabre must damage enemies",number(enemy,"hp")<300f);
@@ -204,13 +205,31 @@ public final class RiftGameViewSmokeTest {
 
         // Place a regular melee enemy near the hero, beyond the wall.
         set(enemy,"kind",0);
-        set(enemy,"x",1070f);
-        set(enemy,"y",690f);
+        set(enemy,"x",number(view,"heroX")+104f);
+        set(enemy,"y",number(view,"heroY"));
         set(enemy,"hp",200f);
         set(enemy,"maxHp",200f);
         float before=number(view,"heroHp");
         for(int i=0;i<45;i++)advance(.05f);
         assertTrue("Melee enemy must reach and damage player",number(view,"heroHp")<before);
+    }
+
+    @Test public void monsterSpawnRouteAndCameraStayConsistentAcrossABC() throws Exception {
+        assertEquals(1380f,LaneRules.VIEW_CENTER_X,.001f);
+        for(int stage=0;stage<3;stage++) {
+            start(stage);
+            assertEquals(LaneRules.startX(),number(view,"heroX"),.001f);
+            assertEquals(LaneRules.startY(),number(view,"heroY"),.001f);
+            @SuppressWarnings("unchecked")
+            List<Object> monsters=(List<Object>)value(view,"enemies");
+            for(int i=0;i<12;i++) invoke(view,"spawnEnemy",new Class<?>[0]);
+            for(Object enemy:monsters) {
+                assertTrue("Enemies must enter from right",number(enemy,"x")>1800);
+                assertTrue("Enemies must enter the lane",
+                        Math.abs(number(enemy,"y")-LaneRules.spawnY(stage,0))<=58.1f);
+            }
+            paint();
+        }
     }
 
     @Test public void allSixEnemyTypesAdvanceAndTowersUpgrade() throws Exception {
