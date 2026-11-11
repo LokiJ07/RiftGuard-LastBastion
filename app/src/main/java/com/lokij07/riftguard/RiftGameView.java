@@ -670,13 +670,16 @@ public final class RiftGameView extends View {
             float radius=StageHazards.radius(stage,i);
             boolean hit=false;
             if(distance(heroX,heroY,x,y)<radius) {
+                // Venom, mist and shadow cause BOTH slowing and damage.
+                // Brambles and frost slow only, to keep early regions approachable.
                 if(StageHazards.slows(stage))hazardSlowTimer=1.3f;
-                else heroHp-=StageHazards.heroDamage(stage,difficultyMode);
+                heroHp-=StageHazards.heroDamage(stage,difficultyMode);
                 hit=true;
             }
             for(Enemy e:enemies)if(e.hp>0&&distance(e.x,e.y,x,y)<radius) {
                 if(StageHazards.slows(stage))e.slowTimer=Math.max(e.slowTimer,1.6f);
-                else e.hp-=StageHazards.monsterDamage(stage);
+                if(StageHazards.heroDamage(stage,difficultyMode)>0)
+                    e.hp-=StageHazards.monsterDamage(stage);
                 hit=true;
             }
             hazardTimers[i]=.86f;
