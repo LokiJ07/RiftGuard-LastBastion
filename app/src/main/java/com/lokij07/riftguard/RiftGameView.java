@@ -47,6 +47,7 @@ public final class RiftGameView extends View {
     private final List<Shot> shots=new ArrayList<>();
     private final List<Spark> sparks=new ArrayList<>();
     private final List<Decor> decor=new ArrayList<>();
+    private final List<Pickup> pickups=new ArrayList<>();
     private final int[] towers=new int[4];
     private final float[] towerTimers=new float[4];
     private final float[] towerX={810,1092,811,1093};
@@ -86,6 +87,11 @@ public final class RiftGameView extends View {
         Spark(float x,float y,float vx,float vy,float life,int color) {
             this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.life=life;this.maxLife=life;this.color=color;
         }
+    }
+    private static final class Pickup {
+        float x,y,age=0;
+        int kind;
+        Pickup(float x,float y,int kind){this.x=x;this.y=y;this.kind=kind;}
     }
     private static final class Decor {
         float x,y,size; int kind;
@@ -163,7 +169,7 @@ public final class RiftGameView extends View {
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
         waveNotice=2.6f; noticeTimer=0; gold=150+(fortressRank-1)*20; kills=0;
-        enemies.clear();shots.clear();sparks.clear();decor.clear();
+        enemies.clear();shots.clear();sparks.clear();decor.clear();pickups.clear();
         for (int i=0;i<towers.length;i++){towers[i]=0;towerTimers[i]=0;}
         towers[0]=1;
         if(fortressRank>=4)towers[1]=1;
@@ -221,6 +227,8 @@ public final class RiftGameView extends View {
             if(e.hp<=0) {
                 gold+=BattleRules.killCoins(e.kind);
                 kills++;
+                if(pickups.size()<28 && random.nextFloat()<.22f)
+                    pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
                 puff(e.x,e.y,9,GLOWS[Campaign.world(stage)]);
                 it.remove();continue;
             }
@@ -299,6 +307,17 @@ public final class RiftGameView extends View {
             Spark s=pit.next();s.life-=dt;
             if(s.life<=0){pit.remove();continue;}
             s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=42*dt;
+        }
+        Iterator<Pickup> drops=pickups.iterator();
+        while(drops.hasNext()) {
+            Pickup drop=drops.next();drop.age+=dt;
+            if(drop.age>26f) {drops.remove();continue;}
+            if(distance(heroX,heroY,drop.x,drop.y)<43) {
+                if(drop.kind==0){heroHp=Math.min(100f,heroHp+30);announce("HEALTH RESTORED +30");}
+                else {gold+=35;announce("SUPPLY CACHE +35 GOLD");}
+                puff(drop.x,drop.y,9,drop.kind==0?0xfff4949c:GOLD);
+                drops.remove();
+            }
         }
         if(remaining==0 && enemies.isEmpty()) {
             if(!waiting){waiting=true;intermission=2.5f;gold+=25;waveNotice=2.5f;}
@@ -420,6 +439,7 @@ public final class RiftGameView extends View {
         drawBase(c,biome);
         for(int i=0;i<towers.length;i++)drawTower(c,towerX[i],towerY[i],towers[i],biome);
         for(Enemy e:enemies)drawEnemy(c,e);
+        for(Pickup drop:pickups)drawPickup(c,drop);
         drawHero(c);
         for(Shot s:shots){
             int boltColor=s.tower?GOLD:Progression.WEAPONS[s.weaponId].color;
@@ -450,6 +470,7 @@ public final class RiftGameView extends View {
         // Ground tiles and subtle road markings.
         for(int x=0;x<=WORLD_W;x+=95) line(c,x,0,x,WORLD_H,0x163c4d4c,1);
         for(int y=0;y<=WORLD_H;y+=95) line(c,0,y,WORLD_W,y,0x163c4d4c,1);
+        drawEnvironmentFeatures(c,biome);
         p.setColor(0x665e6457);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(96);
         Path road=new Path();
         if(Campaign.map(stage)==0) {
@@ -473,6 +494,69 @@ public final class RiftGameView extends View {
             float py=(i*149.3f+(biome==4?gameTime*40:gameTime*6))%WORLD_H;
             int tint=biome==4?0x99f2faff:biome==7?0x66b7bbff:0x55c9e8c4;
             circle(c,px,py,biome==4?3.5f:2.2f,tint);
+        }
+    }
+    /** Region and mission specific terrain: swamps, canyons, ice, factories and siege scars. */
+    private void drawEnvironmentFeatures(Canvas c,int biome) {
+        Random ground=new Random(Campaign.seed(stage)^0x4192aef1);
+        for(int i=0;i<26;i++) {
+            float x=ground.nextFloat()*WORLD_W,y=ground.nextFloat()*WORLD_H;
+            if(distance(x,y,BASE_X,BASE_Y)<260)continue;
+            float r=17+ground.nextFloat()*40;
+            if(biome==0 || biome==1) {
+                oval(c,x-r,y-r*.24f,x+r,y+r*.24f,0x224abb65);
+                if(biome==1) {
+                    circle(c,x,y,r*.20f,0x6690fae2);
+                    circle(c,x+13,y-8,r*.10f,0x88fff3bb);
+                }
+            } else if(biome==2) {
+                oval(c,x-r,y-r*.6f,x+r,y+r*.6f,0xff406d68);
+                oval(c,x-r*.73f,y-r*.4f,x+r*.73f,y+r*.38f,0xff789a81);
+                circle(c,x-7,y+6,3,0xffb7d89b);
+            } else if(biome==3 || biome==9) {
+                line(c,x-r,y-r*.5f,x+r*.4f,y+r*.5f,0xff392f3a,12);
+                line(c,x-r,y-r*.5f,x+r*.4f,y+r*.5f,0xfff08253,3);
+                circle(c,x+r*.3f,y+r*.15f,5,0x66ffb471);
+            } else if(biome==4) {
+                oval(c,x-r,y-r*.28f,x+r,y+r*.36f,0x77e7f3ef);
+                oval(c,x-r*.65f,y-r*.2f,x+r*.66f,y+r*.16f,0xffc4dce1);
+            } else if(biome==5) {
+                rect(c,x-r,y-r*.7f,x+r,y+r*.7f,0xff626f75);
+                rect(c,x-r+4,y-r*.7f+4,x+r-4,y+r*.7f-4,0xff8d9285);
+                for(int j=0;j<4;j++)circle(c,x-r*.7f+j*r*.5f,y,3,0xffaabbaf);
+            } else if(biome==6) {
+                polygon(c,new float[]{x-r,y+r*.4f,x,y-r,x+r,y+r*.4f},0x6686ddec);
+                polygon(c,new float[]{x,y-r,x+r,y+r*.4f,x+r*.3f,y+r*.1f},0xff85d9eb);
+            } else if(biome==7) {
+                oval(c,x-r,y-r*.25f,x+r,y+r*.25f,0x66a0c1d2);
+                line(c,x-10,y-12,x+15,y+16,0xffb3d1fa,2);
+            } else {
+                circleStroke(c,x,y,r*.58f,0x6686a4c1,2);
+                circle(c,x,y,5,0x99b7a0df);
+            }
+        }
+        if(Campaign.map(stage)==1) {
+            // Variant B always features a real river crossing rather than just a color swap.
+            Path river=new Path();
+            river.moveTo(320,-60);
+            river.cubicTo(120,250,540,510,290,1110);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(95);
+            p.setColor(0xff294f5e);c.drawPath(river,p);
+            p.setStrokeWidth(75);p.setColor(0xff6397a2);c.drawPath(river,p);
+            p.setStrokeWidth(3);p.setColor(0x77d9ebec);c.drawPath(river,p);
+            p.setStyle(Paint.Style.FILL);
+            for(int i=0;i<9;i++) {
+                float xx=240+i*24;
+                rect(c,xx,451,xx+17,533,0xff8e7155);
+                line(c,xx+2,451,xx+2,531,0xffbfa47b,3);
+            }
+        } else if(Campaign.map(stage)==2) {
+            for(int i=0;i<5;i++) {
+                float x=360+i*248,y=195+(i%2)*90;
+                oval(c,x-40,y-20,x+40,y+20,0x553e2b2d);
+                line(c,x-22,y-3,x+25,y+10,0xffa88672,5);
+                line(c,x-19,y+13,x+18,y-13,0xff775f56,5);
+            }
         }
     }
     private void drawDecor(Canvas c,Decor d,int biome) {
@@ -607,11 +691,42 @@ public final class RiftGameView extends View {
         }
         circle(c,-7,-22,4,0xffffe899);circle(c,7,-22,4,0xffffe899);
         line(c,-4,-9,6,-9,0xff3f3038,3);
+        if(e.kind==1) {
+            polygon(c,new float[]{-13,-32,-18,-64,-1,-39},0xffe3b66a);
+            polygon(c,new float[]{13,-32,18,-64,1,-39},0xffe3b66a);
+        }else if(e.kind==4) {
+            polygon(c,new float[]{-22,-33,0,-66,22,-33},0xff315c55);
+            line(c,28,5,28,-44,0xffbca578,5);
+            circle(c,28,-51,10,0xff86deb7);
+        }else if(e.kind==5) {
+            rect(c,-25,-3,25,19,0xff596674);
+            rect(c,-9,-36,9,-18,0xff3d5264);
+            line(c,20,-12,43,-33,0xffa4afb5,8);
+            circle(c,43,-33,7,0xffff9a75);
+        }
         if(e.hp<e.maxHp) {
             rect(c,-25,-52,25,-47,0xbb111c21);
             rect(c,-24,-51,-24+48*Math.max(0,e.hp/e.maxHp),-48,0xffff8c78);
         }
         c.restore();
+    }
+    private void drawPickup(Canvas c,Pickup drop) {
+        float bob=(float)Math.sin(gameTime*4+drop.x)*5;
+        float x=drop.x,y=drop.y+bob;
+        oval(c,x-16,y+7,x+17,y+14,0x55000000);
+        circle(c,x,y-13,17,drop.kind==0?0x55ff7387:0x66ffce70);
+        if(drop.kind==0) {
+            round(c,x-10,y-22,x+10,y+2,4,0xffc95a71);
+            rect(c,x-6,y-26,x+6,y-19,0xffffd4a4);
+            rect(c,x-2,y-17,x+2,y-3,0xffffffff);
+            rect(c,x-7,y-12,x+7,y-8,0xffffffff);
+        } else {
+            polygon(c,new float[]{x-13,y-7,x-7,y-23,x+9,y-23,x+16,y-5,
+                   x+5,y+3,x-10,y+3},0xffd6a35d);
+            circle(c,x,y-11,7,0xffffd67b);
+            text(c,"+",x,y-7,13,0xff665033,true);
+        }
+        circle(c,x+15,y-23,3,0xfff9edbe);
     }
     private void drawHero(Canvas c) {
         float bob=(Math.abs(axisX)+Math.abs(axisY)>.1f)?
@@ -736,8 +851,7 @@ public final class RiftGameView extends View {
             WorldArt.drawScene(c,i,i%3,x,y,216,80,gameTime);
             rect(c,x,y+81,x+216,y+112,0xe01e3540);
             String region=Campaign.WORLDS[i];
-            if(region.length()>18)region=region.substring(0,18);
-            text(c,region.toUpperCase(),x+8,y+102,17,INK,false);
+            text(c,region.toUpperCase(),x+8,y+102,16,INK,false);
             if(unlocked<(i*30)) {
                 circle(c,x+193,y+14,12,0xcc26303a);
                 text(c,"X",x+193,y+20,16,0xffe6b6a0,true);
@@ -774,8 +888,7 @@ public final class RiftGameView extends View {
         text(c,"WARDEN'S ARMORY",80,87,51,GOLD,false);
         text(c,"Equip unlocked weapons. Each has different damage, reach and attack speed.",
                 83,123,22,INK,false);
-        text(c,"FORTRESS "+fortressRank+"   |   EQUIPPED: "+
-                Progression.WEAPONS[equippedWeapon].name,1194,88,21,GOLD,true);
+        text(c,"FORT "+fortressRank+"   |   SUPPLIES "+supplies,1008,88,21,GOLD,true);
         for(int i=0;i<Progression.WEAPONS.length;i++){
             Progression.Weapon w=Progression.WEAPONS[i];
             boolean available=Progression.canEquip(fortressRank,i);

@@ -1,7 +1,7 @@
 # RiftGuard — Production Pack V1
 
 ## Current deliverable and limitations
-This production pass introduces a genuine working unlock–equip–fight progression loop, persistent fortress ranks, illustrated **vector-drawn** region cards and distinct stage thumbnails, permanent supply rewards, and a different visible weapon effect for each weapon. These visuals are procedurally drawn original placeholders, **not generated high-resolution sprites or 300 hand-crafted illustrations**.
+This production pass introduces a genuine working unlock–equip–fight progression loop, persistent fortress ranks, illustrated **vector-drawn** region cards and distinct stage thumbnails, permanent supply rewards, collectable healing/gold drops, distinct battlefield terrain details, and a different visible weapon effect for each weapon. These visuals are procedurally drawn original placeholders, **not generated high-resolution sprites or 300 hand-crafted illustrations**.
 
 ## Upgrade/unlock economy
 | Rank | Fortress | Supply cost | New weapon |

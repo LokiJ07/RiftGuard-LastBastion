@@ -257,6 +257,27 @@ public final class RiftGameViewSmokeTest {
         assertTrue((Integer)value(view,"kills")>=6);
     }
 
+    @Test public void lootDropsCanHealHeroAndSupplyBattleGold() throws Exception {
+        start(0);
+        set(view,"heroHp",60f);
+        Class<?> pickup=Class.forName("com.lokij07.riftguard.RiftGameView$Pickup");
+        java.lang.reflect.Constructor<?> ctor=pickup.getDeclaredConstructor(
+                float.class,float.class,int.class);
+        ctor.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        List<Object> drops=(List<Object>)value(view,"pickups");
+        float x=number(view,"heroX"),y=number(view,"heroY");
+        drops.add(ctor.newInstance(x,y,0));
+        advance(.05f);
+        assertEquals(90f,number(view,"heroHp"),.001f);
+        assertTrue(drops.isEmpty());
+        int before=(Integer)value(view,"gold");
+        drops.add(ctor.newInstance(x,y,1));
+        advance(.05f);
+        assertEquals(before+35,value(view,"gold"));
+        assertTrue(drops.isEmpty());
+    }
+
     @Test public void pauseAndBackgroundClearStuckMovementOrFiring() throws Exception {
         start(0);
         long now=android.os.SystemClock.uptimeMillis();
