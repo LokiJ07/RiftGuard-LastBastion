@@ -38,7 +38,7 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, FORTRESS, RESOURCES, PLAY, WIN, LOSE }
+    private enum Scene { HOME, MAP, ARMORY, FORTRESS, RESOURCES, KINGDOM, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
@@ -68,6 +68,11 @@ public final class RiftGameView extends View {
     }
 
     private final SharedPreferences prefs;
+    private final KingdomMeta kingdom;
+    private int kingdomTab=0;
+    private String kingdomMessage="Complete challenges to earn rewards!";
+    private boolean battleRecorded=false;
+    private int battlePulses=0;
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
     private final List<Shot> shots=new ArrayList<>();
@@ -138,6 +143,7 @@ public final class RiftGameView extends View {
         biomeProps=new BiomeProps(context);
         resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
+        kingdom=new KingdomMeta(prefs);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
         fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
@@ -196,6 +202,7 @@ public final class RiftGameView extends View {
         else if (scene==Scene.ARMORY) drawArmory(canvas);
         else if (scene==Scene.FORTRESS) drawFortress(canvas);
         else if (scene==Scene.RESOURCES) drawResources(canvas);
+        else if (scene==Scene.KINGDOM) drawKingdom(canvas);
         else {
             drawBattle(canvas);
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
@@ -208,10 +215,11 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false;
+        battleRecorded=false; battlePulses=0;
         motionArt.prepareTerrain(s);
         walkClock=0;heroMoving=false;
-        heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=100;
-        baseHp=Progression.maxCoreHp(fortressRank);
+        heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=kingdom.heroMaxHp();
+        baseHp=Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp();
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
@@ -283,7 +291,7 @@ public final class RiftGameView extends View {
                 if (target!=null) {
                     float[] modifiers={1f,1.50f,.77f,1.13f};
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*modifiers[i],
+                            BattleRules.towerDamage(towers[i])*modifiers[i]*kingdom.towerDamageMultiplier(),
                             i==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
@@ -363,7 +371,7 @@ public final class RiftGameView extends View {
                         if(baseHp<=0||heroHp<=0){
                             baseHp=Math.max(0,baseHp);
                             heroHp=Math.max(0,heroHp);
-                            scene=Scene.LOSE;return;
+                            markDefeat();return;
                         }
                         announce("BOSS SHOCKWAVE!");
                     }
@@ -374,7 +382,7 @@ public final class RiftGameView extends View {
                         DifficultyRules.enemyDamage(difficultyMode);
                 e.attackAnim=.42f;
                 hurtCooldown=.8f; puff(heroX,heroY,6,0xffff8086);
-                if(heroHp<=0){heroHp=0;scene=Scene.LOSE;return;}
+                if(heroHp<=0){heroHp=0;markDefeat();return;}
             }
             if(!hunt && (distance(e.x,e.y,BASE_X,BASE_Y)<190 || (e.kind==5 &&
                     distance(e.x,e.y,BASE_X,BASE_Y)<275))) {
@@ -385,7 +393,7 @@ public final class RiftGameView extends View {
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.7f:2.2f;
                     puff(BASE_X,BASE_Y,6,0xffff9f74);
-                    if(baseHp<=0){baseHp=0;scene=Scene.LOSE;return;}
+                    if(baseHp<=0){baseHp=0;markDefeat();return;}
                 }
             }
         }
@@ -451,7 +459,7 @@ public final class RiftGameView extends View {
             Pickup drop=drops.next();drop.age+=dt;
             if(drop.age>26f) {drops.remove();continue;}
             if(distance(heroX,heroY,drop.x,drop.y)<43) {
-                if(drop.kind==0){heroHp=Math.min(100f,heroHp+30);announce("HEALTH RESTORED +30");}
+                if(drop.kind==0){heroHp=Math.min(kingdom.heroMaxHp(),heroHp+30);announce("HEALTH RESTORED +30");}
                 else {gold+=35;announce("SUPPLY CACHE +35 GOLD");}
                 puff(drop.x,drop.y,9,drop.kind==0?0xfff4949c:GOLD);
                 drops.remove();
@@ -525,8 +533,9 @@ public final class RiftGameView extends View {
         puff(heroX,heroY,5,weapon.color);
     }
     private void pulse() {
-        if(pulseCooldown>0)return;
-        pulseCooldown=11; pulseFlash=.55f;
+        if(pulseCooldown>0||scene!=Scene.PLAY)return;
+        battlePulses++;
+        pulseCooldown=kingdom.pulseCooldown(); pulseFlash=.55f;
         int hits=0;
         for(Enemy e:enemies) if(distance(e.x,e.y,heroX,heroY)<235) {
             e.hp-=70+Campaign.world(stage)*15;
@@ -557,7 +566,19 @@ public final class RiftGameView extends View {
         puff(towerX[choice],towerY[choice],18,GOLD);
         announce(towers[choice]==1?"TURRET BUILT":"TURRET LEVEL "+towers[choice]);
     }
+    private void recordBattleResult(boolean victory) {
+        if(battleRecorded)return;
+        battleRecorded=true;
+        kingdom.recordBattle(stage,difficultyMode,kills,battlePulses,
+                victory,System.currentTimeMillis());
+    }
+    private void markDefeat() {
+        recordBattleResult(false);
+        scene=Scene.LOSE;paused=false;
+        clearTouchControls();
+    }
     private void complete() {
+        recordBattleResult(true);
         scene=Scene.WIN;paused=false;
         boolean firstClear=stage>=unlocked;
         int reward=Progression.stageReward(stage,firstClear);
@@ -1313,9 +1334,9 @@ public final class RiftGameView extends View {
         text(c,Campaign.title(stage),45,48,25,GOLD,false);
         text(c,Campaign.worldName(stage),45,82,20,INK,false);
         text(c,"CORE",319,38,15,0xffafc6c6,false);
-        bar(c,316,47,243,18,baseHp/Progression.maxCoreHp(fortressRank),0xff79cfad);
+        bar(c,316,47,243,18,baseHp/(Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp()),0xff79cfad);
         text(c,"HERO",319,84,15,0xffafc6c6,false);
-        bar(c,377,69,182,13,heroHp/100,0xffe7a07e);
+        bar(c,377,69,182,13,heroHp/kingdom.heroMaxHp(),0xffe7a07e);
         text(c,"WAVE "+wave+" / "+DifficultyRules.waves(stage,difficultyMode),
                 617,50,26,INK,false);
         text(c,"GOLD  "+gold,618,83,21,GOLD,false);
@@ -1338,6 +1359,7 @@ public final class RiftGameView extends View {
         // Campaign art in the main menu changes with saved progression.
         roundedPanel(c,644,66,1222,646);
         drawLiveMenuScene(c,656,80,553,548,false);
+        button(c,667,455,1198,508,"KINGDOM HUB  /  QUESTS + SHOP",0xff805f40);
         rect(c,656,522,1209,630,0xd0142b33);
         text(c,"GREENHAVEN  /  THE LAST BASTION",679,563,24,GOLD,false);
         text(c,"A kingdom in danger. Your fortress grows with every victory.",
@@ -1456,6 +1478,168 @@ public final class RiftGameView extends View {
                 "%",906,666,15,GOLD,false);
         text(c,"CLEARED: "+unlocked+" / 300",1087,686,17,GOLD,true);
     }
+
+    private static final String[] KINGDOM_TABS={
+            "DAILY","QUESTS","EVENTS","ACHIEVEMENTS","SHOP"};
+    private void kingdomToast(int reward,String action) {
+        if(reward>0) {
+            supplies=kingdom.supplies();
+            kingdomMessage=action+"  +"+reward+" SUPPLIES";
+        }else kingdomMessage="NOT READY YET  •  CHECK PROGRESS OR SUPPLIES";
+    }
+    private void drawKingdom(Canvas c) {
+        drawBackdrop(c);
+        round(c,36,28,1244,695,22,0xf017303d);
+        text(c,"KINGDOM HALL",76,91,48,GOLD,false);
+        text(c,"OFFLINE REWARDS  •  REAL PERMANENT PROGRESSION",
+                79,122,20,0xffb2d6d0,false);
+        text(c,"SUPPLIES  "+supplies,1198,91,27,GOLD,true);
+        for(int i=0;i<KINGDOM_TABS.length;i++) {
+            float x=78+i*226;
+            round(c,x,148,x+216,204,10,
+                    kingdomTab==i?0xffab7951:0xff3d5863);
+            text(c,KINGDOM_TABS[i],x+108,185,22,INK,true);
+        }
+        long now=System.currentTimeMillis();
+        if(kingdomTab==0)drawDailyHall(c,now);
+        else if(kingdomTab==1)drawQuestsHall(c,now);
+        else if(kingdomTab==2)drawEventHall(c,now);
+        else if(kingdomTab==3)drawAchievementHall(c);
+        else drawShopHall(c);
+        text(c,kingdomMessage,640,618,20,0xffbfe8c2,true);
+        button(c,82,632,346,681,"HOME",0xff42646f);
+        button(c,366,632,675,681,"CAMPAIGN",0xff956744);
+        text(c,"NO ADS  •  NO LOGIN  •  STORED ON DEVICE",
+                1200,665,17,0xffa7c8c3,true);
+    }
+    private void drawDailyHall(Canvas c,long now) {
+        text(c,"DAILY SUPPLY CARAVAN",99,263,35,GOLD,false);
+        text(c,"Claim once per UTC day. Consecutive days grow your reward.",
+                101,301,22,INK,false);
+        int streak=kingdom.dailyStreak();
+        for(int i=0;i<7;i++) {
+            float x=103+i*154,y=338;
+            round(c,x,y,x+141,y+125,12,
+                    i<streak?0xff577b69:0xff344c57);
+            text(c,"DAY "+(i+1),x+70,y+33,22,GOLD,true);
+            text(c,""+(90+i*25),x+70,y+75,28,INK,true);
+            text(c,i<streak?"COMPLETE":"SUPPLIES",x+70,y+103,16,INK,true);
+        }
+        boolean available=kingdom.canClaimDaily(now);
+        button(c,355,486,927,563,available?
+                "CLAIM  +"+kingdom.dailyReward(now)+" SUPPLIES":"ALREADY CLAIMED TODAY",
+                available?0xffa36b43:0xff50636b);
+    }
+    private void drawQuestsHall(Canvas c,long now) {
+        text(c,"TODAY'S QUESTS",99,254,32,GOLD,false);
+        for(int i=0;i<3;i++) {
+            float y=286+i*98;
+            int current=kingdom.questProgress(i,now),target=KingdomMeta.QUEST_TARGETS[i];
+            boolean claimed=kingdom.questClaimed(i,now),ready=current>=target;
+            round(c,95,y,1184,y+85,14,0xff304c59);
+            text(c,KingdomMeta.QUEST_NAMES[i],121,y+36,25,INK,false);
+            text(c,Math.min(current,target)+" / "+target,
+                    696,y+34,21,GOLD,true);
+            bar(c,490,y+49,358,13,current/(float)target,0xff8bcea5);
+            round(c,882,y+12,1166,y+73,11,
+                    claimed?0xff4d625d:ready?0xffab774b:0xff465963);
+            text(c,claimed?"CLAIMED":ready?
+                    "CLAIM +"+KingdomMeta.QUEST_REWARDS[i]:"IN PROGRESS",
+                    1023,y+51,21,INK,true);
+        }
+        text(c,"Progress saves after each completed or failed battle.",
+                112,595,19,0xffadc6c4,false);
+    }
+    private void drawEventHall(Canvas c,long now) {
+        int index=kingdom.eventIndex(now),target=kingdom.eventTarget(now);
+        int current=kingdom.eventProgress(now);
+        round(c,96,236,1186,559,23,0xff354a5c);
+        text(c,"WEEKLY KINGDOM EVENT",128,284,29,GOLD,false);
+        text(c,KingdomMeta.EVENT_NAMES[index],128,344,43,INK,false);
+        String objective=index==0?"Slay 70 enemies in any battle":
+                index==1?"Win six fortress defenses":"Defeat a world boss on Map C";
+        text(c,objective,129,393,23,INK,false);
+        bar(c,130,420,720,22,current/(float)target,0xffdca475);
+        text(c,Math.min(current,target)+" / "+target,895,438,24,GOLD,true);
+        boolean ready=current>=target,claimed=kingdom.eventClaimed(now);
+        button(c,414,472,963,538,claimed?"EVENT REWARD CLAIMED":
+                ready?"CLAIM +"+kingdom.eventReward(now)+" SUPPLIES":
+                        "COMPLETE THE EVENT OBJECTIVE",
+                ready&&!claimed?0xffa97948:0xff4d6471);
+    }
+    private void drawAchievementHall(Canvas c) {
+        for(int i=0;i<KingdomMeta.ACHIEVEMENTS.length;i++) {
+            float x=89+(i%3)*375,y=232+(i/3)*176;
+            int current=kingdom.achievementProgress(i),target=kingdom.achievementTarget(i);
+            boolean claimed=kingdom.achievementClaimed(i),ready=current>=target;
+            round(c,x,y,x+355,y+158,14,0xff34515b);
+            text(c,KingdomMeta.ACHIEVEMENTS[i],x+15,y+36,21,GOLD,false);
+            text(c,Math.min(current,target)+" / "+target,x+15,y+75,22,INK,false);
+            bar(c,x+140,y+59,185,16,current/(float)target,0xffa3cfa5);
+            round(c,x+14,y+93,x+339,y+145,9,
+                    claimed?0xff46635c:ready?0xffa9794c:0xff455a63);
+            text(c,claimed?"CLAIMED":ready?
+                    "CLAIM +"+KingdomMeta.ACHIEVEMENT_REWARDS[i]:"LOCKED",
+                    x+176,y+125,21,INK,true);
+        }
+    }
+    private void drawShopHall(Canvas c) {
+        for(int i=0;i<KingdomMeta.SHOP_NAMES.length;i++) {
+            float x=89+(i%2)*563,y=232+(i/2)*175;
+            int rank=kingdom.shopRank(i),cost=kingdom.shopCost(i);
+            boolean ready=cost>0&&supplies>=cost;
+            round(c,x,y,x+546,y+163,14,0xff354f59);
+            text(c,KingdomMeta.SHOP_NAMES[i],x+22,y+39,28,GOLD,false);
+            text(c,KingdomMeta.SHOP_DETAILS[i],x+23,y+79,21,INK,false);
+            text(c,"RANK "+rank+" / 5",x+25,y+119,20,0xffb2d4cd,false);
+            round(c,x+232,y+98,x+532,y+148,10,ready?0xffaa7951:0xff485c67);
+            text(c,rank==5?"MAX UPGRADE":"BUY  "+cost+" SUPPLIES",
+                    x+382,y+131,20,INK,true);
+        }
+        text(c,"Permanent upgrades affect hero health, core HP, tower damage and pulse cooldown.",
+                110,594,19,INK,false);
+    }
+    private void tapKingdom(float x,float y) {
+        if(y>=142 && y<211 && x>=76 && x<1210) {
+            int tab=(int)((x-78)/226);
+            kingdomTab=Math.max(0,Math.min(4,tab));return;
+        }
+        if(y>=629 && y<695) {
+            if(x<352)scene=Scene.HOME;
+            else if(x<685)scene=Scene.MAP;
+            return;
+        }
+        long now=System.currentTimeMillis();
+        if(kingdomTab==0 && y>=475 && y<572)
+            kingdomToast(kingdom.claimDaily(now),"DAILY CLAIMED");
+        else if(kingdomTab==1 && x>=880 && x<1180 && y>=285 && y<574) {
+            int i=(int)((y-286)/98);
+            if(i>=0&&i<3&&y<286+i*98+85)
+                kingdomToast(kingdom.claimQuest(i,now),"QUEST COMPLETE");
+        } else if(kingdomTab==2 && x>=405 && x<975 && y>=468 && y<547)
+            kingdomToast(kingdom.claimEvent(now),"EVENT COMPLETE");
+        else if(kingdomTab==3 && x>=85 && x<1240 && y>=223 && y<570) {
+            int col=(int)((x-89)/375),row=(int)((y-232)/176);
+            if(col>=0&&col<3&&row>=0&&row<2) {
+                int i=row*3+col;
+                float dx=(x-89)-col*375,dy=(y-232)-row*176;
+                if(dx>=14&&dx<339&&dy>=93&&dy<148)
+                    kingdomToast(kingdom.claimAchievement(i),"ACHIEVEMENT");
+            }
+        } else if(kingdomTab==4 && x>=85 && x<1240 && y>=223 && y<581) {
+            int col=(int)((x-89)/563),row=(int)((y-232)/175);
+            if(col>=0&&col<2&&row>=0&&row<2) {
+                float dx=(x-89)-col*563,dy=(y-232)-row*175;
+                if(dx>=232&&dx<534&&dy>=98&&dy<151) {
+                    boolean bought=kingdom.buy(row*2+col);
+                    supplies=kingdom.supplies();
+                    kingdomMessage=bought?"PERMANENT UPGRADE PURCHASED":
+                            "NOT ENOUGH SUPPLIES OR MAX RANK";
+                }
+            }
+        }
+    }
+
     private void drawResources(Canvas c) {
         drawBackdrop(c);
         round(c,65,44,1215,669,29,0xee172d36);
@@ -1656,10 +1840,13 @@ public final class RiftGameView extends View {
     }
     private void tapMenu(float x,float y) {
         if(scene==Scene.HOME) {
-            if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
+            if(x>665 && x<1205 && y>447 && y<517)scene=Scene.KINGDOM;
+            else if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
             else if(x>93 && x<610 && y>408 && y<492)scene=Scene.MAP;
             else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
             else if(x>345 && x<610 && y>502 && y<580)scene=Scene.FORTRESS;
+        }else if(scene==Scene.KINGDOM) {
+            tapKingdom(x,y);
         }else if(scene==Scene.RESOURCES) {
             if(x>880 && y>555 && y<654)scene=Scene.HOME;
             else if(x>110 && x<865 && y>555 && y<655)beginResourceDownload();

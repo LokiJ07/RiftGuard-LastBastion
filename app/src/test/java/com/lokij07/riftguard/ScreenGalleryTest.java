@@ -66,6 +66,13 @@ public class ScreenGalleryTest {
         RiftGameView view=new RiftGameView(context);
         view.layout(0,0,1280,720);
         capture(view,"01-home");
+        tap(view,900,475); // Actual Kingdom hub icon / control on Home
+        capture(view,"17-daily-rewards");
+        tap(view,410,179);capture(view,"18-daily-quests");
+        tap(view,620,179);capture(view,"19-weekly-event");
+        tap(view,855,179);capture(view,"20-achievements");
+        tap(view,1080,179);capture(view,"21-permanent-shop");
+        tap(view,200,650); // Home
         tap(view,220,388); // optional, ad-free resource download screen
         capture(view,"10-resources-offline");
         tap(view,1020,601); // return home, no network required
@@ -100,7 +107,7 @@ public class ScreenGalleryTest {
             // not old enemies artificially placed beside/behind the fortress.
             float ex=1800-kind*75f;
             px.setFloat(enemy,ex);
-            py.setFloat(enemy,LaneRules.pathY(0,ex)+(kind%3-1)*40f);
+            py.setFloat(enemy,LaneRules.stagePathY(0,ex)+(kind%3-1)*40f);
         }
         capture(view,"05-battle");
         // Exercise actual movement and weapon attack state and capture the renderer.

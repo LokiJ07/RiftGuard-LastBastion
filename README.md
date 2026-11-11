@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.6.3 — difficulty, 10 world-boss finales, four defense families and stage identities
+## Current version: V0.7.0 — functional offline Kingdom Hub with Quests, Events, Achievements, Daily Rewards, and Shop
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -64,3 +64,15 @@ Debug CI builds are not a release-signed APK. Reinstall conflicts may occur acro
 - Region maps now render independent transparent **biome-specific ground props** (the original 60-asset atlas) behind selectable ten-stop routes, landmarks and dynamic progress markers.
 - Path hitboxes remain separate interactive data; images are never used as unclickable UI screenshots.
 - Still procedurally laid-out content, not 100 hand-painted regional locations or HD cinematics.
+
+## V0.7.0 — actual Kingdom Hub systems
+Open Home → **Kingdom Hub**. All five features are real game systems, not static painted UI:
+- **Daily Rewards:** Claim once per UTC day, with consecutive-day streak rewards up to day 7; cached offline.
+- **Daily Quests:** Kill enemies, win battles and cast Pulse to complete three repeatable objectives, claimable only once per day.
+- **Weekly Events:** Offline weekly rotating challenges (monster invasion, win streak, boss kill) with a one-time reward.
+- **Achievements:** Lifetime battle statistics with six permanent milestones and individually claimed supply rewards.
+- **Shop:** Four permanent, rankable supply upgrades that change battle HP, core HP, tower damage and pulse cooldown.
+
+Progress is persisted after real battle results in the same campaign save. No ads, account, online verification, payment systems or multiplayer. Rewards require explicit claims. Automated tests verify restarts, duplicate reward prevention, rollovers, battle stats, upgrade effects and actual Android UI screen rendering. Local clock adjustments cannot be fully prevented in an offline-only game.
+
+**Not yet complete:** AAA-style character locomotion/rigging, 300 handcrafted environments, detailed animated castle stages, real high-resolution downloadable content, new game icon and native aspect-responsive UI.
