@@ -83,6 +83,8 @@ public final class RiftGameView extends View {
     private final float[] towerTimers=new float[4];
     private final float[] towerRecoil=new float[4];
     private final float[] towerAim=new float[4];
+    private final float[] hazardTimers=new float[4];
+    private float hazardSlowTimer=0;
     private final float[] towerX={810,1092,811,1093};
     private final float[] towerY={370,370,624,624};
     private int unlocked;
@@ -216,6 +218,8 @@ public final class RiftGameView extends View {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false;
         battleRecorded=false; battlePulses=0;
+        hazardSlowTimer=0;
+        for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         motionArt.prepareTerrain(s);
         walkClock=0;heroMoving=false;
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=kingdom.heroMaxHp();
@@ -264,7 +268,8 @@ public final class RiftGameView extends View {
         fireFlash=Math.max(0,fireFlash-dt);
         waveNotice=Math.max(0,waveNotice-dt);
         noticeTimer=Math.max(0,noticeTimer-dt);
-        float speed=245f;
+        hazardSlowTimer=Math.max(0,hazardSlowTimer-dt);
+        float speed=245f*(hazardSlowTimer>0?.71f:1f);
         float previousHeroX=heroX,previousHeroY=heroY;
         // Independent X/Y collision resolution allows sliding along walls.
         float nextX=LaneRules.heroX(MovementRules.heroNextX(heroX,heroY,axisX*speed*dt));
@@ -397,6 +402,8 @@ public final class RiftGameView extends View {
                 }
             }
         }
+        updateStageHazards(dt);
+        if(scene!=Scene.PLAY)return;
         Iterator<Shot> sit=shots.iterator();
         while(sit.hasNext()) {
             Shot shot=sit.next();shot.life-=dt;
@@ -610,6 +617,7 @@ public final class RiftGameView extends View {
         drawTerrain(c,biome);
         drawStageLandmarks(c,Campaign.map(stage),biome);
         drawStageIdentity(c,biome);
+        drawStageHazards(c);
         // Stable depth sorting by world-space foot position. Trees can pass in
         // front of the hero while structures and monsters retain proper layering.
         drawQueue.clear();
@@ -651,6 +659,71 @@ public final class RiftGameView extends View {
         c.restore();
         if(scene==Scene.PLAY)drawHud(c,biome);
         else drawHudTop(c,biome);
+    }
+
+
+    private void updateStageHazards(float dt) {
+        for(int i=0;i<StageHazards.count(stage);i++) {
+            hazardTimers[i]=Math.max(0,hazardTimers[i]-dt);
+            if(hazardTimers[i]>0||!StageHazards.active(stage,i,gameTime))continue;
+            float x=StageHazards.x(stage,i),y=StageHazards.y(stage,i);
+            float radius=StageHazards.radius(stage,i);
+            boolean hit=false;
+            if(distance(heroX,heroY,x,y)<radius) {
+                if(StageHazards.slows(stage))hazardSlowTimer=1.3f;
+                else heroHp-=StageHazards.heroDamage(stage,difficultyMode);
+                hit=true;
+            }
+            for(Enemy e:enemies)if(e.hp>0&&distance(e.x,e.y,x,y)<radius) {
+                if(StageHazards.slows(stage))e.slowTimer=Math.max(e.slowTimer,1.6f);
+                else e.hp-=StageHazards.monsterDamage(stage);
+                hit=true;
+            }
+            hazardTimers[i]=.86f;
+            if(hit)puff(x,y,8,StageHazards.COLORS[StageHazards.kind(stage)]);
+            if(heroHp<=0) {heroHp=0;markDefeat();return;}
+        }
+    }
+    /** Environmental systems are independent terrain elements, never poster pixels. */
+    private void drawStageHazards(Canvas c) {
+        int kind=StageHazards.kind(stage);
+        int color=StageHazards.COLORS[kind];
+        for(int i=0;i<StageHazards.count(stage);i++) {
+            float x=StageHazards.x(stage,i),y=StageHazards.y(stage,i);
+            float r=StageHazards.radius(stage,i);
+            float phase=StageHazards.charge(stage,i,gameTime);
+            boolean active=StageHazards.active(stage,i,gameTime);
+            oval(c,x-r,y-r*.34f,x+r,y+r*.34f,0x77202932);
+            circleStroke(c,x,y,r,color&0x88ffffff,active?5:2);
+            float pulse=1+(float)Math.sin(gameTime*5+i)*.12f;
+            circle(c,x,y,active?14*pulse:9,active?color:0xff526d70);
+            int particles=kind==3||kind==7||kind==9?9:5;
+            for(int dot=0;dot<particles;dot++){
+                float angle=(float)(dot*Math.PI*2/particles+gameTime*(active?1.3:.25));
+                float rr=r*(.43f+phase*.47f);
+                float px=x+(float)Math.cos(angle)*rr,py=y+(float)Math.sin(angle)*rr*.48f;
+                circle(c,px,py,active?4:2,color);
+            }
+            if(kind==3 || kind==9) { // Magma and eclipse fissures.
+                line(c,x-40,y-15,x-8,y+13,color,4);
+                line(c,x-8,y+13,x+31,y-19,color,4);
+            }else if(kind==4||kind==6){ // Ice and crystal spikes.
+                polygon(c,new float[]{x-18,y+11,x-7,y-33,x+1,y+10},color);
+                polygon(c,new float[]{x+1,y+9,x+17,y-29,x+26,y+11},0xffd5f3fb);
+            }else if(kind==2||kind==8){ // Toxic swamps and shadow pools.
+                oval(c,x-40,y-13,x+40,y+15,active?0x6640c77d:0x4444647c);
+            }else if(kind==5){ // Rockfall debris.
+                polygon(c,new float[]{x-18,y+7,x-14,y-19,x+12,y-28,x+27,y+5},
+                        0xff958a77);
+            }else { // Enchanted grass, storm and bramble triggers.
+                for(int branch=0;branch<4;branch++){
+                    float bx=x-25+branch*14;
+                    line(c,bx,y+6,bx+4,y-19,0xffa2c8ab,3);
+                }
+            }
+            if(active)circleStroke(c,x,y,r*.58f+(float)Math.sin(gameTime*9)*5,
+                    0x99ffffff,2);
+        }
     }
 
     private void drawTerrain(Canvas c,int biome) {
@@ -1307,6 +1380,15 @@ public final class RiftGameView extends View {
             WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
                 624,703,17,GOLD,true);
+        for(int i=0;i<StageHazards.count(stage);i++){
+            if(StageHazards.active(stage,i,gameTime) &&
+               distance(heroX,heroY,StageHazards.x(stage,i),
+                       StageHazards.y(stage,i))<StageHazards.radius(stage,i)*2f) {
+                text(c,"WARNING: "+StageHazards.NAMES[StageHazards.kind(stage)],
+                        628,453,22,0xffffcaa0,true);
+                break;
+            }
+        }
     }
     /** Boss display is a real HP snapshot, not a painted label. */
     private boolean drawBossHud(Canvas c) {

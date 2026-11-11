@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.7.1 — functional offline Kingdom Hub with Quests, Events, Achievements, Daily Rewards, and Shop
+## Current version: V0.8.0 — actual living battlefield hazards and biome mechanics
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -79,3 +79,6 @@ Progress is persisted after real battle results in the same campaign save. No ad
 
 ### V0.7.1 UI/verification patch
 Kingdom Hub status message moved out of content/footer areas. Shop inventory purchase-to-battle stats now covered by real UI interaction tests. Weekly event period is monotonic when the phone clock is rolled backwards.
+
+## V0.8.0 — real environmental challenge
+New `StageHazards` positions 1–4 animated objects along the actual route per stage. Every world has its own hazard style. Brambles, swamps, frost and shadow effects slow; other hazards deal genuine player and monster damage. Effects trigger only during an animated active phase with visible warning, and stop automatically outside their zone. Map A has fewer hazards than tactical Map B, and boss sieges have additional hazards. These interactions are tied to the live combat simulation and are tested across all 300 stages. Still lacks handcrafted unique map artwork and natural skeletal animation.

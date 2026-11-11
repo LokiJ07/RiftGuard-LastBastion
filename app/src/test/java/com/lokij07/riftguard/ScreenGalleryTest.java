@@ -139,6 +139,10 @@ public class ScreenGalleryTest {
         capture(view,"15-route-greenhaven-5A");
         start.invoke(view,Campaign.stage(27,0));
         capture(view,"16-route-venom-27A");
+        start.invoke(view,Campaign.stage(34,2));
+        capture(view,"22-ember-magma-hazards");
+        start.invoke(view,Campaign.stage(44,1));
+        capture(view,"23-frost-battle-hazards");
         // Render a named world-boss siege with four distinct mounted defenses.
         start.invoke(view,Campaign.stage(10,2));
         int[] battlements=(int[])getField(view,"towers");
