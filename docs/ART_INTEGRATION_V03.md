@@ -19,3 +19,13 @@ Map A/B/C thumbnails now use separate integrated images. The 300 stage indices r
 - Tap a region marker -> selected 10-level region changes.
 - Select A/B/C -> mission variant changes; locked missions cannot deploy.
 - GitHub CI captures PNG screenshots for the home, atlas, armory, fortress and battle screens.
+
+## V0.4.1 battle-art corrections
+- The earlier low-opacity gameplay screenshot overlay was removed because it contained baked characters and HUD that were **not interactive**.
+- Map A has a visibly wooden rank-1 / reinforced rank-2 scout outpost.
+- Map B has a river approach and bridge-defense landmarks.
+- Map C uses the siege fortress with an animated corrupted portal, banners and scorched ground.
+- The Warden and multiple monster classes use actual separately rendered character sprites from `riftguard_characters.webp`.
+- CI captures seven real Android-view screenshots, including all three combat map variants.
+
+This is playable original production groundwork. Distinct high-resolution terrain tiles, fully rigged animations, and hundreds of authored levels remain incomplete.

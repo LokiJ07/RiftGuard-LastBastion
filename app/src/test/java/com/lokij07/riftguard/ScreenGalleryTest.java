@@ -87,5 +87,12 @@ public class ScreenGalleryTest {
             py.setFloat(enemy,640-(kind%3)*102);
         }
         capture(view,"05-battle");
+        // Render the two other genuine battlefield variants for visual regression.
+        java.lang.reflect.Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
+        start.setAccessible(true);
+        start.invoke(view,1); // Bridge Defense
+        capture(view,"06-bridge-defense");
+        start.invoke(view,2); // Siege
+        capture(view,"07-fortress-siege");
     }
 }
