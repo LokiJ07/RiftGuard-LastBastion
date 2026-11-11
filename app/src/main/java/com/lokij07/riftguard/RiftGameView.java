@@ -41,6 +41,7 @@ public final class RiftGameView extends View {
     private enum Scene { HOME, MAP, ARMORY, FORTRESS, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final PaintedArt painted;
     private final SharedPreferences prefs;
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
@@ -101,6 +102,7 @@ public final class RiftGameView extends View {
     public RiftGameView(Context context) {
         super(context);
         setLayerType(View.LAYER_TYPE_HARDWARE,null);
+        painted=new PaintedArt(context.getResources());
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -467,6 +469,10 @@ public final class RiftGameView extends View {
         p.setShader(new LinearGradient(0,0,WORLD_W,WORLD_H,
                 lighten(GROUNDS[biome],.13f),darken(GROUNDS[biome],.34f),Shader.TileMode.CLAMP));
         c.drawRect(0,0,WORLD_W,WORLD_H,p);p.setShader(null);
+        // Painted campaign environment now contributes a subtle noninteractive texture
+        // beneath the fully live hero/enemies/fortress. Live HUD is never baked into it.
+        if(painted.available())
+            painted.battleAtmosphere(c,Campaign.map(stage),0,0,WORLD_W,WORLD_H);
         // Ground tiles and subtle road markings.
         for(int x=0;x<=WORLD_W;x+=95) line(c,x,0,x,WORLD_H,0x163c4d4c,1);
         for(int y=0;y<=WORLD_H;y+=95) line(c,0,y,WORLD_W,y,0x163c4d4c,1);
@@ -811,7 +817,8 @@ public final class RiftGameView extends View {
         drawBackdrop(c);
         // Campaign art in the main menu changes with saved progression.
         roundedPanel(c,644,66,1222,646);
-        WorldArt.drawScene(c,Campaign.world(Math.min(unlocked,299)),2,
+        if(painted.available()) painted.home(c,656,80,1209,628);
+        else WorldArt.drawScene(c,Campaign.world(Math.min(unlocked,299)),2,
                 656,80,553,548,gameTime);
         rect(c,656,522,1209,630,0xd0142b33);
         text(c,"GREENHAVEN  /  THE LAST BASTION",679,563,24,GOLD,false);
@@ -836,52 +843,54 @@ public final class RiftGameView extends View {
         round(c,l,t,r,b,14,0xff25434b);
     }
 
+    // Map positions are active selection controls placed over a genuine illustrated atlas.
+    // They preserve the campaign's 100 levels / 300 distinct stage addresses.
+    private static final float[] REGIONS_X={200,165,260,595,432,632,707,789,570,472};
+    private static final float[] REGIONS_Y={307,202,462,236,161,337,444,515,521,555};
     private void drawMap(Canvas c) {
         drawBackdrop(c);
-        round(c,37,21,1243,698,26,0xf0162c34);
-        text(c,"REALM ATLAS",67,83,47,GOLD,false);
-        text(c,"Ten illustrated kingdoms   •   100 levels   •   300 missions",
-                469,80,22,INK,false);
-        int currentRegion=(selectedLevel-1)/10;
-        for(int i=0;i<10;i++){
-            int col=i%5,row=i/5;
-            float x=66+col*237,y=119+row*123;
-            round(c,x-4,y-4,x+224,y+116,12,
-                    currentRegion==i?GOLD:0xff43535b);
-            WorldArt.drawScene(c,i,i%3,x,y,216,80,gameTime);
-            rect(c,x,y+81,x+216,y+112,0xe01e3540);
-            String region=Campaign.WORLDS[i];
-            text(c,region.toUpperCase(),x+8,y+102,16,INK,false);
-            if(unlocked<(i*30)) {
-                circle(c,x+193,y+14,12,0xcc26303a);
-                text(c,"X",x+193,y+20,16,0xffe6b6a0,true);
-            } else {
-                circle(c,x+193,y+14,12,0xdd43835d);
-                text(c,"+",x+193,y+20,15,INK,true);
-            }
+        round(c,35,21,1245,700,27,0xf0162b32);
+        text(c,"RIFTGUARD  /  THE KINGDOM ATLAS",65,82,38,GOLD,false);
+        text(c,"100 LEVELS   /   300 MISSIONS",917,82,21,INK,false);
+        round(c,64,111,879,578,21,0xff9f845f);
+        if(painted.available())painted.worldMap(c,73,120,870,569);
+        else WorldArt.drawScene(c,(selectedLevel-1)/10,2,73,120,797,449,gameTime);
+        rect(c,73,120,870,569,0x33101d2a);
+        int current=(selectedLevel-1)/10;
+        for(int k=0;k<10;k++) {
+            float x=REGIONS_X[k], y=REGIONS_Y[k];
+            boolean on=k==current;
+            float glow=on?27+(float)Math.sin(gameTime*3)*3:21;
+            circle(c,x,y,glow,on?0x99ffdf7f:0x99242d41);
+            circleStroke(c,x,y,glow,on?GOLD:0xffd9c39a,on?4:2);
+            circle(c,x,y,15,on?0xffa66f30:0xff293a48);
+            text(c,""+(k+1),x,y+7,18,INK,true);
         }
-        text(c,"<",104,413,46,GOLD,true);
-        text(c,Campaign.WORLDS[currentRegion]+"    •    LEVEL "+selectedLevel+" / 100",
-                640,404,29,GOLD,true);
-        text(c,">",1185,413,46,GOLD,true);
-        for(int i=0;i<3;i++){
-            float x=176+i*311, y=429;
-            int s=Campaign.stage(selectedLevel,i);
-            boolean can=Campaign.accessible(s,unlocked);
-            round(c,x-5,y-5,x+297,y+148,15,i==selectedMap?GOLD:0xff4e656d);
-            WorldArt.drawScene(c,currentRegion,i,x,y,287,83,gameTime);
-            rect(c,x,y+84,x+287,y+143,can?0xff304c52:0xff293840);
-            text(c,(char)('A'+i)+"  "+Campaign.MAPS[i],x+9,y+110,23,INK,false);
-            text(c,can?(s<unlocked?"CLEARED  •  REPLAY":"AVAILABLE"):"LOCKED  •  PROGRESS FIRST",
-                    x+9,y+133,17,can?0xffa5dbb7:0xffd5aba6,false);
+        round(c,893,111,1216,576,20,0xff182f3a);
+        text(c,Campaign.WORLDS[current].toUpperCase(),912,155,23,GOLD,false);
+        text(c,"LEVEL "+selectedLevel+"  /  100",916,185,22,INK,false);
+        for(int m=0;m<3;m++) {
+            int mission=Campaign.stage(selectedLevel,m);
+            boolean accessible=Campaign.accessible(mission,unlocked);
+            float top=203+m*108;
+            round(c,901,top-3,1208,top+103,12,
+                    selectedMap==m?GOLD:0xff45616b);
+            if(painted.available())painted.mission(c,m,905,top,1204,top+68);
+            else WorldArt.drawScene(c,current,m,905,top,299,68,gameTime);
+            rect(c,905,top+67,1204,top+99,0xee182e37);
+            text(c,(char)('A'+m)+"  "+Campaign.MAPS[m],914,top+90,19,INK,false);
+            text(c,accessible?(mission<unlocked?"✓":"GO"):"LOCK",
+                    1171,top+91,15,accessible?0xffb6e3a0:0xffffb5a4,true);
         }
+        text(c,"< LEVEL",936,551,22,GOLD,false);
+        text(c,"LEVEL >",1199,551,22,GOLD,true);
         int chosen=Campaign.stage(selectedLevel,selectedMap);
-        button(c,406,598,873,654,Campaign.accessible(chosen,unlocked)?"DEPLOY TO THE BATTLEFIELD":"STAGE LOCKED",
-                Campaign.accessible(chosen,unlocked)?0xffac704e:0xff485259);
-        text(c,"BACK",78,648,24,INK,false);
-        text(c,"CLEARED  "+Math.min(300,unlocked)+" / 300",1004,649,21,GOLD,false);
+        button(c,406,599,875,655,
+                Campaign.accessible(chosen,unlocked)?"DEPLOY TO MAP "+(char)('A'+selectedMap):"UNLOCK PREVIOUS STAGE",
+                Campaign.accessible(chosen,unlocked)?0xffb1764c:0xff46515b);
+        text(c,"BACK",81,652,24,INK,false);
+        text(c,"CLEARED: "+unlocked+" / 300",981,650,21,GOLD,false);
     }
-
     private void drawArmory(Canvas c) {
         drawBackdrop(c);
         round(c,43,28,1237,695,25,0xf0172d35);
@@ -917,7 +926,8 @@ public final class RiftGameView extends View {
         text(c,"FORTRESS WORKSHOP",85,86,50,GOLD,false);
         text(c,"Upgrade the base to unlock weapons, towers and extra core health.",
                 88,125,21,INK,false);
-        WorldArt.drawScene(c,Math.min(9,Campaign.world(Math.min(unlocked,299))),
+        if(painted.available()) painted.fortress(c,75,158,675,548);
+        else WorldArt.drawScene(c,Math.min(9,Campaign.world(Math.min(unlocked,299))),
                 2,75,158,600,390,gameTime);
         round(c,77,554,669,632,13,0xee1c3942);
         text(c,"RANK "+fortressRank+"  /  5     "+Progression.RANK_NAMES[fortressRank],
@@ -1047,29 +1057,28 @@ public final class RiftGameView extends View {
             else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
             else if(x>345 && x<610 && y>502 && y<580)scene=Scene.FORTRESS;
         }else if(scene==Scene.MAP) {
-            if(y>=112 && y<362 && x>=66 && x<1251) {
-                int col=(int)((x-66)/237);
-                int row=(int)((y-119)/123);
-                if(col>=0 && col<5 && row>=0 && row<2) {
-                    float localX=(x-66)%237, localY=(y-119)%123;
-                    if(localX<=216 && localY>=0 && localY<114) {
-                        selectedLevel=(row*5+col)*10+1;
+            if(x>65 && x<882 && y>109 && y<581) {
+                // Region nodes are live hitboxes; clicking them selects that world's first level.
+                for(int k=0;k<10;k++) {
+                    if(distance(x,y,REGIONS_X[k],REGIONS_Y[k])<35) {
+                        selectedLevel=k*10+1;
                         selectedMap=0;
+                        break;
                     }
                 }
-            }else if(y>363 && y<428 && x<160) {
+            }else if(x>902 && x<1210 && y>=203 && y<=523) {
+                int map=(int)((y-203)/108);
+                if(map>=0 && map<3) selectedMap=map;
+            }else if(y>522 && y<579 && x>891 && x<1050) {
                 selectedLevel=Math.max(1,selectedLevel-1);
                 selectedMap=0;
-            }else if(y>363 && y<428 && x>1120) {
+            }else if(y>522 && y<579 && x>=1050 && x<1223) {
                 selectedLevel=Math.min(100,selectedLevel+1);
                 selectedMap=0;
-            }else if(y>=422 && y<581 && x>=171 && x<1104) {
-                int col=(int)((x-176)/311);
-                if(col>=0 && col<3)selectedMap=col;
-            }else if(y>585 && y<664 && x>399 && x<881) {
+            }else if(y>591 && y<665 && x>405 && x<880) {
                 int s=Campaign.stage(selectedLevel,selectedMap);
                 if(Campaign.accessible(s,unlocked))start(s);
-            }else if(x<191 && y>599)scene=Scene.HOME;
+            }else if(x<200 && y>594) scene=Scene.HOME;
         }else if(scene==Scene.ARMORY) {
             if(x>80 && x<329 && y>619)scene=Scene.HOME;
             else if(x>342 && x<655 && y>619)scene=Scene.FORTRESS;

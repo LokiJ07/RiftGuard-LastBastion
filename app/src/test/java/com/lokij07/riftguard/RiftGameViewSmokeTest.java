@@ -128,6 +128,19 @@ public final class RiftGameViewSmokeTest {
         assertEquals(0,value(view,"equippedWeapon"));
     }
 
+    @Test public void paintedAtlasLoadsFromApkAndRegionSelectionIsLive() throws Exception {
+        PaintedArt painted=new PaintedArt(RuntimeEnvironment.getApplication().getResources());
+        assertTrue("Actual WebP art must ship in the APK",painted.available());
+        tap(250,450); // HOME -> MAP
+        assertEquals("MAP",value(view,"scene").toString());
+        paint();
+        tap(595,236); // Ember Canyon node 4 (actual world-map hitbox)
+        assertEquals(31,value(view,"selectedLevel"));
+        tap(915,445); // Map C: last stand
+        assertEquals(2,value(view,"selectedMap"));
+        paint();
+    }
+
     @Test public void joystickInputMovesHeroAndStopsOnRelease() throws Exception {
         start(0);
         float before=number(view,"heroX");
