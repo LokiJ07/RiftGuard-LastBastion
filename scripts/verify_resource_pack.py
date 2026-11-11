@@ -51,7 +51,7 @@ def check():
         assert url == ORIGIN + url[len(ORIGIN):][:40] + "/app/src/main/res/drawable-nodpi/" + name
         body = download(url, size)
         assert len(body) == size, f"Wrong byte size for {name}: {len(body)} != {size}"
-        actual = hashlib.sha1(b"blob " + str(size).encode() + b"\\0" + body).hexdigest()
+        actual = hashlib.sha1(b"blob " + str(size).encode() + bytes([0]) + body).hexdigest()
         assert actual == blob, f"Checksum mismatch: {name}"
         print(f"OK: {name} ({size} bytes; verified Git blob {blob[:10]})", flush=True)
     assert seen == EXPECTED
