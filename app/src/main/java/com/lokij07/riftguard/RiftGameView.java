@@ -76,10 +76,12 @@ public final class RiftGameView extends View {
     private final List<Pickup> pickups=new ArrayList<>();
     private final int[] towers=new int[4];
     private final float[] towerTimers=new float[4];
+    private final float[] towerRecoil=new float[4];
+    private final float[] towerAim=new float[4];
     private final float[] towerX={810,1092,811,1093};
-    private final float[] towerY={370,370,656,656};
+    private final float[] towerY={370,370,624,624};
     private int unlocked;
-    private int supplies, fortressRank, equippedWeapon;
+    private int supplies, fortressRank, equippedWeapon, difficultyMode;
     private int selectedLevel=1, selectedMap=0, stage=0;
     private int wave, remaining, gold, kills;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
@@ -92,8 +94,8 @@ public final class RiftGameView extends View {
     private long lastNs=0;
 
     private static final class Enemy {
-        float x,y,hp,maxHp,phase,attackTimer,attackAnim;
-        boolean moving;
+        float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer;
+        boolean moving,boss;
         int kind;
         Enemy(float x,float y,int kind,float hp,float phase) {
             this.x=x; this.y=y; this.kind=kind; this.hp=hp; this.maxHp=hp; this.phase=phase;
@@ -102,7 +104,7 @@ public final class RiftGameView extends View {
     private static final class Shot {
         float x,y,speed,damage,life;
         boolean tower;
-        int weaponId=-1;
+        int weaponId=-1,towerSlot=-1;
         Enemy target;
         Shot(float x,float y,float damage,float speed,Enemy target,boolean tower) {
             this.x=x; this.y=y; this.damage=damage; this.speed=speed; this.target=target;
@@ -139,6 +141,7 @@ public final class RiftGameView extends View {
         supplies=Math.max(0,prefs.getInt("supplies",0));
         fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
         equippedWeapon=prefs.getInt("weapon",0);
+        difficultyMode=DifficultyRules.safe(prefs.getInt("difficulty",DifficultyRules.NORMAL));
         if(!Progression.canEquip(fortressRank,equippedWeapon))equippedWeapon=0;
         selectedLevel=Campaign.level(Math.min(unlocked,299));
         setFocusable(true);
@@ -201,12 +204,15 @@ public final class RiftGameView extends View {
         walkClock=0;heroMoving=false;
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=100;
         baseHp=Progression.maxCoreHp(fortressRank);
-        wave=1; remaining=Campaign.enemies(stage,wave);
+        wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
         waveNotice=2.6f; noticeTimer=0; gold=150+(fortressRank-1)*20; kills=0;
         enemies.clear();shots.clear();sparks.clear();decor.clear();pickups.clear();
-        for (int i=0;i<towers.length;i++){towers[i]=0;towerTimers[i]=0;}
+        for (int i=0;i<towers.length;i++){
+            towers[i]=0;towerTimers[i]=0;towerRecoil[i]=0;
+            towerAim[i]=0;
+        }
         towers[0]=1;
         if(fortressRank>=4)towers[1]=1;
         if(fortressRank>=5)towers[2]=1;
@@ -263,13 +269,21 @@ public final class RiftGameView extends View {
         }
         for (int i=0;i<towers.length;i++) {
             towerTimers[i]-=dt;
+            towerRecoil[i]=Math.max(0,towerRecoil[i]-dt);
             if (towers[i]>0 && towerTimers[i]<=0) {
                 Enemy target=closest(towerX[i],towerY[i],280+towers[i]*35);
                 if (target!=null) {
-                    shots.add(new Shot(towerX[i],towerY[i]-25,BattleRules.towerDamage(towers[i]),
-                            650,target,true));
-                    towerTimers[i]=Math.max(.26f,.95f-towers[i]*.12f);
-                    puff(towerX[i],towerY[i],3,GOLD);
+                    float[] modifiers={1f,1.50f,.77f,1.13f};
+                    Shot turretShot=new Shot(towerX[i],towerY[i]-25,
+                            BattleRules.towerDamage(towers[i])*modifiers[i],
+                            i==1?550:750,target,true);
+                    turretShot.towerSlot=i;
+                    shots.add(turretShot);
+                    towerAim[i]=(float)Math.atan2(target.y-towerY[i],target.x-towerX[i]);
+                    towerRecoil[i]=.20f;
+                    towerTimers[i]=Math.max(.25f,(i==1?1.35f:i==2?1.02f:.92f)
+                            -towers[i]*.11f);
+                    puff(towerX[i],towerY[i]-38,6,towerColor(i));
                 }
             }
         }
@@ -285,6 +299,7 @@ public final class RiftGameView extends View {
                 it.remove();continue;
             }
             e.attackAnim=Math.max(0,e.attackAnim-dt);
+            e.slowTimer=Math.max(0,e.slowTimer-dt);
             float dHero=distance(e.x,e.y,heroX,heroY);
             boolean hunt=MovementRules.huntsHero(dHero,e.kind);
             int route=Campaign.map(stage);
@@ -298,7 +313,9 @@ public final class RiftGameView extends View {
             float stop=passingWaypoint?3f:MovementRules.enemyStopDistance(hunt,e.kind);
             e.moving=d>stop;
             if(e.moving) {
-                float speedFactor=(e.kind==3?1.15f:1f);
+                float speedFactor=(e.kind==3?1.15f:1f)*
+                        DifficultyRules.enemySpeed(difficultyMode)*
+                        (e.slowTimer>0?.64f:1f);
                 float step=Math.min(d-stop,BattleRules.enemySpeed(e.kind)*speedFactor*dt);
                 e.x+=(tx-e.x)/Math.max(1,d)*step;
                 e.y+=(ty-e.y)/Math.max(1,d)*step;
@@ -316,7 +333,8 @@ public final class RiftGameView extends View {
                     e.y=BASE_Y+(wallDy<0?-134:134);
             }
             if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0) {
-                heroHp-=e.kind==2?20:11;
+                heroHp-=(e.kind==2?20:11)*
+                        DifficultyRules.enemyDamage(difficultyMode);
                 e.attackAnim=.42f;
                 hurtCooldown=.8f; puff(heroX,heroY,6,0xffff8086);
                 if(heroHp<=0){heroHp=0;scene=Scene.LOSE;return;}
@@ -325,7 +343,8 @@ public final class RiftGameView extends View {
                     distance(e.x,e.y,BASE_X,BASE_Y)<275))) {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
-                    baseHp-=e.kind==2?30:(e.kind==5?18:12);
+                    baseHp-=(e.kind==2?30:(e.kind==5?18:12))*
+                            DifficultyRules.enemyDamage(difficultyMode)*(e.boss?2.0f:1f);
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.7f:2.2f;
                     puff(BASE_X,BASE_Y,6,0xffff9f74);
@@ -341,6 +360,24 @@ public final class RiftGameView extends View {
             if(d<24) {
                 shot.target.hp-=shot.damage;
                 int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
+                if(shot.tower && shot.towerSlot==1) {
+                    // Cannon shells hit clustered enemies around the impact point.
+                    for(Enemy nearby:enemies)
+                        if(nearby!=shot.target && nearby.hp>0 &&
+                           distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<95)
+                            nearby.hp-=shot.damage*.44f;
+                } else if(shot.tower && shot.towerSlot==2) {
+                    // Frost turrets meaningfully reduce enemy movement for 2.6 seconds.
+                    shot.target.slowTimer=2.6f;
+                } else if(shot.tower && shot.towerSlot==3) {
+                    // Arc turrets chain to a secondary target.
+                    for(Enemy nearby:enemies)
+                        if(nearby!=shot.target && nearby.hp>0 &&
+                           distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<125){
+                            nearby.hp-=shot.damage*.65f;
+                            break;
+                        }
+                }
                 if(shot.weaponId==3) {
                     // Arc Staff chains lightning to a second nearby monster.
                     for(Enemy nearby:enemies) {
@@ -388,8 +425,8 @@ public final class RiftGameView extends View {
             else {
                 intermission-=dt;
                 if(intermission<=0) {
-                    if(wave>=Campaign.waves(stage)){complete();return;}
-                    wave++;remaining=Campaign.enemies(stage,wave);
+                    if(wave>=DifficultyRules.waves(stage,difficultyMode)){complete();return;}
+                    wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
                     spawnTimer=1.6f;waveNotice=2;waiting=false;
                 }
             }
@@ -402,10 +439,20 @@ public final class RiftGameView extends View {
         int kind=random.nextInt(Math.max(1,pool));
         // The Forest Boar becomes a recognizable charging enemy from wave two.
         if(wave>=2 && random.nextFloat()<.15f)kind=6;
-        if (wave==Campaign.waves(stage) && remaining==1 && Campaign.map(stage)==2) kind=5;
-        float hp=BattleRules.enemyHealth(stage,kind);
-        if (wave==Campaign.waves(stage) && remaining==1 && Campaign.map(stage)==2) hp*=4;
-        enemies.add(new Enemy(x,y,kind,hp,random.nextFloat()*6.28f));
+        boolean elite=DifficultyRules.eliteFinalWave(stage,wave,difficultyMode)
+                && remaining==1;
+        if(elite)kind=5;
+        float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
+        if(elite)hp*=DifficultyRules.finalBossMultiplier(stage);
+        Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
+        enemy.boss=elite;
+        enemies.add(enemy);
+        if(elite) {
+            waveNotice=2.7f;
+            announce(DifficultyRules.worldBoss(stage)?
+                    "WORLD BOSS  •  "+DifficultyRules.worldBossName(stage):
+                    "ELITE SIEGE COMMANDER INCOMING");
+        }
     }
     private Enemy closest(float x,float y,float range) {
         Enemy pick=null;float min=range*range;
@@ -475,7 +522,8 @@ public final class RiftGameView extends View {
     private void complete() {
         scene=Scene.WIN;paused=false;
         boolean firstClear=stage>=unlocked;
-        supplies+=Progression.stageReward(stage,firstClear);
+        int reward=Progression.stageReward(stage,firstClear);
+        supplies+=reward+DifficultyRules.supplyBonus(difficultyMode,reward);
         unlocked=Campaign.unlockedAfter(unlocked,stage);
         prefs.edit().putInt("unlocked",unlocked).putInt("supplies",supplies).apply();
         selectedLevel=Campaign.level(Math.min(stage+1,299));
@@ -502,6 +550,7 @@ public final class RiftGameView extends View {
         c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
         drawTerrain(c,biome);
         drawStageLandmarks(c,Campaign.map(stage),biome);
+        drawStageIdentity(c,biome);
         // Stable depth sorting by world-space foot position. Trees can pass in
         // front of the hero while structures and monsters retain proper layering.
         drawQueue.clear();
@@ -516,14 +565,16 @@ public final class RiftGameView extends View {
             if(entry.type==DECOR)drawDecor(c,(Decor)entry.entity,biome);
             else if(entry.type==KEEP)drawBase(c,biome);
             else if(entry.type==TOWER)drawTower(c,towerX[entry.slot],
-                    towerY[entry.slot],towers[entry.slot],biome);
+                    towerY[entry.slot],towers[entry.slot],entry.slot,biome);
             else if(entry.type==MONSTER)drawEnemy(c,(Enemy)entry.entity);
             else if(entry.type==DROP)drawPickup(c,(Pickup)entry.entity);
             else if(entry.type==WARDEN)drawHero(c);
         }
         for(Shot s:shots){
-            int boltColor=s.tower?GOLD:Progression.WEAPONS[s.weaponId].color;
-            circle(c,s.x,s.y,s.weaponId==5?16:11,boltColor&0x77ffffff);
+            int boltColor=s.tower?towerColor(Math.max(0,s.towerSlot)):
+                    Progression.WEAPONS[s.weaponId].color;
+            circle(c,s.x,s.y,s.weaponId==5||s.towerSlot==1?16:11,
+                    boltColor&0x77ffffff);
             circle(c,s.x,s.y,s.weaponId==5?8:5,boltColor);
             if(s.weaponId==4 || s.weaponId==0)
                 line(c,s.x-10,s.y+10,s.x+7,s.y-9,0xfff6ead9,3);
@@ -737,6 +788,92 @@ public final class RiftGameView extends View {
     }
 
     /** Physical keep footprint remains unchanged: wooden bases are solid in MovementRules. */
+    private void drawStageIdentity(Canvas c,int biome) {
+        // Every level produces its own deterministic group of structures.
+        // Each object is rendered separately, never baked into a poster.
+        int variant=StageFlavor.landmarkStyle(stage);
+        int count=StageFlavor.props(stage);
+        for(int i=0;i<count;i++){
+            float x=StageFlavor.landmarkX(stage,i),y=StageFlavor.landmarkY(stage,i);
+            float pulse=(float)Math.sin(gameTime*2+i)*3;
+            oval(c,x-36,y+7,x+43,y+22,0x55000000);
+            if(variant==0 || variant==4) { // Watchtowers / ruined villages
+                rect(c,x-19,y-59,x+22,y+9,0xff816f5b);
+                polygon(c,new float[]{x-33,y-59,x,y-96,x+33,y-59},
+                        variant==0?0xff6f817b:0xff967058);
+                rect(c,x-7,y-45,x+8,y-24,0xff253c48);
+                if(variant==4)line(c,x-21,y-18,x+19,y-49,0xffb9ab8a,5);
+            }else if(variant==1) { // War tents / camps
+                polygon(c,new float[]{x-41,y+12,x-3,y-66,x+43,y+12},0xff9d7254);
+                polygon(c,new float[]{x-3,y-66,x+43,y+12,x+2,y+12},0xffc59b6f);
+                line(c,x-4,y-67,x-4,y+12,0xff604b3b,3);
+            }else if(variant==2) { // Crystal and arc shrine
+                circle(c,x,y-11,32,0x334cc3d7);
+                polygon(c,new float[]{x-23,y,x,y-85-pulse,x+23,y},
+                        biome==3?0xffffa066:0xff90ddef);
+                polygon(c,new float[]{x,y-85-pulse,x+23,y,x,y+4},
+                        0xff426e87);
+                circle(c,x,y-51,7,0x99ffffff);
+            }else if(variant==3) { // Barricades, carts and supply caches
+                polygon(c,new float[]{x-42,y-7,x-37,y-46,x+36,y-46,x+43,y-7},
+                        0xff82654e);
+                for(int plank=0;plank<5;plank++)
+                    line(c,x-33+plank*16,y-45,x-30+plank*16,y-9,0xffc1a077,4);
+                circle(c,x-27,y+9,11,0xff35474d);
+                circle(c,x+27,y+9,11,0xff35474d);
+            }else if(variant==5) { // Broken stone arches
+                rect(c,x-37,y-66,x-22,y+9,0xff8a9994);
+                rect(c,x+20,y-66,x+35,y+9,0xff8a9994);
+                polygon(c,new float[]{x-41,y-66,x-29,y-94,x+32,y-94,
+                        x+38,y-66},0xffa3b6ac);
+                line(c,x-27,y-12,x+27,y-12,0xff69777b,5);
+            }else { // Windmills / waystations
+                rect(c,x-17,y-55,x+17,y+10,0xffa99776);
+                polygon(c,new float[]{x-25,y-55,x,y-83,x+24,y-55},0xff526e73);
+                c.save();c.rotate(gameTime*19,x,y-47);
+                line(c,x-31,y-47,x+31,y-47,0xffd9c99b,5);
+                line(c,x,y-78,x,y-16,0xffd9c99b,5);
+                c.restore();
+            }
+            // Dynamic beacons make layouts read as active locations.
+            if(i%3==0) {
+                circle(c,x+29,y-60,9+pulse*.4f,0x44ffa96b);
+                circle(c,x+29,y-60,4,0xffffd483);
+            }
+        }
+        int weather=StageFlavor.weather(stage);
+        for(int i=0;i<23;i++){
+            float x=1080+(i*117+(int)(gameTime*(weather==2?57:22)))%825;
+            float y=65+(i*67+(int)(gameTime*(weather==1?48:15)))%910;
+            if(weather==1)line(c,x,y,x+3,y+14,0x55d9f1ff,2);
+            else if(weather==2)circle(c,x,y,2.3f,0x77d9efff);
+            else if(weather==3)circle(c,x,y,2.2f,0x77ffc47c);
+            else circle(c,x,y,1.5f,0x559ce4d1);
+        }
+    }
+
+    private void drawStagePreview(Canvas c,int mission,float x,float top) {
+        int signature=StageFlavor.signature(mission);
+        int style=StageFlavor.landmarkStyle(mission);
+        // Tiny independent silhouettes distinguish levels within the same biome.
+        float anchor=x+45+(signature%170),y=top+50;
+        if(style==0||style==4||style==6){
+            rect(c,anchor-14,y-20,anchor+14,y+4,0xff344d57);
+            polygon(c,new float[]{anchor-19,y-20,anchor,y-41,anchor+19,y-20},
+                    0xffd2b37a);
+            if(style==6)
+                line(c,anchor-16,y-31,anchor+18,y-9,0xff8fd5eb,3);
+        } else if(style==1||style==3){
+            polygon(c,new float[]{anchor-18,y+4,anchor,y-35,anchor+18,y+4},
+                    0xffc49c79);
+            circle(c,anchor+31,y-9,5,0xffffcc7c);
+        }else{
+            polygon(c,new float[]{anchor-13,y+4,anchor,y-37,anchor+16,y+4},
+                    0xffb0eaf5);
+            circle(c,anchor,y-22,4,0xffeffaff);
+        }
+        text(c,""+Campaign.level(mission),x+274,top+23,17,0xfff6e1b1,true);
+    }
     private void drawWoodOutpost(Canvas c,int biome) {
         float x=BASE_X,y=BASE_Y;
         oval(c,x-154,y+105,x+164,y+133,0x6607151a);
@@ -880,23 +1017,74 @@ public final class RiftGameView extends View {
             circle(c,x-140+i*85,y-111,9,0x99ffae69);
         }
     }
-    private void drawTower(Canvas c,float x,float y,int tier,int biome) {
-        oval(c,x-34,y+25,x+38,y+42,0x66000000);
+    private static int towerColor(int slot) {
+        return new int[]{0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff}[slot];
+    }
+    /** Four distinctive functional fortress-mounted weapons. No generic sticks. */
+    private void drawTower(Canvas c,float x,float y,int tier,int slot,int biome) {
+        final int accent=towerColor(slot);
+        float recoil=towerRecoil[slot]/.20f;
+        oval(c,x-43,y+17,x+43,y+41,0x99091218);
+        // Load-bearing parapet joins the tower to the castle structure.
+        round(c,x-37,y-13,x+37,y+26,8,0xff455c64);
+        polygon(c,new float[]{x-43,y-12,x-28,y-29,x+29,y-29,x+43,y-12},
+                0xff829193);
+        rect(c,x-34,y+9,x+34,y+20,0xffb0aba1);
+        for(int i=0;i<4;i++)
+            rect(c,x-36+i*22,y-22,x-24+i*22,y-12,0xffc0c5b9);
         if(tier==0) {
-            circle(c,x,y,26,0xff47514c);
-            circle(c,x,y,18,0xff617265);
-            text(c,"+",x,y+8,24,0xff91a99b,true);
+            round(c,x-26,y-10,x+26,y+11,9,0xff293b46);
+            circleStroke(c,x,y-4,18,0xff89a6a7,3);
+            text(c,"+",x,y+3,20,GOLD,true);
             return;
         }
-        float h=28+tier*11;
-        polygon(c,new float[]{x-27,y+20,x-27,y-h,x+27,y-h,x+27,y+20},0xff6d7c81);
-        polygon(c,new float[]{x-27,y-h,x,y-h-25,x+27,y-h},0xff304f60);
-        polygon(c,new float[]{x-27,y-h,x,y-h-25,x,y-h},0xff597f8c);
-        rect(c,x-9,y-h+10,x+9,y-h+31,0xff24393f);
-        circle(c,x,y-h+18,8,GLOWS[biome]);
-        line(c,x-7,y-h-1,x+25,y-h-23,0xffd4c08b,7);
-        circle(c,x+25,y-h-23,7,GOLD);
-        for(int j=0;j<tier;j++)circle(c,x-25+j*12,y+10,4,GOLD);
+        float top=y-42-tier*5;
+        // Same base frame but four completely different gun assemblies.
+        round(c,x-29,top-7,x+29,y-4,7,0xff6d8083);
+        polygon(c,new float[]{x-31,top-6,x,top-26,x+31,top-6},0xff334c5e);
+        round(c,x-19,top+4,x+20,top+24,5,0xff253b48);
+        circle(c,x,top+12,10,accent);
+        c.save();
+        c.translate(x,top-12);
+        c.rotate((float)Math.toDegrees(towerAim[slot]));
+        float back=recoil*13;
+        if(slot==0) { // Mounted ballista: twin limbs and visible bow string.
+            rect(c,-20-back,-8,30-back,8,0xff9a7858);
+            polygon(c,new float[]{-14,0,-36,-30,-47,-22,-32,4},0xffcda877);
+            polygon(c,new float[]{-14,0,-36,30,-47,22,-32,-4},0xffcda877);
+            line(c,-44,-23,30,0,0xfff6d6a0,2);
+            line(c,-44,23,30,0,0xfff6d6a0,2);
+            polygon(c,new float[]{47-back,0,27-back,-7,27-back,7},0xffdbe9ec);
+        } else if(slot==1) { // Siege cannon: blackened iron barrel and orange vent.
+            round(c,-25-back,-15,38-back,15,5,0xff414852);
+            round(c,-11-back,-19,27-back,19,4,0xff6f747a);
+            rect(c,29-back,-20,43-back,20,0xffa8a9a4);
+            circle(c,43-back,0,13,0xff252b36);
+            circle(c,43-back,0,6,0xffce6d48);
+            for(int bolt=-1;bolt<=1;bolt++)
+                circle(c,bolt*14-back,-14,3,0xffecc27c);
+        } else if(slot==2) { // Frost launcher: icy prongs and rotating crystal.
+            polygon(c,new float[]{-22,-18,8,-18,37-back,0,8,18,-22,18},
+                    0xff8cb8ca);
+            polygon(c,new float[]{48-back,0,18-back,-18,-1,-2,18-back,18},
+                    0xffb7f0fb);
+            circle(c,14-back,0,9+(float)Math.sin(gameTime*4)*2,0xffdffeff);
+        } else { // Arc coil: forked electrodes and crackling voltaic orb.
+            rect(c,-16,-11,20-back,11,0xff635a86);
+            line(c,4,-9,39-back,-27,0xffb9acef,5);
+            line(c,4,9,39-back,27,0xffb9acef,5);
+            circle(c,39-back,0,12,0x77c39fff);
+            circle(c,39-back,0,6,0xfff7e5ff);
+            if(towerRecoil[slot]>0)
+                line(c,39-back,-20,46-back,0,0xfff2d3ff,3);
+        }
+        c.restore();
+        for(int j=0;j<tier;j++)
+            circle(c,x-24+j*12,y+18,3.2f,accent);
+        if(recoil>0) {
+            circle(c,x,top-12,25+recoil*14,accent&0x55ffffff);
+            circle(c,x,top-12,6+recoil*7,accent);
+        }
     }
     private void drawEnemy(Canvas c,Enemy e) {
         float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
@@ -914,8 +1102,9 @@ public final class RiftGameView extends View {
         float bob=(float)Math.sin(e.phase)*4,scale=e.kind==2?1.6f:e.kind==1?.76f:1f;
         c.save();c.translate(e.x,e.y+bob);c.scale(scale,scale);
         oval(c,-24,15,24,27,0x66000000);
-        int[] colors={0xffba6f61,0xffd9a45c,0xff788b9d,0xffad84cc,0xff70947a,0xffaa6781};
-        int body=colors[e.kind];
+        int[] colors={0xffba6f61,0xffd9a45c,0xff788b9d,
+                0xffad84cc,0xff70947a,0xffaa6781,0xffaf7963};
+        int body=colors[Math.floorMod(e.kind,colors.length)];
         // Animated legs, shoulders, helmet, glowing eyes and species silhouettes.
         line(c,-12,5,-17+(float)Math.sin(e.phase)*7,22,0xff28333a,8);
         line(c,12,5,17-(float)Math.sin(e.phase)*7,22,0xff28333a,8);
@@ -1051,9 +1240,11 @@ public final class RiftGameView extends View {
         bar(c,316,47,243,18,baseHp/Progression.maxCoreHp(fortressRank),0xff79cfad);
         text(c,"HERO",319,84,15,0xffafc6c6,false);
         bar(c,377,69,182,13,heroHp/100,0xffe7a07e);
-        text(c,"WAVE "+wave+" / "+Campaign.waves(stage),617,50,26,INK,false);
+        text(c,"WAVE "+wave+" / "+DifficultyRules.waves(stage,difficultyMode),
+                617,50,26,INK,false);
         text(c,"GOLD  "+gold,618,83,21,GOLD,false);
         text(c,"KILLS "+kills,870,51,21,INK,false);
+        text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
         text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
         round(c,1146,25,1223,89,16,0xff344c55);
         text(c,"II",1184,71,31,INK,true);
@@ -1155,6 +1346,7 @@ public final class RiftGameView extends View {
             c.save();
             c.clipRect(905,top,1204,top+68);
             WorldArt.drawScene(c,current,m,905,top,299,68,gameTime);
+            drawStagePreview(c,mission,905,top);
             c.restore();
             rect(c,905,top+67,1204,top+99,0xee182e37);
             text(c,(char)('A'+m)+"  "+Campaign.MAPS[m],914,top+90,19,INK,false);
@@ -1169,7 +1361,17 @@ public final class RiftGameView extends View {
                         "DEPLOY TO MAP "+(char)('A'+selectedMap):"UNLOCK PREVIOUS STAGE",
                 Campaign.accessible(chosen,unlocked)?0xffb1764c:0xff46515b);
         text(c,"BACK",81,652,24,INK,false);
-        text(c,"CLEARED: "+unlocked+" / 300",981,650,21,GOLD,false);
+        // Fully interactive difficulty selector; affects actual combat, not art alone.
+        text(c,"BATTLE DIFFICULTY",905,583,17,INK,false);
+        for(int mode=0;mode<4;mode++) {
+            float x=903+mode*78;
+            round(c,x,594,x+74,633,9,mode==difficultyMode?0xffb97944:0xff344d58);
+            text(c,DifficultyRules.NAMES[mode],x+37,620,mode==3?13:14,
+                    mode==difficultyMode?0xffffffff:0xffd0dee0,true);
+        }
+        text(c,"REWARD +" +(int)(100f*new float[]{0f,0f,.22f,.55f}[difficultyMode])+
+                "%",906,666,15,GOLD,false);
+        text(c,"CLEARED: "+unlocked+" / 300",1087,686,17,GOLD,true);
     }
     private void drawResources(Canvas c) {
         drawBackdrop(c);
@@ -1394,6 +1596,9 @@ public final class RiftGameView extends View {
             }else if(y>523 && y<579 && x>=1050 && x<1223) {
                 selectedLevel=Math.min(100,selectedLevel+1);
                 selectedMap=0;
+            }else if(y>=591 && y<641 && x>=900 && x<1215) {
+                difficultyMode=DifficultyRules.safe((int)((x-903)/78));
+                prefs.edit().putInt("difficulty",difficultyMode).apply();
             }else if(y>591 && y<665 && x>405 && x<880) {
                 int mission=Campaign.stage(selectedLevel,selectedMap);
                 if(Campaign.accessible(mission,unlocked))start(mission);

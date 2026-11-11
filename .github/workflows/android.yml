@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Nightly automated regression run: 11:21 AM in Asia/Manila (UTC+8).
+  # These runs are visible in GitHub Actions; they do not automatically change code.
+  schedule:
+    - cron: '21 3 * * *'
 
 permissions:
   contents: read

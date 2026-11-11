@@ -28,6 +28,13 @@ import static org.junit.Assert.*;
 public class ScreenGalleryTest {
     private final Context context=RuntimeEnvironment.getApplication();
 
+    private static Object getField(Object o,String name) throws Exception {
+        java.lang.reflect.Field f=o.getClass().getDeclaredField(name);
+        f.setAccessible(true);return f.get(o);
+    }
+
+
+
     private void tap(RiftGameView view,float x,float y) {
         long n=SystemClock.uptimeMillis();
         MotionEvent down=MotionEvent.obtain(n,n,MotionEvent.ACTION_DOWN,x,y,0);
@@ -115,5 +122,16 @@ public class ScreenGalleryTest {
         start.invoke(view,2); // Siege: separate battlefield path and monster
         spawn.invoke(view);
         capture(view,"07-fortress-siege");
+        // Render a named world-boss siege with four distinct mounted defenses.
+        start.invoke(view,Campaign.stage(10,2));
+        int[] battlements=(int[])getField(view,"towers");
+        for(int slot=0;slot<4;slot++)battlements[slot]=3;
+        java.lang.reflect.Field waveField=RiftGameView.class.getDeclaredField("wave");
+        java.lang.reflect.Field remainingField=RiftGameView.class.getDeclaredField("remaining");
+        waveField.setAccessible(true);remainingField.setAccessible(true);
+        waveField.setInt(view,DifficultyRules.waves(Campaign.stage(10,2),1));
+        remainingField.setInt(view,1);
+        spawn.invoke(view);
+        capture(view,"11-world-boss-defenses");
     }
 }

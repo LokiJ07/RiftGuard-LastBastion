@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.5.4 — optional ad-free online resource downloads with offline fallback
+## Current version: V0.6.0 — difficulty, 10 world-boss finales, four defense families and stage identities
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -36,3 +36,11 @@ Debug CI builds are not a release-signed APK. Reinstall conflicts may occur acro
 
 ## Development roadmap
 [Full production plan](docs/PRODUCTION_PLAN.md) · [Asset and unlock pack](docs/CONTENT_INTEGRATION_V1.md)
+
+## V0.6.0 combat and progression update
+- Map selection has **Easy / Normal / Hard / Expert** difficulty controls persisted between sessions. Hard and Expert have more waves and larger enemy rosters, stronger/faster enemies, more damage, and higher supply rewards.
+- Map C includes final-wave elite enemies, with 10 named world bosses at Level 10-C through Level 100-C.
+- Four independently animated mounted defenses: Ballista, Siege Cannon (splash), Frost Battery (slow), Arc Coil (chain), each with distinct muzzle effects and combat stats.
+- Individual level identity from deterministic watchtowers, camps, ruins, crystal shrines, windmills, paths and animated environmental effects. This is **procedural stage variation**, not 300 hand-painted maps.
+- Robolectric UI screens and battle simulations test actual difficulty selection, boss stats, shots, tower slow effects.
+- CI now includes a nightly `schedule` in addition to commits/PR runs. **It reports failures in GitHub Actions; it does not auto-fix or send ChatGPT messages**.
