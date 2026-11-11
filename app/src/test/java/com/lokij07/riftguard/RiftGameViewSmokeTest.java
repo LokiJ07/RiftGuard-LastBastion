@@ -258,7 +258,9 @@ public final class RiftGameViewSmokeTest {
             for(Object enemy:monsters) {
                 assertTrue("Enemies must enter from right",number(enemy,"x")>1800);
                 assertTrue("Enemies must enter the lane",
-                        Math.abs(number(enemy,"y")-LaneRules.spawnY(stage,0))<=58.1f);
+                        Math.abs(number(enemy,"y")-LaneRules.stageSpawnY(stage))<=48.1f);
+                assertTrue("Spawn must be within actual rendered road corridor",
+                        LaneRules.stageCoversPath(stage,number(enemy,"x"),number(enemy,"y")));
             }
             paint();
         }
