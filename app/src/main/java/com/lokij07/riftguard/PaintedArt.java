@@ -12,7 +12,7 @@ import android.graphics.RectF;
 /**
  * Genuine bundled original AI-generated artwork packed into an offline WebP atlas.
  * All UI/game entities stay interactive Canvas objects layered above the illustrations.
- * The atlas is a deliberately compressed first production texture, not final-resolution art.
+ * The atlas is a high-resolution production texture, not final-resolution art.
  */
 public final class PaintedArt {
     private final Bitmap atlas;
@@ -20,12 +20,12 @@ public final class PaintedArt {
     private final Paint tint=new Paint(Paint.ANTI_ALIAS_FLAG);
     private static final int MAP=0, HOME=1, FORTRESS=2;
     private static final Rect[] SOURCE={
-        new Rect(0,0,176,132),
-        new Rect(176,0,256,66),
-        new Rect(176,66,256,132),
-        new Rect(0,132,85,192),
-        new Rect(85,132,170,192),
-        new Rect(170,132,256,192)
+        new Rect(0,0,704,528),
+        new Rect(704,0,1024,264),
+        new Rect(704,264,1024,528),
+        new Rect(0,528,341,768),
+        new Rect(341,528,682,768),
+        new Rect(682,528,1024,768)
     };
 
     public PaintedArt(Resources resources) {
@@ -38,7 +38,7 @@ public final class PaintedArt {
         atlas=image;
     }
     public boolean available() {
-        return atlas!=null&&!atlas.isRecycled()&&atlas.getWidth()==256&&atlas.getHeight()==192;
+        return atlas!=null&&!atlas.isRecycled()&&atlas.getWidth()==1024&&atlas.getHeight()==768;
     }
     private void draw(Canvas c,int id,float l,float t,float r,float b,float alpha) {
         if(!available())return;

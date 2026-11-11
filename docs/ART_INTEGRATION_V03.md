@@ -7,7 +7,7 @@
 - Battle environments include a lightly blended illustrated atmosphere from the new art; playable entities remain drawn on top.
 
 ## Limitations and next asset pipeline
-The **current packed atlas is 256 × 192 pixels** for a first reliable binary-asset transport through the GitHub connector. It is intentionally a preview-quality asset and will appear soft on large screens. The original high-resolution concept sources exist in the conversation, but are **not** yet bundled at full quality.
+The **current packed atlas is 1024 × 768 pixels** (original AI-generated artwork resampled into one original WebP texture). This is significantly sharper than the first preview build. The full native-resolution concept sources remain available separately; the APK currently uses a 1024 × 768 art atlas.
 
 The original concept art includes UI and characters as part of the illustration, so those pixels are not functional game objects. Further production should generate UI-free, character-free terrain tiles and separate character/tower/monster sprite atlases. Each must be separately integrated, animated, performance-tested and validated in the running APK before claiming completion.
 
