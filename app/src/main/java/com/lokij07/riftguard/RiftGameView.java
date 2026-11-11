@@ -44,6 +44,24 @@ public final class RiftGameView extends View {
     private final PaintedArt painted;
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
+    private final BiomeProps biomeProps;
+    private static final float BATTLE_ZOOM=1.14f;
+    private static final int DECOR=0, KEEP=1, TOWER=2, MONSTER=3, DROP=4, WARDEN=5;
+    private static final class DepthItem {
+        float depth;
+        int type,slot;
+        Object entity;
+    }
+    private final ArrayList<DepthItem> drawQueue=new ArrayList<>(256);
+    private final ArrayList<DepthItem> drawPool=new ArrayList<>(256);
+    private void layer(int type,float depth,Object entity,int slot) {
+        int i=drawQueue.size();
+        if(i==drawPool.size())drawPool.add(new DepthItem());
+        DepthItem item=drawPool.get(i);
+        item.type=type;item.depth=depth;item.entity=entity;item.slot=slot;
+        drawQueue.add(item);
+    }
+
     private final SharedPreferences prefs;
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
@@ -109,6 +127,7 @@ public final class RiftGameView extends View {
         painted=new PaintedArt(context.getResources());
         characterArt=new CharacterArt(context.getResources());
         motionArt=new MotionArt(context.getResources());
+        biomeProps=new BiomeProps(context.getResources());
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -450,17 +469,34 @@ public final class RiftGameView extends View {
 
     private void drawBattle(Canvas c) {
         int biome=Campaign.world(stage);
-        float camX=BattleRules.clamp(heroX,W*.5f,WORLD_W-W*.5f);
-        float camY=BattleRules.clamp(heroY,H*.5f,WORLD_H-H*.5f);
-        c.save();c.translate(W*.5f-camX,H*.5f-camY);
+        float viewportHalfX=W/(BATTLE_ZOOM*2f);
+        float viewportHalfY=H/(BATTLE_ZOOM*2f);
+        float camX=BattleRules.clamp(heroX,viewportHalfX,WORLD_W-viewportHalfX);
+        float camY=BattleRules.clamp(heroY,viewportHalfY,WORLD_H-viewportHalfY);
+        c.save();
+        c.translate(W*.5f-camX*BATTLE_ZOOM,H*.5f-camY*BATTLE_ZOOM);
+        c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
         drawTerrain(c,biome);
         drawStageLandmarks(c,Campaign.map(stage),biome);
-        for(Decor d:decor) drawDecor(c,d,biome);
-        drawBase(c,biome);
-        for(int i=0;i<towers.length;i++)drawTower(c,towerX[i],towerY[i],towers[i],biome);
-        for(Enemy e:enemies)drawEnemy(c,e);
-        for(Pickup drop:pickups)drawPickup(c,drop);
-        drawHero(c);
+        // Stable depth sorting by world-space foot position. Trees can pass in
+        // front of the hero while structures and monsters retain proper layering.
+        drawQueue.clear();
+        for(Decor d:decor)layer(DECOR,BiomeProps.groundDepth(d.y),d,0);
+        layer(KEEP,BASE_Y+115,null,0);
+        for(int i=0;i<towers.length;i++)layer(TOWER,towerY[i]+31,null,i);
+        for(Enemy e:enemies)layer(MONSTER,e.y+8,e,0);
+        for(Pickup drop:pickups)layer(DROP,drop.y+12,drop,0);
+        layer(WARDEN,heroY+9,null,0);
+        drawQueue.sort((a,b)->Float.compare(a.depth,b.depth));
+        for(DepthItem entry:drawQueue) {
+            if(entry.type==DECOR)drawDecor(c,(Decor)entry.entity,biome);
+            else if(entry.type==KEEP)drawBase(c,biome);
+            else if(entry.type==TOWER)drawTower(c,towerX[entry.slot],
+                    towerY[entry.slot],towers[entry.slot],biome);
+            else if(entry.type==MONSTER)drawEnemy(c,(Enemy)entry.entity);
+            else if(entry.type==DROP)drawPickup(c,(Pickup)entry.entity);
+            else if(entry.type==WARDEN)drawHero(c);
+        }
         for(Shot s:shots){
             int boltColor=s.tower?GOLD:Progression.WEAPONS[s.weaponId].color;
             circle(c,s.x,s.y,s.weaponId==5?16:11,boltColor&0x77ffffff);
@@ -582,6 +618,8 @@ public final class RiftGameView extends View {
         }
     }
     private void drawDecor(Canvas c,Decor d,int biome) {
+        int fade=BiomeProps.overlapsHero(d.x,d.y,d.size,heroX,heroY)?155:255;
+        if(biomeProps.draw(c,biome,d.kind,d.x,d.y,d.size,gameTime,fade))return;
         c.save();c.translate(d.x,d.y);c.scale(d.size,d.size);
         if(biome==4 || biome==5 || d.kind==3){
             oval(c,-23,-7,25,11,0x44000000);
