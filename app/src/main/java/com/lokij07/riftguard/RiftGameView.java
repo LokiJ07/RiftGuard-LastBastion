@@ -197,7 +197,7 @@ public final class RiftGameView extends View {
         stage=s; scene=Scene.PLAY; paused=false;
         motionArt.prepareTerrain(s);
         walkClock=0;heroMoving=false;
-        heroX=BASE_X; heroY=BASE_Y+180; heroHp=100;
+        heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=100;
         baseHp=Progression.maxCoreHp(fortressRank);
         wave=1; remaining=Campaign.enemies(stage,wave);
         spawnTimer=3.2f; intermission=0; waiting=false;
@@ -217,6 +217,7 @@ public final class RiftGameView extends View {
             float y=55+r.nextFloat()*(WORLD_H-110);
             if(distance(x,y,BASE_X,BASE_Y)<327)continue;
             if(distance(x,y,heroX,heroY)<212)continue;
+            if(LaneRules.coversPath(Campaign.map(stage),x,y))continue;
             int chance=r.nextInt(100);
             int kind=chance<12?0:chance<24?1:chance<49?2:
                      chance<78?3:chance<88?4:5;
@@ -242,9 +243,9 @@ public final class RiftGameView extends View {
         float speed=245f;
         float previousHeroX=heroX,previousHeroY=heroY;
         // Independent X/Y collision resolution allows sliding along walls.
-        float nextX=MovementRules.heroNextX(heroX,heroY,axisX*speed*dt);
+        float nextX=LaneRules.heroX(MovementRules.heroNextX(heroX,heroY,axisX*speed*dt));
         if (!hitsBuiltTower(nextX,heroY)) heroX=nextX;
-        float nextY=MovementRules.heroNextY(heroX,heroY,axisY*speed*dt);
+        float nextY=LaneRules.heroY(MovementRules.heroNextY(heroX,heroY,axisY*speed*dt));
         if (!hitsBuiltTower(heroX,nextY)) heroY=nextY;
         heroMoving=distance(heroX,heroY,previousHeroX,previousHeroY)>.3f;
         if(heroMoving)walkClock+=dt;
@@ -284,7 +285,9 @@ public final class RiftGameView extends View {
             e.attackAnim=Math.max(0,e.attackAnim-dt);
             float dHero=distance(e.x,e.y,heroX,heroY);
             boolean hunt=MovementRules.huntsHero(dHero,e.kind);
-            float tx=hunt?heroX:BASE_X,ty=hunt?heroY:BASE_Y;
+            int route=Campaign.map(stage);
+            float tx=hunt?heroX:LaneRules.targetX(e.x,route);
+            float ty=hunt?heroY:LaneRules.targetY(e.x,route);
             float d=distance(e.x,e.y,tx,ty);
             // Intermediate bend is a waypoint, not a combat stopping point.
             // Only the final fortress perimeter uses the monster stand-off range.
@@ -391,10 +394,8 @@ public final class RiftGameView extends View {
         }
     }
     private void spawnEnemy() {
-        float angle=(float)(random.nextFloat()*Math.PI*2);
-        float radius=700+random.nextFloat()*180;
-        float x=BattleRules.clamp(BASE_X+(float)Math.cos(angle)*radius,35,WORLD_W-35);
-        float y=BattleRules.clamp(BASE_Y+(float)Math.sin(angle)*radius,35,WORLD_H-35);
+        float x=LaneRules.ENEMY_SPAWN_X-random.nextFloat()*26f;
+        float y=LaneRules.spawnY(Campaign.map(stage),random.nextFloat()*116f-58f);
         int pool=Math.min(6,2+Campaign.world(stage)/2+(wave>=3?1:0));
         int kind=random.nextInt(Math.max(1,pool));
         // The Forest Boar becomes a recognizable charging enemy from wave two.
@@ -492,10 +493,8 @@ public final class RiftGameView extends View {
 
     private void drawBattle(Canvas c) {
         int biome=Campaign.world(stage);
-        float viewportHalfX=W/(BATTLE_ZOOM*2f);
-        float viewportHalfY=H/(BATTLE_ZOOM*2f);
-        float camX=BattleRules.clamp(heroX,viewportHalfX,WORLD_W-viewportHalfX);
-        float camY=BattleRules.clamp(heroY,viewportHalfY,WORLD_H-viewportHalfY);
+        // Stable one-route composition: fortress left, incoming enemies right.
+        float camX=LaneRules.VIEW_CENTER_X,camY=LaneRules.VIEW_CENTER_Y;
         c.save();
         c.translate(W*.5f-camX*BATTLE_ZOOM,H*.5f-camY*BATTLE_ZOOM);
         c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
@@ -555,11 +554,16 @@ public final class RiftGameView extends View {
         p.setColor(0x665e6457);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(96);
         Path road=new Path();
         if(Campaign.map(stage)==0) {
-            road.moveTo(0,400);road.cubicTo(400,330,510,620,BASE_X,BASE_Y);
+            road.moveTo(WORLD_W,510);
+            road.cubicTo(1640,480,1350,520,LaneRules.CASTLE_GATE_X,510);
         }else if(Campaign.map(stage)==1){
-            road.moveTo(0,900);road.cubicTo(450,850,580,250,BASE_X,BASE_Y);
+            road.moveTo(WORLD_W,405);
+            road.cubicTo(1720,375,1565,550,LaneRules.waypointX(1),LaneRules.waypointY(1));
+            road.cubicTo(1350,570,1210,515,LaneRules.CASTLE_GATE_X,510);
         }else{
-            road.moveTo(1750,0);road.cubicTo(1250,150,700,170,BASE_X,BASE_Y);
+            road.moveTo(WORLD_W,598);
+            road.cubicTo(1680,610,1530,450,LaneRules.waypointX(2),LaneRules.waypointY(2));
+            road.cubicTo(1300,430,1180,512,LaneRules.CASTLE_GATE_X,510);
         }
         c.drawPath(road,p);
         p.setColor(0xff9a9173);p.setStrokeWidth(5);c.drawPath(road,p);
