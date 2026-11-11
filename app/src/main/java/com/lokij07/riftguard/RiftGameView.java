@@ -166,8 +166,16 @@ public final class RiftGameView extends View {
         waveNotice=Math.max(0,waveNotice-dt);
         noticeTimer=Math.max(0,noticeTimer-dt);
         float speed=245f;
+        float prevHeroX=heroX, prevHeroY=heroY;
         heroX=BattleRules.clamp(heroX+axisX*speed*dt,35,WORLD_W-35);
         heroY=BattleRules.clamp(heroY+axisY*speed*dt,35,WORLD_H-35);
+        // Solid outer walls; the southern gate lets the hero enter the courtyard.
+        float hx=Math.abs(heroX-BASE_X), hy=Math.abs(heroY-BASE_Y);
+        boolean throughGate=hx<38 && heroY>BASE_Y+12;
+        boolean courtyard=hx<118 && hy<90;
+        if(hx<150 && hy<123 && !throughGate && !courtyard) {
+            heroX=prevHeroX; heroY=prevHeroY;
+        }
         if (Math.abs(axisX)+Math.abs(axisY)>.1f) heroDir=(float)Math.atan2(axisY,axisX);
         if (firing) fire();
         if (!waiting) {
@@ -204,18 +212,27 @@ public final class RiftGameView extends View {
             boolean hunt=dHero<175 && e.kind!=2 && e.kind!=5;
             float tx=hunt?heroX:BASE_X,ty=hunt?heroY:BASE_Y;
             float d=distance(e.x,e.y,tx,ty);
-            float stop=e.kind==5?250:35;
+            float stop=e.kind==5?250:155;
             if(d>stop) {
                 float speedFactor=(e.kind==3?1.15f:1f);
                 e.x+=(tx-e.x)/Math.max(1,d)*BattleRules.enemySpeed(e.kind)*speedFactor*dt;
                 e.y+=(ty-e.y)/Math.max(1,d)*BattleRules.enemySpeed(e.kind)*speedFactor*dt;
+            }
+            // Ground monsters are blocked by the fortifications.
+            // Flying enemies can legitimately bypass the perimeter.
+            float wallDx=e.x-BASE_X, wallDy=e.y-BASE_Y;
+            if(e.kind!=3 && Math.abs(wallDx)<155 && Math.abs(wallDy)<134) {
+                if(155-Math.abs(wallDx)<134-Math.abs(wallDy))
+                    e.x=BASE_X+(wallDx<0?-155:155);
+                else
+                    e.y=BASE_Y+(wallDy<0?-134:134);
             }
             if (dHero<42 && hurtCooldown<=0) {
                 heroHp-=e.kind==2?20:11;
                 hurtCooldown=.8f; puff(heroX,heroY,6,0xffff8086);
                 if(heroHp<=0){heroHp=0;scene=Scene.LOSE;return;}
             }
-            if(distance(e.x,e.y,BASE_X,BASE_Y)<106 || (e.kind==5 &&
+            if(distance(e.x,e.y,BASE_X,BASE_Y)<190 || (e.kind==5 &&
                     distance(e.x,e.y,BASE_X,BASE_Y)<275)) {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
@@ -387,6 +404,14 @@ public final class RiftGameView extends View {
         for(int i=0;i<10;i++){
             float px=120+i*187,py=75+(i*143)%860;
             circle(c,px,py,80,0x0cffffff);
+        }
+        // Lightweight biome-specific animated atmosphere, fully offline.
+        for(int i=0;i<34;i++){
+            float drift=(biome==7?75f:biome==4?28f:9f)*gameTime;
+            float px=(i*227.7f+drift)%WORLD_W;
+            float py=(i*149.3f+(biome==4?gameTime*40:gameTime*6))%WORLD_H;
+            int tint=biome==4?0x99f2faff:biome==7?0x66b7bbff:0x55c9e8c4;
+            circle(c,px,py,biome==4?3.5f:2.2f,tint);
         }
     }
     private void drawDecor(Canvas c,Decor d,int biome) {
