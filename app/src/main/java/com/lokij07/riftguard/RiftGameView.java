@@ -38,7 +38,7 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, PLAY, WIN, LOSE }
+    private enum Scene { HOME, MAP, ARMORY, FORTRESS, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final SharedPreferences prefs;
@@ -52,6 +52,7 @@ public final class RiftGameView extends View {
     private final float[] towerX={810,1092,811,1093};
     private final float[] towerY={370,370,656,656};
     private int unlocked;
+    private int supplies, fortressRank, equippedWeapon;
     private int selectedLevel=1, selectedMap=0, stage=0;
     private int wave, remaining, gold, kills;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
@@ -72,6 +73,7 @@ public final class RiftGameView extends View {
     private static final class Shot {
         float x,y,speed,damage,life;
         boolean tower;
+        int weaponId=-1;
         Enemy target;
         Shot(float x,float y,float damage,float speed,Enemy target,boolean tower) {
             this.x=x; this.y=y; this.damage=damage; this.speed=speed; this.target=target;
@@ -95,6 +97,10 @@ public final class RiftGameView extends View {
         setLayerType(View.LAYER_TYPE_HARDWARE,null);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
+        supplies=Math.max(0,prefs.getInt("supplies",0));
+        fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
+        equippedWeapon=prefs.getInt("weapon",0);
+        if(!Progression.canEquip(fortressRank,equippedWeapon))equippedWeapon=0;
         selectedLevel=Campaign.level(Math.min(unlocked,299));
         setFocusable(true);
     }
@@ -137,6 +143,8 @@ public final class RiftGameView extends View {
         canvas.scale(scale,scale);
         if (scene==Scene.HOME) drawHome(canvas);
         else if (scene==Scene.MAP) drawMap(canvas);
+        else if (scene==Scene.ARMORY) drawArmory(canvas);
+        else if (scene==Scene.FORTRESS) drawFortress(canvas);
         else {
             drawBattle(canvas);
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
@@ -149,14 +157,17 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false;
-        heroX=BASE_X; heroY=BASE_Y+180; heroHp=100; baseHp=1000;
+        heroX=BASE_X; heroY=BASE_Y+180; heroHp=100;
+        baseHp=Progression.maxCoreHp(fortressRank);
         wave=1; remaining=Campaign.enemies(stage,wave);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
-        waveNotice=2.6f; noticeTimer=0; gold=150; kills=0;
+        waveNotice=2.6f; noticeTimer=0; gold=150+(fortressRank-1)*20; kills=0;
         enemies.clear();shots.clear();sparks.clear();decor.clear();
         for (int i=0;i<towers.length;i++){towers[i]=0;towerTimers[i]=0;}
         towers[0]=1;
+        if(fortressRank>=4)towers[1]=1;
+        if(fortressRank>=5)towers[2]=1;
         Random r=new Random(Campaign.seed(stage));
         for (int i=0;i<125;i++) {
             float x=50+r.nextFloat()*(WORLD_W-100);
@@ -259,7 +270,24 @@ public final class RiftGameView extends View {
             float d=distance(shot.x,shot.y,shot.target.x,shot.target.y-10);
             if(d<24) {
                 shot.target.hp-=shot.damage;
-                puff(shot.target.x,shot.target.y,4,shot.tower?GOLD:0xff94ddff);
+                int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
+                if(shot.weaponId==3) {
+                    // Arc Staff chains lightning to a second nearby monster.
+                    for(Enemy nearby:enemies) {
+                        if(nearby!=shot.target && nearby.hp>0 &&
+                                distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<110) {
+                            nearby.hp-=shot.damage*.52f;
+                            puff(nearby.x,nearby.y,6,impact);
+                            break;
+                        }
+                    }
+                } else if(shot.weaponId==5) {
+                    // Frost shards also splash nearby attackers.
+                    for(Enemy nearby:enemies) if(nearby!=shot.target && nearby.hp>0 &&
+                            distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<65)
+                        nearby.hp-=shot.damage*.25f;
+                }
+                puff(shot.target.x,shot.target.y,7,impact);
                 sit.remove();
             } else {
                 shot.x+=(shot.target.x-shot.x)/Math.max(1,d)*shot.speed*dt;
@@ -307,12 +335,26 @@ public final class RiftGameView extends View {
     }
     private void fire() {
         if (shotTimer>0 || scene!=Scene.PLAY) return;
-        Enemy target=closest(heroX,heroY,480);
-        if(target==null) { shotTimer=.2f; return; }
+        Progression.Weapon weapon=Progression.WEAPONS[equippedWeapon];
+        Enemy target=closest(heroX,heroY,weapon.range);
+        if(target==null) { shotTimer=Math.min(.2f,weapon.cooldown); return; }
         heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
-        shots.add(new Shot(heroX,heroY-18,34+Campaign.world(stage)*8,780,target,false));
-        shotTimer=.25f;fireFlash=.2f;
-        puff(heroX,heroY,3,0xffa1f5fb);
+        shotTimer=weapon.cooldown;
+        fireFlash=.23f;
+        if("MELEE".equals(weapon.type)) {
+            // Sweeping blade hits every creature within its physical reach.
+            for(Enemy e:enemies) if(e.hp>0
+                    && distance(e.x,e.y,heroX,heroY)<weapon.range) {
+                e.hp-=weapon.damage;
+                puff(e.x,e.y,7,weapon.color);
+            }
+        } else {
+            Shot shot=new Shot(heroX,heroY-18,weapon.damage,
+                    equippedWeapon==4?900:730,target,false);
+            shot.weaponId=equippedWeapon;
+            shots.add(shot);
+        }
+        puff(heroX,heroY,5,weapon.color);
     }
     private void pulse() {
         if(pulseCooldown>0)return;
@@ -349,8 +391,10 @@ public final class RiftGameView extends View {
     }
     private void complete() {
         scene=Scene.WIN;paused=false;
+        boolean firstClear=stage>=unlocked;
+        supplies+=Progression.stageReward(stage,firstClear);
         unlocked=Campaign.unlockedAfter(unlocked,stage);
-        prefs.edit().putInt("unlocked",unlocked).apply();
+        prefs.edit().putInt("unlocked",unlocked).putInt("supplies",supplies).apply();
         selectedLevel=Campaign.level(Math.min(stage+1,299));
         selectedMap=Campaign.map(Math.min(stage+1,299));
     }
@@ -378,8 +422,11 @@ public final class RiftGameView extends View {
         for(Enemy e:enemies)drawEnemy(c,e);
         drawHero(c);
         for(Shot s:shots){
-            circle(c,s.x,s.y,11,s.tower?0x44ffd37c:0x448bdffe);
-            circle(c,s.x,s.y,5,s.tower?GOLD:0xffaefaff);
+            int boltColor=s.tower?GOLD:Progression.WEAPONS[s.weaponId].color;
+            circle(c,s.x,s.y,s.weaponId==5?16:11,boltColor&0x77ffffff);
+            circle(c,s.x,s.y,s.weaponId==5?8:5,boltColor);
+            if(s.weaponId==4 || s.weaponId==0)
+                line(c,s.x-10,s.y+10,s.x+7,s.y-9,0xfff6ead9,3);
         }
         for(Spark s:sparks){
             p.setColor(s.color);p.setAlpha((int)(255*Math.max(0,s.life/s.maxLife)));
@@ -481,6 +528,38 @@ public final class RiftGameView extends View {
         circle(c,x,y+1,5,0xffffffff);
         line(c,x,y-49,x,y-91,0xffd3c6a2,5);
         polygon(c,new float[]{x+3,y-87,x+41,y-79,x+3,y-65},0xffe8a860);
+        // Permanent rank changes add real defensive silhouettes, not only HP.
+        if(fortressRank>=2){
+            for(int side=-1;side<=1;side+=2){
+                polygon(c,new float[]{x+side*110,y-113,x+side*145,y-152,
+                     x+side*169,y-114},0xff507782);
+                rect(c,x+side*145-13,y-114,x+side*145+13,y-72,0xffaab8aa);
+            }
+        }
+        if(fortressRank>=3){
+            rect(c,x-78,y+45,x+79,y+79,0xff67767a);
+            for(int slot=-2;slot<=2;slot++)
+                rect(c,x+slot*30-11,y+38,x+slot*30+11,y+49,0xffbdc5b6);
+            polygon(c,new float[]{x-45,y+47,x,y+14,x+45,y+47},0xff8daba5);
+        }
+        if(fortressRank>=4){
+            for(int side=-1;side<=1;side+=2){
+                rect(c,x+side*165-15,y-80,x+side*165+15,y+28,0xff738b91);
+                polygon(c,new float[]{x+side*165-27,y-85,x+side*165,y-121,
+                     x+side*165+27,y-85},0xff38596b);
+                circle(c,x+side*165,y-62,8,0xffffb672);
+            }
+        }
+        if(fortressRank>=5){
+            circle(c,x,y-45,29,0x449bdffe);
+            circle(c,x,y-45,14,0xff8ae8ee);
+            circle(c,x,y-45,6,0xffffffff);
+            for(int i=0;i<9;i++){
+                float a=i*.698f+gameTime*.3f;
+                float ex=x+(float)Math.cos(a)*96,ey=y-45+(float)Math.sin(a)*52;
+                circle(c,ex,ey,3.5f,0xffa2eaf9);
+            }
+        }
         if(baseHp<700) for(int i=0;i<3;i++)line(c,x-125+i*65,y-91,x-115+i*60,y-52,0xff57453d,4);
         if(baseHp<320) for(int i=0;i<4;i++){
             circle(c,x-140+i*85,y-90,22,0x55ff9d57);
@@ -551,11 +630,14 @@ public final class RiftGameView extends View {
         // Shield arm and shimmering sword, animated on attacks.
         circle(c,-25,-5,19,0xffb79a65);
         circle(c,-25,-5,13,0xff355d73);circle(c,-25,-5,5,GOLD);
-        c.save();c.rotate((float)Math.sin(gameTime*8)*10+(fireFlash>0?65:0),23,-10);
-        line(c,19,-3,42,-39,0xffd7e9ec,9);
-        line(c,19,-3,42,-39,0xff7cdce7,4);
-        line(c,6,-7,33,2,0xffe2b571,8);
+        c.save();
+        c.rotate((float)Math.sin(gameTime*8)*5+(fireFlash>0?36:0),26,-13);
+        WorldArt.drawWeapon(c,equippedWeapon,26,-18,.66f,gameTime);
         c.restore();
+        if(fireFlash>0 && (equippedWeapon==1 || equippedWeapon==2)){
+            circleStroke(c,0,0,Progression.WEAPONS[equippedWeapon].range*.55f,
+                    Progression.WEAPONS[equippedWeapon].color&0x88ffffff,6);
+        }
         if(hurtCooldown>0)circle(c,0,-7,32,0x44ff6464);
         c.restore();
     }
@@ -578,6 +660,9 @@ public final class RiftGameView extends View {
         }
         if(noticeTimer>0) text(c,notice,640,207,30,GOLD,true);
         text(c,"MOVE",153,688,17,0xffb5cfc5,true);
+        WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
+        text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
+                624,703,17,GOLD,true);
     }
     private int nextTowerTier() {
         int tier=BattleRules.MAX_TOWER_TIER;
@@ -589,12 +674,13 @@ public final class RiftGameView extends View {
         text(c,Campaign.title(stage),45,48,25,GOLD,false);
         text(c,Campaign.worldName(stage),45,82,20,INK,false);
         text(c,"CORE",319,38,15,0xffafc6c6,false);
-        bar(c,316,47,243,18,baseHp/1000,0xff79cfad);
+        bar(c,316,47,243,18,baseHp/Progression.maxCoreHp(fortressRank),0xff79cfad);
         text(c,"HERO",319,84,15,0xffafc6c6,false);
         bar(c,377,69,182,13,heroHp/100,0xffe7a07e);
         text(c,"WAVE "+wave+" / "+Campaign.waves(stage),617,50,26,INK,false);
         text(c,"GOLD  "+gold,618,83,21,GOLD,false);
         text(c,"KILLS "+kills,870,51,21,INK,false);
+        text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
         round(c,1146,25,1223,89,16,0xff344c55);
         text(c,"II",1184,71,31,INK,true);
     }
@@ -608,55 +694,160 @@ public final class RiftGameView extends View {
 
     private void drawHome(Canvas c) {
         drawBackdrop(c);
-        round(c,98,72,765,635,32,0xdd10252d);
-        text(c,"RIFTGUARD",145,187,99,GOLD,false);
-        text(c,"LAST BASTION",150,243,42,INK,false);
-        rect(c,152,268,615,273,0xff689f93);
-        text(c,"THE ECLIPSE HAS OPENED.",151,337,31,0xffe4b9a0,false);
-        text(c,"Build the fortress. Fight the invasion.",151,384,26,INK,false);
-        text(c,"100 levels   •   300 battlegrounds   •   10 realms",151,428,22,0xffaecbc8,false);
-        button(c,151,488,625,571,"ENTER CAMPAIGN",0xffbb7750);
-        text(c,"V0.1  •  OFFLINE ANDROID FOUNDATION",156,611,17,0xff9db5b7,false);
-        // Decorative animated portal rim and monster silhouettes.
-        circleStroke(c,1060,350,180,0x99a36ecb,26);
-        circleStroke(c,1060,350,140,0xffe2a56c,10);
-        circle(c,1060,350,130,0xaa643a8c);
-        polygon(c,new float[]{1015,460,1028,330,1060,282,1095,332,1109,460},0xff1a2433);
-        circle(c,1047,345,7,0xfff5b87e);circle(c,1078,345,7,0xfff5b87e);
+        // Campaign art in the main menu changes with saved progression.
+        roundedPanel(c,644,66,1222,646);
+        WorldArt.drawScene(c,Campaign.world(Math.min(unlocked,299)),2,
+                656,80,553,548,gameTime);
+        rect(c,656,522,1209,630,0xd0142b33);
+        text(c,"GREENHAVEN  /  THE LAST BASTION",679,563,24,GOLD,false);
+        text(c,"A kingdom in danger. Your fortress grows with every victory.",
+                679,595,16,INK,false);
+        round(c,54,65,628,650,25,0xe6183039);
+        text(c,"RIFTGUARD",87,183,80,GOLD,false);
+        text(c,"LAST BASTION",91,240,35,INK,false);
+        rect(c,93,259,577,264,0xff709c9d);
+        text(c,"RECLAIM THE TEN REALMS",94,318,26,0xffe2b995,false);
+        text(c,"Defend • Earn Supplies • Upgrade • Unlock",94,355,23,INK,false);
+        button(c,95,415,590,490,"CAMPAIGN  /  WORLD MAP",0xffa56a49);
+        button(c,95,509,328,572,"ARMORY",0xff3d6971);
+        button(c,348,509,590,572,"FORTRESS",0xff44645c);
+        text(c,"FORTRESS RANK "+fortressRank+"   •   SUPPLIES "+supplies,
+                98,614,21,GOLD,false);
+        text(c,"V0.2 VISUAL & EQUIPMENT FOUNDATION",101,643,15,0xff9eb8bb,false);
     }
+
+    private void roundedPanel(Canvas c,float l,float t,float r,float b) {
+        round(c,l-5,t-5,r+5,b+5,18,0xffd0a878);
+        round(c,l,t,r,b,14,0xff25434b);
+    }
+
     private void drawMap(Canvas c) {
         drawBackdrop(c);
-        round(c,50,35,1230,670,30,0xf014252c);
-        text(c,"CAMPAIGN  •  WORLD MAP",93,93,45,GOLD,false);
-        text(c,"Clear 3 maps per level. Defend the core to unlock the next stage.",94,131,22,INK,false);
-        for(int i=0;i<10;i++) {
-            float x=123+i*113;
-            boolean on=i==((selectedLevel-1)/10);
-            circle(c,x,195,on?40:31,on?GLOWS[i]:0xff364b55);
-            circle(c,x,195,on?31:24,GROUNDS[i]);
-            text(c,""+(i+1),x,204,25,INK,true);
+        round(c,37,21,1243,698,26,0xf0162c34);
+        text(c,"REALM ATLAS",67,83,47,GOLD,false);
+        text(c,"Ten illustrated kingdoms   •   100 levels   •   300 missions",
+                469,80,22,INK,false);
+        int currentRegion=(selectedLevel-1)/10;
+        for(int i=0;i<10;i++){
+            int col=i%5,row=i/5;
+            float x=66+col*237,y=119+row*123;
+            round(c,x-4,y-4,x+224,y+116,12,
+                    currentRegion==i?GOLD:0xff43535b);
+            WorldArt.drawScene(c,i,i%3,x,y,216,80,gameTime);
+            rect(c,x,y+81,x+216,y+112,0xe01e3540);
+            String region=Campaign.WORLDS[i];
+            if(region.length()>18)region=region.substring(0,18);
+            text(c,region.toUpperCase(),x+8,y+102,17,INK,false);
+            if(unlocked<(i*30)) {
+                circle(c,x+193,y+14,12,0xcc26303a);
+                text(c,"X",x+193,y+20,16,0xffe6b6a0,true);
+            } else {
+                circle(c,x+193,y+14,12,0xdd43835d);
+                text(c,"+",x+193,y+20,15,INK,true);
+            }
         }
-        text(c,"REALM "+(1+(selectedLevel-1)/10)+": "+Campaign.WORLDS[(selectedLevel-1)/10],
-                640,268,34,GOLD,true);
-        button(c,88,293,161,379,"<",0xff385762);
-        button(c,1120,293,1193,379,">",0xff385762);
-        text(c,"LEVEL "+selectedLevel+" / 100",640,337,32,INK,true);
+        text(c,"<",104,413,46,GOLD,true);
+        text(c,Campaign.WORLDS[currentRegion]+"    •    LEVEL "+selectedLevel+" / 100",
+                640,404,29,GOLD,true);
+        text(c,">",1185,413,46,GOLD,true);
         for(int i=0;i<3;i++){
+            float x=176+i*311, y=429;
             int s=Campaign.stage(selectedLevel,i);
             boolean can=Campaign.accessible(s,unlocked);
-            float x=190+i*303;
-            round(c,x,391,x+280,557,19,i==selectedMap?0xff395c66:0xff273d46);
-            if(i==selectedMap)border(c,x,391,x+280,557,19,GOLD,3);
-            text(c,"MAP "+(char)('A'+i),x+140,431,28,can?GOLD:0xff89949a,true);
-            text(c,Campaign.MAPS[i],x+140,472,25,INK,true);
-            text(c,can?(s<unlocked?"CLEARED  ✓":"AVAILABLE"):"LOCKED",x+140,519,19,
-                    can?0xffa6ddb0:0xffa0a2a6,true);
+            round(c,x-5,y-5,x+297,y+148,15,i==selectedMap?GOLD:0xff4e656d);
+            WorldArt.drawScene(c,currentRegion,i,x,y,287,83,gameTime);
+            rect(c,x,y+84,x+287,y+143,can?0xff304c52:0xff293840);
+            text(c,(char)('A'+i)+"  "+Campaign.MAPS[i],x+9,y+110,23,INK,false);
+            text(c,can?(s<unlocked?"CLEARED  •  REPLAY":"AVAILABLE"):"LOCKED  •  PROGRESS FIRST",
+                    x+9,y+133,17,can?0xffa5dbb7:0xffd5aba6,false);
         }
         int chosen=Campaign.stage(selectedLevel,selectedMap);
-        button(c,413,585,866,645,Campaign.accessible(chosen,unlocked)?"DEPLOY TO MAP":"MAP LOCKED",
-                Campaign.accessible(chosen,unlocked)?0xffbb7750:0xff49565d);
-        text(c,"BACK",100,631,24,INK,false);
-        text(c,"PROGRESS  "+unlocked+" / 300",1004,631,23,GOLD,false);
+        button(c,406,598,873,654,Campaign.accessible(chosen,unlocked)?"DEPLOY TO THE BATTLEFIELD":"STAGE LOCKED",
+                Campaign.accessible(chosen,unlocked)?0xffac704e:0xff485259);
+        text(c,"BACK",78,648,24,INK,false);
+        text(c,"CLEARED  "+Math.min(300,unlocked)+" / 300",1004,649,21,GOLD,false);
+    }
+
+    private void drawArmory(Canvas c) {
+        drawBackdrop(c);
+        round(c,43,28,1237,695,25,0xf0172d35);
+        text(c,"WARDEN'S ARMORY",80,87,51,GOLD,false);
+        text(c,"Equip unlocked weapons. Each has different damage, reach and attack speed.",
+                83,123,22,INK,false);
+        text(c,"FORTRESS "+fortressRank+"   |   EQUIPPED: "+
+                Progression.WEAPONS[equippedWeapon].name,1194,88,21,GOLD,true);
+        for(int i=0;i<Progression.WEAPONS.length;i++){
+            Progression.Weapon w=Progression.WEAPONS[i];
+            boolean available=Progression.canEquip(fortressRank,i);
+            float x=79+(i%3)*375,y=155+(i/3)*218;
+            round(c,x-5,y-4,x+345,y+198,18,
+                    i==equippedWeapon?GOLD:0xff49616b);
+            round(c,x,y,x+340,y+192,14,available?0xff294955:0xff293640);
+            round(c,x+12,y+15,x+128,y+167,12,0xff172d39);
+            WorldArt.drawWeapon(c,i,x+69,y+96,1.14f,gameTime);
+            text(c,w.name,x+146,y+54,24,available?INK:0xffa2a6aa,false);
+            text(c,w.type,x+147,y+85,19,w.color,false);
+            text(c,"DMG "+(int)w.damage+"  •  RANGE "+(int)w.range,
+                    x+147,y+113,16,INK,false);
+            text(c,available?(i==equippedWeapon?"EQUIPPED  ✓":"TAP TO EQUIP"):
+                    "UNLOCK: FORT RANK "+w.requiredRank,
+                    x+148,y+162,17,available?GOLD:0xffffaa9c,false);
+        }
+        button(c,80,625,317,679,"BACK TO HOME",0xff3d6067);
+        button(c,351,625,648,679,"UPGRADE FORTRESS",0xff9d6b4e);
+        text(c,"Weapon choices are saved permanently.",871,659,18,0xffaec5c9,false);
+    }
+
+    private void drawFortress(Canvas c) {
+        drawBackdrop(c);
+        round(c,48,29,1233,694,25,0xf0172e36);
+        text(c,"FORTRESS WORKSHOP",85,86,50,GOLD,false);
+        text(c,"Upgrade the base to unlock weapons, towers and extra core health.",
+                88,125,21,INK,false);
+        WorldArt.drawScene(c,Math.min(9,Campaign.world(Math.min(unlocked,299))),
+                2,75,158,600,390,gameTime);
+        round(c,77,554,669,632,13,0xee1c3942);
+        text(c,"RANK "+fortressRank+"  /  5     "+Progression.RANK_NAMES[fortressRank],
+                98,587,29,GOLD,false);
+        text(c,"CORE HP: "+Progression.maxCoreHp(fortressRank)+
+                "     STARTING TOWERS: "+(fortressRank>=5?3:fortressRank>=4?2:1),
+                100,619,20,INK,false);
+        round(c,718,153,1204,531,22,0xff283e4a);
+        text(c,"KINGDOM SUPPLIES",758,216,25,INK,false);
+        text(c,""+supplies,758,280,59,GOLD,false);
+        text(c,"CURRENT UPGRADE",758,329,21,0xffb6c9ca,false);
+        if(fortressRank<Progression.MAX_RANK){
+            int next=fortressRank+1;
+            text(c,Progression.RANK_NAMES[next],758,371,30,GOLD,false);
+            text(c,"Unlock: "+Progression.WEAPONS[next].name,758,410,22,INK,false);
+            text(c,"Cost: "+Progression.upgradeCost(fortressRank)+" Supplies",
+                    758,453,25,INK,false);
+            text(c,Progression.canUpgrade(fortressRank,supplies)?
+                    "READY TO CONSTRUCT":"WIN MISSIONS TO EARN MORE",
+                    759,496,18,Progression.canUpgrade(fortressRank,supplies)?
+                            0xff8cdea5:0xffe3af9c,false);
+        }else{
+            text(c,"ARC CITADEL - MAX RANK",759,378,29,GOLD,false);
+            text(c,"All six launch weapons are available.",759,423,21,INK,false);
+        }
+        button(c,738,554,1195,627,fortressRank==Progression.MAX_RANK?
+                "FORTRESS COMPLETE":"UPGRADE / CONSTRUCT",
+                Progression.canUpgrade(fortressRank,supplies)?0xffb0704e:0xff566166);
+        text(c,"BACK",92,669,24,INK,false);
+        text(c,"ARMORY",453,669,25,GOLD,false);
+    }
+
+    private void upgradeFortress() {
+        if(!Progression.canUpgrade(fortressRank,supplies))return;
+        supplies-=Progression.upgradeCost(fortressRank);
+        fortressRank++;
+        prefs.edit().putInt("supplies",supplies).putInt("fortress_rank",fortressRank).apply();
+        announce(Progression.RANK_NAMES[fortressRank]+" CONSTRUCTED");
+    }
+    private void equipWeapon(int id) {
+        if(!Progression.canEquip(fortressRank,id))return;
+        equippedWeapon=id;
+        prefs.edit().putInt("weapon",equippedWeapon).apply();
     }
     private void drawBackdrop(Canvas c) {
         p.setShader(new LinearGradient(0,0,0,720,0xff0b1c26,0xff293d43,Shader.TileMode.CLAMP));
@@ -739,28 +930,54 @@ public final class RiftGameView extends View {
     }
     private void tapMenu(float x,float y) {
         if(scene==Scene.HOME) {
-            if(x>100 && x<800 && y>470 && y<592){scene=Scene.MAP;}
+            if(x>93 && x<610 && y>408 && y<492)scene=Scene.MAP;
+            else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
+            else if(x>345 && x<610 && y>502 && y<580)scene=Scene.FORTRESS;
         }else if(scene==Scene.MAP) {
-            if(y<235 && y>154 && x>70 && x<1220){
-                int index=Math.round((x-123)/113);
-                if(index>=0 && index<10){selectedLevel=index*10+1;selectedMap=0;}
-            }else if(y>290 && y<389 && x<170) {
-                selectedLevel=Math.max(1,selectedLevel-1);selectedMap=0;
-            }else if(y>290 && y<389 && x>1100) {
-                selectedLevel=Math.min(100,selectedLevel+1);selectedMap=0;
-            }else if(y>391 && y<558 && x>185 && x<1100) {
-                int ix=(int)((x-190)/303);
-                if(ix>=0 && ix<3)selectedMap=ix;
-            }else if(y>583 && y<650 && x>410 && x<870) {
+            if(y>=112 && y<362 && x>=66 && x<1251) {
+                int col=(int)((x-66)/237);
+                int row=(int)((y-119)/123);
+                if(col>=0 && col<5 && row>=0 && row<2) {
+                    float localX=(x-66)%237, localY=(y-119)%123;
+                    if(localX<=216 && localY>=0 && localY<114) {
+                        selectedLevel=(row*5+col)*10+1;
+                        selectedMap=0;
+                    }
+                }
+            }else if(y>363 && y<428 && x<160) {
+                selectedLevel=Math.max(1,selectedLevel-1);
+                selectedMap=0;
+            }else if(y>363 && y<428 && x>1120) {
+                selectedLevel=Math.min(100,selectedLevel+1);
+                selectedMap=0;
+            }else if(y>=422 && y<581 && x>=171 && x<1104) {
+                int col=(int)((x-176)/311);
+                if(col>=0 && col<3)selectedMap=col;
+            }else if(y>585 && y<664 && x>399 && x<881) {
                 int s=Campaign.stage(selectedLevel,selectedMap);
                 if(Campaign.accessible(s,unlocked))start(s);
-                else announce("MAP IS LOCKED");
-            }else if(x<180 && y>580){scene=Scene.HOME;}
-        }else if(scene==Scene.WIN || scene==Scene.LOSE){
+            }else if(x<191 && y>599)scene=Scene.HOME;
+        }else if(scene==Scene.ARMORY) {
+            if(x>80 && x<329 && y>619)scene=Scene.HOME;
+            else if(x>342 && x<655 && y>619)scene=Scene.FORTRESS;
+            else if(y>=151 && y<570) {
+                int col=(int)((x-79)/375),row=(int)((y-155)/218);
+                if(col>=0 && col<3 && row>=0 && row<2) {
+                    float localX=(x-79)%375,localY=(y-155)%218;
+                    if(localX>=0 && localX<343 && localY>=0 && localY<197)
+                        equipWeapon(row*3+col);
+                }
+            }
+        }else if(scene==Scene.FORTRESS) {
+            if(y>539 && y<634 && x>722)upgradeFortress();
+            else if(y>630 && x<300)scene=Scene.HOME;
+            else if(y>630 && x>339 && x<690)scene=Scene.ARMORY;
+        }else if(scene==Scene.WIN || scene==Scene.LOSE) {
             if(x>420 && x<860 && y>425 && y<510) {
                 if(scene==Scene.WIN && stage==299)scene=Scene.MAP;
-                else if(scene==Scene.WIN)start(Math.min(299,stage+1));else start(stage);
-            }else if(x>420 && x<860 && y>514 && y<602){scene=Scene.MAP;}
+                else if(scene==Scene.WIN)start(Math.min(299,stage+1));
+                else start(stage);
+            }else if(x>420 && x<860 && y>514 && y<602)scene=Scene.MAP;
         }
     }
     private void bar(Canvas c,float x,float y,float w,float h,float fraction,int color) {

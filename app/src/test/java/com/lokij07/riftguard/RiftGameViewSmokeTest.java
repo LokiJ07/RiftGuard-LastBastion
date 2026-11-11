@@ -76,12 +76,56 @@ public final class RiftGameViewSmokeTest {
 
     @Test public void homeMapAndBattleRenderWithoutRuntimeException() throws Exception {
         paint();
-        tap(250,520); // ENTER CAMPAIGN
+        tap(250,451); // ENTER CAMPAIGN
         assertEquals("MAP",value(view,"scene").toString());
         paint();
         tap(640,610); // DEPLOY
         assertEquals("PLAY",value(view,"scene").toString());
         paint();
+    }
+
+    @Test public void permanentUpgradeUnlocksAndEquipsRealWeapon() throws Exception {
+        start(0);
+        invoke(view,"complete",new Class<?>[0]);
+        assertEquals(120,value(view,"supplies"));
+        tap(600,555); // Results -> campaign map
+        assertEquals("MAP",value(view,"scene").toString());
+        tap(100,641); // Map -> home
+        assertEquals("HOME",value(view,"scene").toString());
+        tap(475,540); // Home -> fortress
+        assertEquals("FORTRESS",value(view,"scene").toString());
+        paint();
+        tap(1000,580); // Buy permanent Rank 2
+        assertEquals(2,value(view,"fortressRank"));
+        assertEquals(0,value(view,"supplies"));
+        tap(480,660); // Fortress -> Armory
+        assertEquals("ARMORY",value(view,"scene").toString());
+        paint();
+        tap(1010,250); // Select Rank 2 Ember Sabre
+        assertEquals(2,value(view,"equippedWeapon"));
+        RiftGameView reloaded=new RiftGameView(RuntimeEnvironment.getApplication());
+        assertEquals(2,value(reloaded,"fortressRank"));
+        assertEquals(2,value(reloaded,"equippedWeapon"));
+        assertEquals(0,value(reloaded,"supplies"));
+        invoke(reloaded,"start",new Class<?>[]{int.class},0);
+        assertEquals(Progression.maxCoreHp(2),number(reloaded,"baseHp"),.001f);
+        // Unlocked melee weapon must inflict immediate close-range damage.
+        invoke(reloaded,"spawnEnemy",new Class<?>[0]);
+        @SuppressWarnings("unchecked")
+        List<Object> foes=(List<Object>)value(reloaded,"enemies");
+        Object enemy=foes.get(0);
+        set(enemy,"x",1030f);set(enemy,"y",690f);
+        set(enemy,"hp",300f);set(enemy,"maxHp",300f);
+        invoke(reloaded,"fire",new Class<?>[0]);
+        assertTrue("Equipped Ember Sabre must damage enemies",number(enemy,"hp")<300f);
+    }
+
+    @Test public void armoryDoesNotEquipLockedWeapon() throws Exception {
+        tap(220,543);
+        assertEquals("ARMORY",value(view,"scene").toString());
+        paint();
+        tap(990,465); // Frost Lance, requires Rank 5
+        assertEquals(0,value(view,"equippedWeapon"));
     }
 
     @Test public void joystickInputMovesHeroAndStopsOnRelease() throws Exception {
