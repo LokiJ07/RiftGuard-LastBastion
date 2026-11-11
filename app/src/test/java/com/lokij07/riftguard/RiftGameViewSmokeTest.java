@@ -150,11 +150,26 @@ public final class RiftGameViewSmokeTest {
         tap(250,450); // HOME -> MAP
         assertEquals("MAP",value(view,"scene").toString());
         paint();
-        tap(595,236); // Ember Canyon node 4 (actual world-map hitbox)
+        tap(535,364); // Ember Canyon region 4, clickable real illustrated location
         assertEquals(31,value(view,"selectedLevel"));
         tap(915,445); // Map C: last stand
         assertEquals(2,value(view,"selectedMap"));
         paint();
+    }
+
+    @Test public void atlasIsIndependentFromBakedStaticUi() throws Exception {
+        tap(250,450);
+        assertEquals("MAP",value(view,"scene").toString());
+        // All 10 locations have independently selectable, correctly positioned hitboxes.
+        for(int i=0;i<10;i++){
+            tap(AtlasArt.NODES_X[i],AtlasArt.NODES_Y[i]);
+            assertEquals(i*10+1,value(view,"selectedLevel"));
+        }
+        tap(630,613); // Locked level must not deploy.
+        assertEquals("MAP",value(view,"scene").toString());
+        tap(AtlasArt.NODES_X[0],AtlasArt.NODES_Y[0]); // Return to unlocked region.
+        tap(630,613);
+        assertEquals("PLAY",value(view,"scene").toString());
     }
 
     @Test public void realCharacterSpriteAtlasLoadsAndAllClassesCanRender() throws Exception {

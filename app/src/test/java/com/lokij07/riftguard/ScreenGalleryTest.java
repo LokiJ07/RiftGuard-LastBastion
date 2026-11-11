@@ -86,8 +86,11 @@ public class ScreenGalleryTest {
             java.lang.reflect.Field py=enemy.getClass().getDeclaredField("y");
             type.setAccessible(true);px.setAccessible(true);py.setAccessible(true);
             type.setInt(enemy,kind);
-            px.setFloat(enemy,680+kind*85);
-            py.setFloat(enemy,640-(kind%3)*102);
+            // The visual gallery must show the actual right-to-left attack lane,
+            // not old enemies artificially placed beside/behind the fortress.
+            float ex=1800-kind*75f;
+            px.setFloat(enemy,ex);
+            py.setFloat(enemy,LaneRules.pathY(0,ex)+(kind%3-1)*40f);
         }
         capture(view,"05-battle");
         // Exercise actual movement and weapon attack state and capture the renderer.
@@ -106,9 +109,11 @@ public class ScreenGalleryTest {
         // Render the two other genuine battlefield variants for visual regression.
         java.lang.reflect.Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
         start.setAccessible(true);
-        start.invoke(view,1); // Bridge Defense
+        start.invoke(view,1); // Bridge Defense: visible defenders and an approaching enemy
+        spawn.invoke(view);
         capture(view,"06-bridge-defense");
-        start.invoke(view,2); // Siege
+        start.invoke(view,2); // Siege: separate battlefield path and monster
+        spawn.invoke(view);
         capture(view,"07-fortress-siege");
     }
 }
