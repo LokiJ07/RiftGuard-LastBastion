@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.7.0 — functional offline Kingdom Hub with Quests, Events, Achievements, Daily Rewards, and Shop
+## Current version: V0.7.1 — functional offline Kingdom Hub with Quests, Events, Achievements, Daily Rewards, and Shop
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -76,3 +76,6 @@ Open Home → **Kingdom Hub**. All five features are real game systems, not stat
 Progress is persisted after real battle results in the same campaign save. No ads, account, online verification, payment systems or multiplayer. Rewards require explicit claims. Automated tests verify restarts, duplicate reward prevention, rollovers, battle stats, upgrade effects and actual Android UI screen rendering. Local clock adjustments cannot be fully prevented in an offline-only game.
 
 **Not yet complete:** AAA-style character locomotion/rigging, 300 handcrafted environments, detailed animated castle stages, real high-resolution downloadable content, new game icon and native aspect-responsive UI.
+
+### V0.7.1 UI/verification patch
+Kingdom Hub status message moved out of content/footer areas. Shop inventory purchase-to-battle stats now covered by real UI interaction tests. Weekly event period is monotonic when the phone clock is rolled backwards.

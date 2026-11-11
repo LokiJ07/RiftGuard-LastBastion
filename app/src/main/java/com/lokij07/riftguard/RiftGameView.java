@@ -1506,7 +1506,7 @@ public final class RiftGameView extends View {
         else if(kingdomTab==2)drawEventHall(c,now);
         else if(kingdomTab==3)drawAchievementHall(c);
         else drawShopHall(c);
-        text(c,kingdomMessage,640,618,20,0xffbfe8c2,true);
+        text(c,kingdomMessage,876,126,16,0xffbfe8c2,true);
         button(c,82,632,346,681,"HOME",0xff42646f);
         button(c,366,632,675,681,"CAMPAIGN",0xff956744);
         text(c,"NO ADS  •  NO LOGIN  •  STORED ON DEVICE",
@@ -1547,8 +1547,8 @@ public final class RiftGameView extends View {
                     "CLAIM +"+KingdomMeta.QUEST_REWARDS[i]:"IN PROGRESS",
                     1023,y+51,21,INK,true);
         }
-        text(c,"Progress saves after each completed or failed battle.",
-                112,595,19,0xffadc6c4,false);
+        text(c,"Progress saves after each battle.",
+                112,589,17,0xffadc6c4,false);
     }
     private void drawEventHall(Canvas c,long now) {
         int index=kingdom.eventIndex(now),target=kingdom.eventTarget(now);
@@ -1596,8 +1596,7 @@ public final class RiftGameView extends View {
             text(c,rank==5?"MAX UPGRADE":"BUY  "+cost+" SUPPLIES",
                     x+382,y+131,20,INK,true);
         }
-        text(c,"Permanent upgrades affect hero health, core HP, tower damage and pulse cooldown.",
-                110,594,19,INK,false);
+        text(c,"Upgrades persist through all battles.",110,586,17,INK,false);
     }
     private void tapKingdom(float x,float y) {
         if(y>=142 && y<211 && x>=76 && x<1210) {

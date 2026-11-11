@@ -149,7 +149,11 @@ public final class KingdomMeta {
                 .putInt("supplies",supplies()+reward).commit())return 0;
         return reward;
     }
-    public int eventIndex(long now){refreshEvent(now);return weekOf(now)%3;}
+    public int eventIndex(long now){
+        refreshEvent(now);
+        // Never roll backwards into an older event using a manually changed clock.
+        return Math.floorMod(prefs.getInt("meta.eventWeek",weekOf(now)),3);
+    }
     public int eventTarget(long now){return EVENT_TARGETS[eventIndex(now)];}
     public int eventReward(long now){return EVENT_REWARDS[eventIndex(now)];}
     public int eventProgress(long now){

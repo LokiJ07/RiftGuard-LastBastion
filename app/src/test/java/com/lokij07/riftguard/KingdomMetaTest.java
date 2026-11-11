@@ -107,6 +107,39 @@ public final class KingdomMetaTest {
         catch(IllegalArgumentException expected){}
         assertEquals(remain,meta.supplies());
     }
+    @Test public void shopBoughtThroughRealUiChangesBattleStatsAfterRestart()
+            throws Exception {
+        context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
+                .edit().clear().putInt("supplies",3000).commit();
+        RiftGameView game=new RiftGameView(context);
+        game.layout(0,0,1280,720);
+        touch(game,900,475); // enter hub
+        touch(game,1090,177); // Shop tab
+        touch(game,472,355); // Warden Vitality
+        touch(game,1048,355); // Core Reinforcement
+        touch(game,472,530); // Tower Arsenal
+        touch(game,1048,530); // Pulse Capacitor
+        assertEquals(1,new KingdomMeta(context.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE)).shopRank(0));
+        RiftGameView restarted=new RiftGameView(context);
+        Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
+        start.setAccessible(true);start.invoke(restarted,0);
+        assertEquals(115f,(Float)field(restarted,"heroHp"),.001f);
+        assertEquals(Progression.maxCoreHp(1)+160f,
+                (Float)field(restarted,"baseHp"),.001f);
+        Method pulse=RiftGameView.class.getDeclaredMethod("pulse");
+        pulse.setAccessible(true);pulse.invoke(restarted);
+        assertEquals(10f,(Float)field(restarted,"pulseCooldown"),.001f);
+        assertTrue(new KingdomMeta(context.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE)).towerDamageMultiplier()>1f);
+    }
+    @Test public void rollingBackPhoneClockDoesNotReopenOldWeeklyEvent() {
+        long t=BASE_DAY;
+        int newer=meta.eventIndex(t+DAY*8);
+        int older=meta.eventIndex(t);
+        assertEquals("Older phone date must not change the active event",newer,older);
+    }
+
     @Test public void theActualFiveTabKingdomUiRendersAndAcceptsRealTaps() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().clear().putInt("supplies",1000).commit();
