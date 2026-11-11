@@ -162,12 +162,29 @@ public final class RiftGameViewSmokeTest {
         assertEquals("MAP",value(view,"scene").toString());
         // All 10 locations have independently selectable, correctly positioned hitboxes.
         for(int i=0;i<10;i++){
+            if(i>0)tap(776,70); // Regional view -> kingdom overview
             tap(AtlasArt.NODES_X[i],AtlasArt.NODES_Y[i]);
             assertEquals(i*10+1,value(view,"selectedLevel"));
+            assertEquals(true,value(view,"regionalMap"));
         }
-        tap(630,613); // Locked level must not deploy.
+        tap(630,613); // Locked location must not deploy.
         assertEquals("MAP",value(view,"scene").toString());
-        tap(AtlasArt.NODES_X[0],AtlasArt.NODES_Y[0]); // Return to unlocked region.
+        tap(776,70); // Return to kingdom overview.
+        tap(AtlasArt.NODES_X[0],AtlasArt.NODES_Y[0]); // Unlocked realm.
+        tap(630,613);
+        assertEquals("PLAY",value(view,"scene").toString());
+    }
+
+    @Test public void tenRegionalStopsHaveLiveHitboxesAndLockedStagesStayLocked() throws Exception {
+        tap(250,450); // Campaign
+        tap(AtlasArt.NODES_X[0],AtlasArt.NODES_Y[0]); // Open Greenhaven region
+        assertEquals(true,value(view,"regionalMap"));
+        tap(220,368); // Stage 2, locked until prior 3 missions cleared
+        assertEquals(2,value(view,"selectedLevel"));
+        tap(630,613);
+        assertEquals("MAP",value(view,"scene").toString());
+        tap(143,452); // Return to stage 1, unlocked
+        assertEquals(1,value(view,"selectedLevel"));
         tap(630,613);
         assertEquals("PLAY",value(view,"scene").toString());
     }
