@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.8.2 — fortress structures, mounted turret layering, wrist-synced weapon grips
+## Current version: V0.8.3 — fortress silhouette, integrated mount & camera framing improvements
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -94,3 +94,6 @@ On 18:9, 19.5:9 and 21:9 displays, the battle joystick, BUILD, PULSE and ATTACK 
 - Robolectric screenshots include 3 castle upgrade ranks and six equipped weapon modes. Tests cover image differences, mounted supports and seven viewport sizes.
 
 Important honesty: the original hero sprite atlas has some painted equipment baked into character frames. This update improves anatomical weapon attachment but **does not complete a skeletal rig or truly weapon-free hero animation set**. Similarly, viewport tests are not universal physical-device certification.
+
+## V0.8.3 camera and visibility fix
+Real rendered screenshot inspection exposed a cropped fortress on the left. The camera is now recentered on the castle–hero lane, with the keep fully inside the battle viewport and the four mounting weapons slightly reduced to preserve visibility. A regression test asserts the castle bounds within 16:9 gameplay.
