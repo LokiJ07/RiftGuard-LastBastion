@@ -98,13 +98,24 @@ public final class RiftGameView extends View {
         selectedLevel=Campaign.level(Math.min(unlocked,299));
         setFocusable(true);
     }
+    private void clearTouchControls() {
+        joyPointer=-1;
+        attackPointer=-1;
+        axisX=axisY=0;
+        firing=false;
+    }
     public void setActive(boolean value) {
         active=value;
         lastNs=0;
+        if (!value) clearTouchControls();
         if (active) postInvalidateOnAnimation();
     }
     public boolean handleBack() {
-        if (scene==Scene.PLAY) { paused=!paused; return true; }
+        if (scene==Scene.PLAY) {
+            paused=!paused;
+            clearTouchControls();
+            return true;
+        }
         if (scene!=Scene.HOME) { scene=Scene.HOME; return true; }
         return false;
     }
@@ -155,7 +166,7 @@ public final class RiftGameView extends View {
             decor.add(new Decor(x,y, .65f+r.nextFloat()*.8f,r.nextInt(6)));
         }
         random.setSeed(Campaign.seed(stage)^0xDDEEFF);
-        axisX=axisY=0;joyPointer=attackPointer=-1;firing=false;
+        clearTouchControls();
     }
 
     private void update(float dt) {
@@ -166,16 +177,11 @@ public final class RiftGameView extends View {
         waveNotice=Math.max(0,waveNotice-dt);
         noticeTimer=Math.max(0,noticeTimer-dt);
         float speed=245f;
-        float prevHeroX=heroX, prevHeroY=heroY;
-        heroX=BattleRules.clamp(heroX+axisX*speed*dt,35,WORLD_W-35);
-        heroY=BattleRules.clamp(heroY+axisY*speed*dt,35,WORLD_H-35);
-        // Solid outer walls; the southern gate lets the hero enter the courtyard.
-        float hx=Math.abs(heroX-BASE_X), hy=Math.abs(heroY-BASE_Y);
-        boolean throughGate=hx<38 && heroY>BASE_Y+12;
-        boolean courtyard=hx<118 && hy<90;
-        if(hx<150 && hy<123 && !throughGate && !courtyard) {
-            heroX=prevHeroX; heroY=prevHeroY;
-        }
+        // Independent X/Y collision resolution allows sliding along walls.
+        float nextX=MovementRules.heroNextX(heroX,heroY,axisX*speed*dt);
+        if (!hitsBuiltTower(nextX,heroY)) heroX=nextX;
+        float nextY=MovementRules.heroNextY(heroX,heroY,axisY*speed*dt);
+        if (!hitsBuiltTower(heroX,nextY)) heroY=nextY;
         if (Math.abs(axisX)+Math.abs(axisY)>.1f) heroDir=(float)Math.atan2(axisY,axisX);
         if (firing) fire();
         if (!waiting) {
@@ -207,16 +213,19 @@ public final class RiftGameView extends View {
                 puff(e.x,e.y,9,GLOWS[Campaign.world(stage)]);
                 it.remove();continue;
             }
-            e.phase+=dt*6;
             float dHero=distance(e.x,e.y,heroX,heroY);
-            boolean hunt=dHero<175 && e.kind!=2 && e.kind!=5;
+            boolean hunt=MovementRules.huntsHero(dHero,e.kind);
             float tx=hunt?heroX:BASE_X,ty=hunt?heroY:BASE_Y;
             float d=distance(e.x,e.y,tx,ty);
-            float stop=e.kind==5?250:155;
+            float stop=MovementRules.enemyStopDistance(hunt,e.kind);
             if(d>stop) {
                 float speedFactor=(e.kind==3?1.15f:1f);
-                e.x+=(tx-e.x)/Math.max(1,d)*BattleRules.enemySpeed(e.kind)*speedFactor*dt;
-                e.y+=(ty-e.y)/Math.max(1,d)*BattleRules.enemySpeed(e.kind)*speedFactor*dt;
+                float step=Math.min(d-stop,BattleRules.enemySpeed(e.kind)*speedFactor*dt);
+                e.x+=(tx-e.x)/Math.max(1,d)*step;
+                e.y+=(ty-e.y)/Math.max(1,d)*step;
+                e.phase+=dt*7;
+            } else {
+                e.phase+=dt*1.3f;
             }
             // Ground monsters are blocked by the fortifications.
             // Flying enemies can legitimately bypass the perimeter.
@@ -227,13 +236,13 @@ public final class RiftGameView extends View {
                 else
                     e.y=BASE_Y+(wallDy<0?-134:134);
             }
-            if (dHero<42 && hurtCooldown<=0) {
+            if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0) {
                 heroHp-=e.kind==2?20:11;
                 hurtCooldown=.8f; puff(heroX,heroY,6,0xffff8086);
                 if(heroHp<=0){heroHp=0;scene=Scene.LOSE;return;}
             }
-            if(distance(e.x,e.y,BASE_X,BASE_Y)<190 || (e.kind==5 &&
-                    distance(e.x,e.y,BASE_X,BASE_Y)<275)) {
+            if(!hunt && (distance(e.x,e.y,BASE_X,BASE_Y)<190 || (e.kind==5 &&
+                    distance(e.x,e.y,BASE_X,BASE_Y)<275))) {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
                     baseHp-=e.kind==2?30:(e.kind==5?18:12);
@@ -318,6 +327,11 @@ public final class RiftGameView extends View {
         }
         puff(heroX,heroY,22,0xff97f9ff);
         announce(hits==0?"ARC PULSE":"ARC PULSE  •  "+hits+" HIT");
+    }
+    private boolean hitsBuiltTower(float x,float y) {
+        for (int i=0;i<towers.length;i++)
+            if (towers[i]>0 && distance(x,y,towerX[i],towerY[i])<29) return true;
+        return false;
     }
     private void build() {
         int choice=-1;
@@ -552,7 +566,9 @@ public final class RiftGameView extends View {
         circle(c,153,568,94,0x77202c38);circleStroke(c,153,568,93,0x77d3ede6,3);
         circle(c,153+axisX*61,568+axisY*61,45,0xbba3c4c6);
         circle(c,153+axisX*61,568+axisY*61,26,0xff416578);
-        action(c,849,589,50,0xff4c837d,"BUILD",""+BattleRules.towerCost(nextTowerTier()));
+        int nextTier=nextTowerTier();
+        action(c,849,589,50,0xff4c837d,"BUILD",
+                nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":""+BattleRules.towerCost(nextTier));
         action(c,974,593,49,0xff6476a6,"PULSE",
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
         action(c,1130,560,70,0xffb3684c,"ATTACK","FIRE");
@@ -564,9 +580,9 @@ public final class RiftGameView extends View {
         text(c,"MOVE",153,688,17,0xffb5cfc5,true);
     }
     private int nextTowerTier() {
-        int tier=0;
-        for(int t:towers) if(t<tier || tier==0)tier=t;
-        return Math.min(BattleRules.MAX_TOWER_TIER-1,tier);
+        int tier=BattleRules.MAX_TOWER_TIER;
+        for(int t:towers) tier=Math.min(tier,t);
+        return tier;
     }
     private void drawHudTop(Canvas c,int biome) {
         round(c,15,12,1250,102,22,0xee13252c);
@@ -694,9 +710,9 @@ public final class RiftGameView extends View {
         if(action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) {
             if(scene!=Scene.PLAY) { tapMenu(x,y);invalidate();return true; }
             if(paused) {
-                if(x>450 && x<830 && y>330 && y<421) paused=false;
-                else if(x>450 && x<830 && y>435 && y<525) {scene=Scene.MAP;paused=false;}
-            }else if(x>1138 && y<112) paused=true;
+                if(x>450 && x<830 && y>330 && y<421) { paused=false;clearTouchControls(); }
+                else if(x>450 && x<830 && y>435 && y<525) {scene=Scene.MAP;paused=false;clearTouchControls();}
+            }else if(x>1138 && y<112) {paused=true;clearTouchControls();}
             else if(x<350 && y>367) {joyPointer=id;updateStick(x,y);}
             else if(distance(x,y,1130,560)<82) {attackPointer=id;firing=true;fire();}
             else if(distance(x,y,974,593)<62) pulse();
@@ -707,8 +723,11 @@ public final class RiftGameView extends View {
                 if(at>=0)updateStick((ev.getX(at)-offsetX)/scale,(ev.getY(at)-offsetY)/scale);
             }
         }else if(action==MotionEvent.ACTION_UP || action==MotionEvent.ACTION_POINTER_UP || action==MotionEvent.ACTION_CANCEL){
-            if(action==MotionEvent.ACTION_CANCEL || id==joyPointer){joyPointer=-1;axisX=axisY=0;}
-            if(action==MotionEvent.ACTION_CANCEL || id==attackPointer){attackPointer=-1;firing=false;}
+            if(action==MotionEvent.ACTION_CANCEL) clearTouchControls();
+            else {
+                if(id==joyPointer){joyPointer=-1;axisX=axisY=0;}
+                if(id==attackPointer){attackPointer=-1;firing=false;}
+            }
         }
         invalidate();
         return true;
