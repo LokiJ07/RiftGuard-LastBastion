@@ -1279,7 +1279,8 @@ public final class RiftGameView extends View {
             String text=waiting?"WAVE CLEARED!  +25 GOLD":"WAVE "+wave+"  •  DEFEND THE CORE";
             text(c,text,640,159,34,0xfff2e4bf,true);
         }
-        if(noticeTimer>0) text(c,notice,640,207,30,GOLD,true);
+        if(noticeTimer>0 && !bossActive)
+            text(c,notice,640,207,30,GOLD,true);
         text(c,"MOVE",153,688,17,0xffb5cfc5,true);
         if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
             WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
