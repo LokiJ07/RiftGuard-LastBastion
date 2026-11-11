@@ -39,6 +39,19 @@ public final class ResourcePacks {
     private static final long MAX_FILE_BYTES=20L*1024*1024;
     private static final int MAX_MANIFEST_BYTES=32*1024;
     private static final String VERIFIED_MANIFEST="verified-manifest.json";
+    // Immutable, content-addressed downloads are never overwritten by a pending
+    // update. Only the verified manifest pointer switches once all files exist.
+    private static File objectPath(File root,Asset asset) {
+        return new File(new File(root,"objects"),asset.name+"."+asset.gitSha);
+    }
+    private static File activePath(File root,Asset asset) throws Exception {
+        File versioned=objectPath(root,asset);
+        if(matchesGitBlob(versioned,asset))return versioned;
+        // Backward compatibility for already downloaded v0.5.4–v0.5.7 packs.
+        File legacy=new File(root,asset.name);
+        if(matchesGitBlob(legacy,asset))return legacy;
+        return null;
+    }
     private static final String[] APPROVED={
         "riftguard_atlas.webp",
         "riftguard_castle_game.webp",
@@ -140,8 +153,8 @@ public final class ResourcePacks {
         int count=0;long size=0;
         for(Asset asset:recorded.assets) {
             try{
-                File file=new File(root,asset.name);
-                if(matchesGitBlob(file,asset)){count++;size+=file.length();}
+                File file=activePath(root,asset);
+                if(file!=null){count++;size+=file.length();}
             }catch(Exception ignored){/* invalid file is never counted */}
         }
         return new State(count,APPROVED.length,size);
@@ -153,9 +166,8 @@ public final class ResourcePacks {
         if(record==null)return null;
         for(Asset asset:record.assets){
             if(!asset.name.equals(name))continue;
-            File file=new File(root,name);
             try {
-                if(matchesGitBlob(file,asset))return file;
+                return activePath(root,asset);
             }catch(Exception ignored){}
             return null;
         }
@@ -164,7 +176,7 @@ public final class ResourcePacks {
     public static Bitmap decodeOrBundled(Context context,int drawable,String name,
                                           int width,int height) {
         File file=installed(context,name);
-        if(file!=null) {
+        if(file!=null && expectedImage(file,width,height)) {
             Bitmap cached=decodeFile(file);
             if(valid(cached,width,height))return cached;
             if(cached!=null)cached.recycle();
@@ -184,6 +196,15 @@ public final class ResourcePacks {
     private static boolean valid(Bitmap bitmap,int width,int height) {
         return bitmap!=null&&!bitmap.isRecycled()
                 &&bitmap.getWidth()==width&&bitmap.getHeight()==height;
+    }
+    // Reject unexpected image dimensions before allocating/decompressing bitmap memory.
+    private static boolean expectedImage(File file,int width,int height) {
+        BitmapFactory.Options o=new BitmapFactory.Options();
+        o.inJustDecodeBounds=true;
+        try {
+            BitmapFactory.decodeFile(file.getAbsolutePath(),o);
+            return o.outWidth==width&&o.outHeight==height;
+        }catch(RuntimeException ignored) {return false;}
     }
     static String gitBlobSha(byte[] data) throws Exception {
         MessageDigest digest=MessageDigest.getInstance("SHA-1");
@@ -237,8 +258,14 @@ public final class ResourcePacks {
         return asset.gitSha.equals(hex(digest.digest()));
     }
     private static void download(File root,Asset asset) throws Exception {
-        if(matchesGitBlob(new File(root,asset.name),asset))return;
-        File part=new File(root,asset.name+".partial");
+        // Stage each version in a distinct immutable location. A partial update
+        // cannot corrupt the currently active, already verified offline artwork.
+        File dest=objectPath(root,asset);
+        if(matchesGitBlob(dest,asset))return;
+        File objectDir=dest.getParentFile();
+        if(!objectDir.isDirectory()&&!objectDir.mkdirs())
+            throw new java.io.IOException("Cannot create artwork cache");
+        File part=new File(objectDir,asset.name+"."+asset.gitSha+".partial");
         if(part.exists()&&!part.delete())
             throw new java.io.IOException("Cannot reset incomplete download");
         HttpURLConnection c=connect(asset.url);
@@ -260,8 +287,12 @@ public final class ResourcePacks {
             part.delete();
             throw new java.io.IOException("Checksum failed for "+asset.name);
         }
-        File result=new File(root,asset.name);
-        if(!part.renameTo(result)){
+        // A stale/corrupt object may exist from a prior interrupted install.
+        if(dest.exists()&&!dest.delete()) {
+            part.delete();
+            throw new java.io.IOException("Cannot replace corrupt staged asset");
+        }
+        if(!part.renameTo(dest)){
             part.delete();
             throw new java.io.IOException("Cannot activate "+asset.name);
         }

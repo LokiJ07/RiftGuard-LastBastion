@@ -107,6 +107,40 @@ public final class ResourcePacksTest {
         }
     }
 
+    @Test public void activePackSurvivesInterruptedUpdate() throws Exception {
+        Context ctx=RuntimeEnvironment.getApplication();
+        java.io.File root=ResourcePacks.directory(ctx);
+        assertTrue(root.exists()||root.mkdirs());
+        java.io.File activeManifest=new java.io.File(root,"verified-manifest.json");
+        JSONObject old=validManifest();
+        byte[] oldBytes=new byte[500];
+        for(int i=0;i<oldBytes.length;i++)oldBytes[i]=(byte)(i*13+7);
+        String oldSha=ResourcePacks.gitBlobSha(oldBytes);
+        old.getJSONArray("assets").getJSONObject(0).put("git_sha",oldSha);
+        java.io.File oldFile=new java.io.File(root,NAMES[0]);
+        java.io.File objects=new java.io.File(root,"objects");
+        assertTrue(objects.exists()||objects.mkdirs());
+        // Simulate a future version staged but not committed to the active manifest.
+        java.io.File staged=new java.io.File(objects,NAMES[0]+"."+
+                "5f405ec821b1d1cb95a78e5d35ba0cdde09edc49");
+        try {
+            try(java.io.FileOutputStream out=new java.io.FileOutputStream(activeManifest)){
+                out.write(old.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            try(java.io.FileOutputStream out=new java.io.FileOutputStream(oldFile)) {
+                out.write(oldBytes);
+            }
+            try(java.io.FileOutputStream out=new java.io.FileOutputStream(staged)) {
+                out.write(new byte[500]);
+            }
+            assertNotNull("Unfinished newer pack must not evict active old art",
+                    ResourcePacks.installed(ctx,NAMES[0]));
+            assertEquals(1,ResourcePacks.state(ctx).present);
+        } finally {
+            activeManifest.delete();oldFile.delete();staged.delete();
+        }
+    }
+
     @Test public void offlineFallbackHasAllOriginalArt() {
         Context ctx=RuntimeEnvironment.getApplication();
         assertNull(ResourcePacks.installed(ctx,"../../secret"));

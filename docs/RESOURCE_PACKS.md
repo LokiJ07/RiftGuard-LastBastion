@@ -29,3 +29,6 @@ The signed production release and download CDN can be added separately; GitHub r
 - Resource Center caches verification results for the UI rather than hashing downloads on every render frame.
 - Test suite mutates a cached file without changing its length and verifies that it is rejected.
 - An older early-preview cache without verified metadata is intentionally ignored until the user runs Download / Verify once; the offline base game keeps working.
+
+## V0.5.8 interruption-safe downloads
+Updated asset versions are stored in content-addressed files. Downloading a new pack never overwrites files belonging to the active verified manifest. Only when all files pass length and Git blob checksum verification does the active manifest switch. Old versions remain available for offline use even if a new download fails. The renderer also checks image dimensions before decompressing an untrusted downloaded texture, reducing memory-exhaustion risks. Legacy downloaded packs remain readable.
