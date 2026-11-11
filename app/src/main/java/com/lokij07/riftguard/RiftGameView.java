@@ -441,6 +441,7 @@ public final class RiftGameView extends View {
         float camY=BattleRules.clamp(heroY,H*.5f,WORLD_H-H*.5f);
         c.save();c.translate(W*.5f-camX,H*.5f-camY);
         drawTerrain(c,biome);
+        drawStageLandmarks(c,Campaign.map(stage),biome);
         for(Decor d:decor) drawDecor(c,d,biome);
         drawBase(c,biome);
         for(int i=0;i<towers.length;i++)drawTower(c,towerX[i],towerY[i],towers[i],biome);
@@ -473,10 +474,6 @@ public final class RiftGameView extends View {
         p.setShader(new LinearGradient(0,0,WORLD_W,WORLD_H,
                 lighten(GROUNDS[biome],.13f),darken(GROUNDS[biome],.34f),Shader.TileMode.CLAMP));
         c.drawRect(0,0,WORLD_W,WORLD_H,p);p.setShader(null);
-        // Painted campaign environment now contributes a subtle noninteractive texture
-        // beneath the fully live hero/enemies/fortress. Live HUD is never baked into it.
-        if(painted.available())
-            painted.battleAtmosphere(c,Campaign.map(stage),0,0,WORLD_W,WORLD_H);
         // Ground tiles and subtle road markings.
         for(int x=0;x<=WORLD_W;x+=95) line(c,x,0,x,WORLD_H,0x163c4d4c,1);
         for(int y=0;y<=WORLD_H;y+=95) line(c,0,y,WORLD_W,y,0x163c4d4c,1);
@@ -595,7 +592,136 @@ public final class RiftGameView extends View {
         }
         c.restore();
     }
+    /** Stage landmark animation: different defensive silhouettes, routes and weather. */
+    private void drawStageLandmarks(Canvas c,int variant,int biome) {
+        if(variant==0) {
+            // Scout Outpost: forest glade, supply stakes and torch-lit watch path.
+            for(int i=0;i<8;i++) {
+                float x=465+(i%4)*320,y=160+(i/4)*750;
+                float r=19+(i%3)*6;
+                oval(c,x-r,y-8,x+r,y+9,0x66492f2d);
+                for(int k=0;k<5;k++) {
+                    float fx=x+(k-2)*8;
+                    line(c,fx,y-2,fx+4,y-15,0xff98b56e,3);
+                    circle(c,fx+4,y-17,3.5f,i%2==0?0xffe6b46f:0xffbbdd88);
+                }
+            }
+            for(int side=-1;side<=1;side+=2) {
+                float x=BASE_X+side*252,y=BASE_Y+115;
+                line(c,x,y,x,y-47,0xff70563e,7);
+                circle(c,x,y-50,11,0x55ffb96b);
+                circle(c,x,y-56,5+(float)Math.sin(gameTime*7+x)*1.2f,0xffffbf68);
+            }
+        }else if(variant==1) {
+            // Bridge Defense: wet stone approaches and riverside signal beacons.
+            for(int i=0;i<16;i++) {
+                float x=245+(i%4)*33,y=225+(i/4)*160;
+                rect(c,x,y,x+17,y+12,0xff868f82);
+                line(c,x,y+12,x+17,y+12,0xffb6c1af,2);
+            }
+            for(int i=0;i<5;i++) {
+                float x=420+i*245,y=170+(i%2)*680;
+                circle(c,x,y,24,0x444fc4df);
+                circleStroke(c,x,y,16,0x99a2f7fb,2);
+                circle(c,x,y,5,0xffcbf7f9);
+            }
+        }else {
+            // Last Stand: corrupted siege scars, ballista emplacements and a portal.
+            float gx=475,gy=192;
+            circle(c,gx,gy,91,0x223c113e);
+            circleStroke(c,gx,gy,73+(float)Math.sin(gameTime*2)*4,0x777a4dda,7);
+            circleStroke(c,gx,gy,53,0x88e897f3,5);
+            for(int k=0;k<12;k++) {
+                float a=k*(float)(Math.PI/6)+gameTime*.18f;
+                float px=gx+(float)Math.cos(a)*65;
+                float py=gy+(float)Math.sin(a)*44;
+                circle(c,px,py,4,0xffba8def);
+            }
+            for(int i=0;i<9;i++) {
+                float x=210+i*165,y=880+(i%3)*40;
+                oval(c,x-29,y-12,x+32,y+9,0xff504144);
+                line(c,x-19,y-5,x+17,y+4,0xffae7359,6);
+                line(c,x-8,y+9,x+20,y-17,0xff684e47,5);
+            }
+            for(int side=-1;side<=1;side+=2){
+                float x=BASE_X+side*210,y=BASE_Y-85;
+                line(c,x,y+60,x,y-66,0xff5e4e42,7);
+                float flutter=(float)Math.sin(gameTime*3+side)*12;
+                polygon(c,new float[]{x,y-65,x+side*(58+flutter),y-48,
+                        x+side*11,y-16},0xff9c526c);
+                circle(c,x,y-68,6,GOLD);
+            }
+        }
+    }
+
+    /** Physical keep footprint remains unchanged: wooden bases are solid in MovementRules. */
+    private void drawWoodOutpost(Canvas c,int biome) {
+        float x=BASE_X,y=BASE_Y;
+        oval(c,x-154,y+105,x+164,y+133,0x6607151a);
+        round(c,x-144,y-116,x+144,y+118,18,0xff493c2d);
+        round(c,x-129,y-105,x+129,y+100,13,0xff766148);
+        for(int i=0;i<14;i++) {
+            float px=x-139+i*21;
+            // Pointed log stakes are individually shaded for a reinforced look.
+            rect(c,px,y-119,px+15,y-93,0xff805f42);
+            polygon(c,new float[]{px,y-116,px+7,y-134,px+15,y-116},0xffb79566);
+            rect(c,px,y+98,px+15,y+119,0xff79583d);
+            line(c,px+3,y+99,px+3,y+117,0xffae8b64,2);
+        }
+        for(int i=0;i<10;i++) {
+            float py=y-106+i*22;
+            rect(c,x-148,py,x-131,py+15,0xff866242);
+            rect(c,x+131,py,x+148,py+15,0xff866242);
+            line(c,x-145,py,x-145,py+16,0xffbe9566,3);
+        }
+        for(int i=0;i<6;i++) {
+            float xx=x-95+i*37;
+            line(c,xx,y-85,xx+14,y+86,0x22614233,2);
+        }
+        // Small living quarters/command hut with deep roof and live beacon.
+        oval(c,x-86,y+45,x+88,y+69,0x66000000);
+        rect(c,x-64,y-2,x+65,y+50,0xff9d815e);
+        for(int i=0;i<7;i++)
+            line(c,x-60+i*19,y+5,x-60+i*19,y+44,0xff644933,3);
+        polygon(c,new float[]{x-86,y+5,x,y-62,x+86,y+5},0xff394e52);
+        polygon(c,new float[]{x-86,y+5,x,y-62,x,y+5},0xff627b72);
+        for(int i=0;i<7;i++) {
+            float px=x-70+i*22;
+            line(c,px,y-5-Math.max(0,55-Math.abs(px-x)*.65f),
+                    px+16,y+1-Math.max(0,48-Math.abs(px-x)*.65f),0xff82a499,3);
+        }
+        round(c,x-20,y+9,x+20,y+50,4,0xff64432e);
+        circle(c,x,y+22,15,GLOWS[biome]);
+        circle(c,x,y+22,6,0xffffffff);
+        round(c,x-38,y+96,x+38,y+128,6,0xff453d35);
+        for(int i=0;i<5;i++)line(c,x-30+i*15,y+98,x-30+i*15,y+126,0xffb28c5b,4);
+        if(fortressRank>=2) {
+            // Visible reinforcement (metal corner braces and elevated outer balconies).
+            for(int side=-1;side<=1;side+=2) {
+                float tx=x+side*118;
+                rect(c,tx-14,y-139,tx+14,y-76,0xff768384);
+                polygon(c,new float[]{tx-22,y-138,tx,y-166,tx+22,y-138},
+                        0xff496574);
+                rect(c,tx-18,y-93,tx+18,y-82,0xffc0a37d);
+            }
+            rect(c,x-109,y+72,x+109,y+85,0xffa7a7a0);
+        }
+        line(c,x,y-61,x,y-99,0xffd9bb80,4);
+        polygon(c,new float[]{x+2,y-98,x+42+(float)Math.sin(gameTime*3)*5,y-87,
+            x+2,y-75},0xffd49c4d);
+        if(baseHp<Progression.maxCoreHp(fortressRank)*.45f) {
+            for(int i=0;i<3;i++) {
+                float px=x-110+i*109;
+                circle(c,px,y-109,11+(float)Math.sin(gameTime*7+i)*3,0x66ff9b46);
+            }
+        }
+    }
+
     private void drawBase(Canvas c,int biome) {
+        if(fortressRank<3 && Campaign.map(stage)!=2) {
+            drawWoodOutpost(c,biome);
+            return;
+        }
         float x=BASE_X,y=BASE_Y;
         oval(c,x-158,y+96,x+158,y+128,0x550d161b);
         round(c,x-140,y-112,x+140,y+114,28,0xff36454d);
