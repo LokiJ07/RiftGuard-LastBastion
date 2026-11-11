@@ -11,6 +11,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.GraphicsMode;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -24,6 +25,7 @@ import static org.junit.Assert.*;
  */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk=28)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 public final class RiftGameViewSmokeTest {
     private RiftGameView view;
 
@@ -123,6 +125,46 @@ public final class RiftGameViewSmokeTest {
         float before=number(view,"heroHp");
         for(int i=0;i<45;i++)advance(.05f);
         assertTrue("Melee enemy must reach and damage player",number(view,"heroHp")<before);
+    }
+
+    @Test public void allSixEnemyTypesAdvanceAndTowersUpgrade() throws Exception {
+        start(150);
+        for(int i=0;i<6;i++)invoke(view,"spawnEnemy",new Class<?>[0]);
+        @SuppressWarnings("unchecked")
+        List<Object> monsters=(List<Object>)value(view,"enemies");
+        assertEquals(6,monsters.size());
+        for(int i=0;i<6;i++){
+            Object e=monsters.get(i);
+            set(e,"kind",i);
+            set(e,"x",1600f);
+            set(e,"y",510f);
+            set(e,"hp",10000f);
+            set(e,"maxHp",10000f);
+        }
+        advance(.35f);
+        for(Object e:monsters)assertTrue("Enemy class did not advance: "+value(e,"kind"),number(e,"x")<1600f);
+        int goldBefore=(Integer)value(view,"gold");
+        invoke(view,"build",new Class<?>[0]);
+        int[] towers=(int[])value(view,"towers");
+        assertEquals(1,towers[1]);
+        assertTrue((Integer)value(view,"gold")<goldBefore);
+        assertTrue("Hero remains alive",number(view,"heroHp")>0);
+    }
+
+    @Test public void heavyMonsterCanDamageCastleCore() throws Exception {
+        start(0);
+        invoke(view,"spawnEnemy",new Class<?>[0]);
+        @SuppressWarnings("unchecked")
+        List<Object> monsters=(List<Object>)value(view,"enemies");
+        Object heavy=monsters.get(0);
+        set(heavy,"kind",2);
+        set(heavy,"x",1105f);
+        set(heavy,"y",510f);
+        set(heavy,"hp",10000f);
+        set(heavy,"maxHp",10000f);
+        float hp=number(view,"baseHp");
+        advance(.12f);
+        assertTrue(number(view,"baseHp")<hp);
     }
 
     @Test public void pauseAndBackgroundClearStuckMovementOrFiring() throws Exception {
