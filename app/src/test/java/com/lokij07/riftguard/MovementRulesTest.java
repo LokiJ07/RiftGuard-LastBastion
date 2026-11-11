@@ -31,7 +31,8 @@ public final class MovementRulesTest {
     @Test public void centralKeepCannotBeGhostedThrough() {
         assertTrue(MovementRules.blocksHero(950,510));
         assertTrue(MovementRules.blocksHero(1000,550));
-        assertFalse(MovementRules.blocksHero(840,510));
+        assertTrue(MovementRules.blocksHero(840,510));
+        assertFalse(MovementRules.blocksHero(850,510));
     }
     @Test public void meleeMonstersActuallyChaseTheHero() {
         assertTrue(MovementRules.huntsHero(130,0));

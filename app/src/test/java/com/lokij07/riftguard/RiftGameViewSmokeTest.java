@@ -1,0 +1,159 @@
+package com.lokij07.riftguard;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.view.MotionEvent;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.List;
+
+import static org.junit.Assert.*;
+
+/**
+ * Android JVM runtime smoke tests: these exercise actual View touch handling,
+ * canvas drawing and frame updates, beyond isolated math-only tests.
+ */
+@RunWith(RobolectricTestRunner.class)
+@Config(sdk=28)
+public final class RiftGameViewSmokeTest {
+    private RiftGameView view;
+
+    @Before public void setup() {
+        Context context=RuntimeEnvironment.getApplication();
+        context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE).edit().clear().commit();
+        view=new RiftGameView(context);
+        view.layout(0,0,1280,720);
+    }
+
+    private void tap(float x,float y) {
+        long now=android.os.SystemClock.uptimeMillis();
+        MotionEvent down=MotionEvent.obtain(now,now,MotionEvent.ACTION_DOWN,x,y,0);
+        view.onTouchEvent(down);
+        down.recycle();
+        MotionEvent up=MotionEvent.obtain(now,now+30,MotionEvent.ACTION_UP,x,y,0);
+        view.onTouchEvent(up);
+        up.recycle();
+    }
+    private static void invoke(RiftGameView game,String method,Class<?>[] args,Object... data) throws Exception {
+        Method m=RiftGameView.class.getDeclaredMethod(method,args);
+        m.setAccessible(true);
+        m.invoke(game,data);
+    }
+    private static float number(Object instance,String name) throws Exception {
+        Field f=instance.getClass().getDeclaredField(name);f.setAccessible(true);
+        return f.getFloat(instance);
+    }
+    private static Object value(Object instance,String name) throws Exception {
+        Field f=instance.getClass().getDeclaredField(name);f.setAccessible(true);
+        return f.get(instance);
+    }
+    private static void set(Object instance,String name,Object x) throws Exception {
+        Field f=instance.getClass().getDeclaredField(name);f.setAccessible(true);f.set(instance,x);
+    }
+    private void start(int stage) throws Exception {
+        invoke(view,"start",new Class<?>[]{int.class},stage);
+    }
+    private void advance(float seconds) throws Exception {
+        invoke(view,"update",new Class<?>[]{float.class},seconds);
+    }
+    private void paint() {
+        Bitmap image=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        view.draw(new Canvas(image));
+        assertNotEquals(0,image.getPixel(640,350));
+        image.recycle();
+    }
+
+    @Test public void homeMapAndBattleRenderWithoutRuntimeException() throws Exception {
+        paint();
+        tap(250,520); // ENTER CAMPAIGN
+        assertEquals("MAP",value(view,"scene").toString());
+        paint();
+        tap(640,610); // DEPLOY
+        assertEquals("PLAY",value(view,"scene").toString());
+        paint();
+    }
+
+    @Test public void joystickInputMovesHeroAndStopsOnRelease() throws Exception {
+        start(0);
+        float before=number(view,"heroX");
+        tap(244,568); // Joystick right: press + release should reset
+        assertEquals(0f,number(view,"axisX"),.001f);
+        long time=android.os.SystemClock.uptimeMillis();
+        MotionEvent down=MotionEvent.obtain(time,time,MotionEvent.ACTION_DOWN,243f,568f,0);
+        view.onTouchEvent(down);
+        down.recycle();
+        assertTrue(number(view,"axisX")>.9f);
+        advance(.12f);
+        assertTrue(number(view,"heroX")>before+18f);
+        MotionEvent up=MotionEvent.obtain(time,time+200,MotionEvent.ACTION_UP,243f,568f,0);
+        view.onTouchEvent(up);up.recycle();
+        assertEquals(0f,number(view,"axisX"),.001f);
+        float after=number(view,"heroX");
+        advance(.15f);
+        assertEquals(after,number(view,"heroX"),.001f);
+    }
+
+    @Test public void enemiesApproachCoreAndPursueHeroIntoMeleeRange() throws Exception {
+        start(0);
+        invoke(view,"spawnEnemy",new Class<?>[0]);
+        @SuppressWarnings("unchecked")
+        List<Object> enemies=(List<Object>)value(view,"enemies");
+        assertEquals(1,enemies.size());
+        Object enemy=enemies.get(0);
+        float previous=(float)Math.hypot(number(enemy,"x")-950,number(enemy,"y")-510);
+        for(int i=0;i<10;i++)advance(.12f);
+        float next=(float)Math.hypot(number(enemy,"x")-950,number(enemy,"y")-510);
+        assertTrue("Enemy should march toward the fortress",next<previous);
+
+        // Place a regular melee enemy near the hero, beyond the wall.
+        set(enemy,"kind",0);
+        set(enemy,"x",1070f);
+        set(enemy,"y",690f);
+        set(enemy,"hp",200f);
+        set(enemy,"maxHp",200f);
+        float before=number(view,"heroHp");
+        for(int i=0;i<45;i++)advance(.05f);
+        assertTrue("Melee enemy must reach and damage player",number(view,"heroHp")<before);
+    }
+
+    @Test public void pauseAndBackgroundClearStuckMovementOrFiring() throws Exception {
+        start(0);
+        long now=android.os.SystemClock.uptimeMillis();
+        MotionEvent joy=MotionEvent.obtain(now,now,MotionEvent.ACTION_DOWN,244f,568f,0);
+        view.onTouchEvent(joy);joy.recycle();
+        assertTrue(number(view,"axisX")>.5f);
+        assertTrue(view.handleBack());
+        assertEquals(0f,number(view,"axisX"),.001f);
+        assertEquals(-1,value(view,"joyPointer"));
+        view.setActive(false);
+        assertFalse((Boolean)value(view,"firing"));
+        view.setActive(true);
+        assertTrue(view.handleBack()); // resume
+        assertFalse((Boolean)value(view,"paused"));
+    }
+
+    @Test public void clearedWavesUnlockAndPersistNextStage() throws Exception {
+        start(0);
+        int total=Campaign.waves(0);
+        for(int wave=0;wave<total;wave++) {
+            set(view,"remaining",0);
+            ((List<?>)value(view,"enemies")).clear();
+            advance(.02f);
+            advance(2.6f);
+        }
+        assertEquals("WIN",value(view,"scene").toString());
+        assertEquals(1,value(view,"unlocked"));
+        assertEquals(1,RuntimeEnvironment.getApplication()
+            .getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE).getInt("unlocked",0));
+        paint();
+    }
+}
