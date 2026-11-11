@@ -43,6 +43,13 @@ jobs:
             app/build/test-results/testDebugUnitTest/
             app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore
+      - name: Upload screen gallery from runtime rendering
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RiftGuard-screen-gallery
+          path: app/build/screenshots/*.png
+          if-no-files-found: ignore
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
