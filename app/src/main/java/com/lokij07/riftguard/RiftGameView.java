@@ -637,8 +637,13 @@ public final class RiftGameView extends View {
                 FortressStructures.turretMounts(c,BASE_X,BASE_Y,
                         fortressRank,towerX,towerY,gameTime);
             }
-            else if(entry.type==TOWER)drawTower(c,towerX[entry.slot],
-                    towerY[entry.slot],towers[entry.slot],entry.slot,biome);
+            else if(entry.type==TOWER) {
+                c.save();
+                c.translate(towerX[entry.slot],towerY[entry.slot]);
+                c.scale(.83f,.83f);
+                drawTower(c,0,0,towers[entry.slot],entry.slot,biome);
+                c.restore();
+            }
             else if(entry.type==MONSTER)drawEnemy(c,(Enemy)entry.entity);
             else if(entry.type==DROP)drawPickup(c,(Pickup)entry.entity);
             else if(entry.type==WARDEN)drawHero(c);

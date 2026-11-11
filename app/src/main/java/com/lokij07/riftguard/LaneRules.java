@@ -6,7 +6,7 @@ package com.lokij07.riftguard;
  */
 public final class LaneRules {
     private LaneRules() {}
-    public static final float VIEW_CENTER_X=1380f,VIEW_CENTER_Y=520f;
+    public static final float VIEW_CENTER_X=1242f,VIEW_CENTER_Y=447f;
     public static final float HERO_MIN_X=1115f,HERO_MAX_X=1590f;
     public static final float HERO_MIN_Y=332f,HERO_MAX_Y=755f;
     public static final float ENEMY_SPAWN_X=1836f;
