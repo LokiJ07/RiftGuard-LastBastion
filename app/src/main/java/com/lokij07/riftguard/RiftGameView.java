@@ -445,7 +445,8 @@ public final class RiftGameView extends View {
                     float[] modifiers={1f,1.50f,.77f,1.13f};
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
                             BattleRules.towerDamage(towers[i])*modifiers[TowerPadLayout.family(i)]*
-                                    kingdom.towerDamageMultiplier()*ascension.towerMultiplier(),
+                                    kingdom.towerDamageMultiplier()*ascension.towerMultiplier()*
+                                    FortressEvolutionArt.damageBonus(arsenalTier()),
                             TowerPadLayout.family(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
@@ -652,6 +653,30 @@ public final class RiftGameView extends View {
                             Progression.WEAPONS[shot.weaponId].color,false,
                             shot.damage);
                 int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
+                // Each bought fortress arsenal unlocks combat, not only models.
+                if(shot.tower){
+                    int arsenal=arsenalTier();
+                    if(FortressEvolutionArt.emberShell(arsenal)){
+                        shot.target.burnTimer=Math.max(shot.target.burnTimer,2.3f);
+                        shot.target.burnDps=Math.max(shot.target.burnDps,9f+arsenal*4f);
+                        puff(shot.target.x,shot.target.y-18,4,0xffffa46a);
+                    }
+                    if(FortressEvolutionArt.stormChain(arsenal)){
+                        for(Enemy nearby:enemies)
+                            if(nearby!=shot.target&&nearby.hp>0&&
+                                    distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<140){
+                                nearby.hp-=shot.damage*.24f;
+                                nearby.hitReaction=.21f;
+                                puff(nearby.x,nearby.y-15,5,0xffa8d7ff);
+                                break;
+                            }
+                    }
+                    if(FortressEvolutionArt.guardianRepair(arsenal)&&
+                            shot.target.hp<=0){
+                        baseHp=Math.min(coreMaxHp(),baseHp+3f);
+                        puff(BASE_X,BASE_Y-110,3,0xffabf7d8);
+                    }
+                }
                 if(shot.tower && TowerPadLayout.family(shot.towerSlot)==1) {
                     // Cannon shells hit clustered enemies around the impact point.
                     for(Enemy nearby:enemies)
@@ -2831,6 +2856,13 @@ public final class RiftGameView extends View {
         text(c,AscensionTree.CATEGORIES[choice.category],961,358,18,tint,false);
         drawStoryParagraph(c,AscensionTree.benefit(choice),961,388,245,20,26,INK);
         text(c,"TIER "+choice.tier+"  /  FORT RANK "+choice.requiredRank,961,443,18,INK,false);
+        if(choice.category==AscensionTree.TOWER)
+            textFit(c,"ARSENAL: "+EvolutionProgress.fortressWeapon(arsenalTier()),
+                    962,471,235,16,0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.HERO)
+            text(c,"ARMOR FORM "+armorForm()+"/4",961,471,16,0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.SKILL)
+            text(c,"SKILL FORM "+skillForm()+"/4",961,471,16,0xffa8e6d9,false);
         String status=ascension.owned(choice.id)?"OWNED / ACTIVE":
                 fortressRank<choice.requiredRank?"FORT RANK TOO LOW":
                 choice.predecessor>=0&&!ascension.owned(choice.predecessor)?
@@ -2965,6 +2997,8 @@ public final class RiftGameView extends View {
                 98,597,536,18,INK,false);
         round(c,718,153,1204,531,22,0xff283e4a);
         text(c,"KINGDOM SUPPLIES",758,216,25,INK,false);
+        textFit(c,"ARSENAL  "+EvolutionProgress.fortressWeapon(arsenalTier()),
+                759,245,411,17,0xffb0e9e3,false);
         text(c,""+supplies,758,280,59,GOLD,false);
         text(c,"CURRENT UPGRADE",758,329,21,0xffb6c9ca,false);
         if(fortressRank<Progression.MAX_RANK){
