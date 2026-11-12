@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.19.0 — 30 named landscape districts across all 300 campaign stages
+## Current version: V0.20.0 — native Java port of live HTML scenery motion across 300 stages
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -14,7 +14,7 @@ Mobile-first, fully offline Android fortress-defense action game.
 - Upgradable turrets, touch joystick, hold-to-attack, Arc Pulse, monster classes, win/lose, pause/resume, responsive HUD.
 - Android CI builds, JVM rules tests and Robolectric screen/gameplay tests, debug APK uploaded as Actions artifact.
 
-## v0.19.0 — more than a palette swap
+## v0.20.0 — full native Java scenic motion (NO HTML WebView)\n\n- The uploaded **RiftGuard World and Environment.html** is used as the design and motion reference. The game platform is still **native Android Java / Canvas**, with offline drawing inside the actual battle scene. The file is *not* launched in a browser or embedded as WebView.\n- The v0.18/0.19 port already included five cached background layers, ten palettes, 30 named landscape districts, 300 distinct stage seeds, parallax, river/cliff geometry and mission previews.\n- `HtmlSceneryMotion.java` now adds the missing **seven independently drifting multilobe cloud masses, six subtle light shafts from the seeded sun/moon, animated cliff waterfall/lavafall/rift-water highlights**, and grounded foam directly into live native rendering.\n- Scene decorations cannot intercept joystick/buttons, alter enemies or overwrite the ground lane. **Reduced Motion** stops live cloud drift, light flicker and water scrolling while retaining a complete still scene. No extra textures, remote assets, `WebView`, heavy animation libraries, or per-frame bitmaps.\n- Automated native Android Robolectric tests sample actual pixels and assert moving vs still rendering, four corresponding HTML reference regions (Verdant / Ember / Frostpeak / Rift), full stage index range and battle-HUD exclusion.\n- **Still pending:** manually painted HD sprite sheets and higher detail scenery, full real-device FPS review and art-direction matching to the user's screenshot. This update improves faithful HTML-inspired motion within the existing painterly renderer rather than claiming screenshot-perfect 300 handpainted maps.\n\n## v0.19.0 — more than a palette swap
 
 The user's uploaded `RiftGuard World and Environment.html` provided four animated examples (Verdant Vale, Ember Highlands, Frostpeak Range and Rift Chasm): independently shifting sky, mountains, castle cliffs, mist, pines, lake reflections and foreground atmosphere. v0.18 ported that composition into native Android Canvas without embedding a WebView; v0.19 expands the result:
 
