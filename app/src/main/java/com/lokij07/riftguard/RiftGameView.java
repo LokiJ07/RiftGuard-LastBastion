@@ -2166,7 +2166,7 @@ public final class RiftGameView extends View {
             round(c,901,top-3,1208,top+103,12,selectedMap==m?GOLD:0xff45616b);
             c.save();
             c.clipRect(905,top,1204,top+68);
-            WorldArt.drawScene(c,current,m,905,top,299,68,gameTime);
+            livingWorld.thumbnail(c,mission,905,top,299,68);
             drawStagePreview(c,mission,905,top);
             c.restore();
             rect(c,905,top+67,1204,top+99,0xee182e37);
