@@ -198,7 +198,7 @@ public final class NativeDeployedMapArt {
             int col=i%3==0?0x227affbb:0x3371aa80;
             line(c,x,y,x+2+(i%3),y-4-r.nextFloat()*5,.8f,col);
         }
-        // Mission B: river + an actual road bridge, following HTML.
+        // Kingdom-specific architecture is physically seeded in the live terrain.\n        KingdomSetPieces.paint(c,stage);\n        // Mission B: river + an actual road bridge, following HTML.
         if(variant==1){
             Path river=new Path();river.moveTo(1160,-55);
             river.cubicTo(1060,255,1265,475,1155,1080);
@@ -392,7 +392,7 @@ public final class NativeDeployedMapArt {
         fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
         int col=GLOW[world(chosen)];
         // Deliberately sparse ambient motion, below characters and HUD.
-        for(int i=0;i<23;i++){
+        KingdomSetPieces.animate(c,chosen,time,false);\n        for(int i=0;i<23;i++){
             float x=((i*137+Campaign.seed(chosen)%97)+time*11)%W;
             float y=270+(i*113)%530+(float)Math.sin(time*.9f+i)*8;
             oval(c,x,y,2,2,alpha(col,65+i%3*28));
