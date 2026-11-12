@@ -67,6 +67,24 @@ public final class WeaponAnimationRigTest {
             idle.recycle();windup.recycle();contact.recycle();
         }
     }
+    @Test public void purchasedWeaponRunesChangeTheActuallyHeldGameModel(){
+        MotionArt art=new MotionArt(RuntimeEnvironment.getApplication());
+        for(int weapon=0;weapon<6;weapon++){
+            Bitmap basic=Bitmap.createBitmap(340,325,Bitmap.Config.ARGB_8888);
+            Bitmap mastered=Bitmap.createBitmap(340,325,Bitmap.Config.ARGB_8888);
+            assertTrue(art.hero(new Canvas(basic),170,257,2f,0f,false,
+                    .36f,-1f,false,weapon,0));
+            assertTrue(art.hero(new Canvas(mastered),170,257,2f,0f,false,
+                    .36f,-1f,false,weapon,11));
+            int differences=0;
+            for(int y=100;y<257;y++)for(int x=145;x<270;x++){
+                if(basic.getPixel(x,y)!=mastered.getPixel(x,y))differences++;
+            }
+            assertTrue("Mastery must visibly change the actual equipped weapon "+weapon,
+                    differences>6);
+            basic.recycle();mastered.recycle();
+        }
+    }
     @Test public void projectileTipAndAimStaySynchronizedAtSeveralAngles(){
         for(int weapon:new int[]{0,3,4,5})
             for(float face:new float[]{0f,1.2f,(float)Math.PI,-1.0f}){
