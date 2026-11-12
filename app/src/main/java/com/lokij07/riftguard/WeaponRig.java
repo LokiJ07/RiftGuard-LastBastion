@@ -10,6 +10,11 @@ public final class WeaponRig {
             handX=hx;handY=hy;this.angle=angle;
         }
     }
+    /** A coordinate in the hero's world-space local frame, measured from the feet. */
+    public static final class Point {
+        public final float x,y;
+        private Point(float x,float y){this.x=x;this.y=y;}
+    }
     private static float clamp(float value){return Math.max(0,Math.min(1,value));}
     private static float ease(float t){return t*t*(3-2*t);}
     /** Weapon ID chooses a genuine combat grip. Sprite pivots track the glove. */
@@ -59,5 +64,38 @@ public final class WeaponRig {
         float elbowX=sx+(handX-sx)*.49f+8;
         float elbowY=sy+(handY-sy)*.45f+4;
         return new Pose(sx,sy,elbowX,elbowY,handX,handY,angle);
+    }
+
+    /**
+     * Ranged and magic weapons follow the actual target angle. The same pose is
+     * used for drawing the held sprite and locating the spawn point of a shot.
+     * The canvas mirrors the hero whenever facing left, so aim in local space.
+     */
+    public static Pose aimedPose(int weaponId,float attack,float cast,
+                                 float time,boolean moving,float facing) {
+        Pose pose=pose(weaponId,attack,cast,time,moving);
+        if(weaponId==1||weaponId==2)return pose; // Real blade swing is independent.
+        boolean mirrored=Math.cos(facing)<-.28f;
+        float localX=(float)Math.cos(facing)*(mirrored?-1f:1f);
+        float localY=(float)Math.sin(facing);
+        float angle=(float)Math.toDegrees(Math.atan2(localX,-localY));
+        // Keep the short recoil, but rotate the drawn muzzle toward its target.
+        if(attack>=0)angle+=(float)Math.sin(Math.PI*clamp(attack))*9f;
+        return new Pose(pose.shoulderX,pose.shoulderY,pose.elbowX,pose.elbowY,
+                pose.handX,pose.handY,angle);
+    }
+
+    /** Top of the weapon bitmap (drawn from y=-77 to y=9 relative to the grip). */
+    public static Point tip(Pose pose) {
+        double rad=Math.toRadians(pose.angle);
+        return new Point(pose.handX+(float)Math.sin(rad)*76f,
+                pose.handY-(float)Math.cos(rad)*76f);
+    }
+
+    /** Actual world-space muzzle relative to the hero; supports left/right aim. */
+    public static Point muzzle(int weaponId,float attack,float cast,
+                               float time,boolean moving,float facing) {
+        Point local=tip(aimedPose(weaponId,attack,cast,time,moving,facing));
+        return Math.cos(facing)<-.28f?new Point(-local.x,local.y):local;
     }
 }
