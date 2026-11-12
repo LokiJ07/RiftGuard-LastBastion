@@ -82,12 +82,20 @@ public final class BattlefieldLighting {
                                        boolean moving,float gait,int biome){
         // Weight-bearing contact shadow follows hero feet. One foot lifts as
         // the other plants, making ground support visible in a moving world.
-        float stride=moving?(float)Math.abs(Math.sin(gait)):0;
+        float leftStep=moving?(float)Math.sin(gait):0;
+        float rightStep=moving?(float)Math.sin(gait+(float)Math.PI):0;
         P.setShader(null);
         P.setStyle(Paint.Style.FILL);
         P.setColor(0x770c1922);
-        c.drawOval(new RectF(heroX-34-stride*7,heroY-2,
-                heroX+34+stride*7,heroY+11-stride*1.9f),P);
+        c.drawOval(new RectF(heroX-38,heroY-4,heroX+38,heroY+11),P);
+        // TWO foot contacts follow the independently timed planted greaves.
+        // One shifts forward as the other settles behind, creating visible
+        // weight transfer rather than an identical oval for every frame.
+        P.setColor(0x99425857);
+        c.drawOval(new RectF(heroX-35+leftStep*16,heroY-6+leftStep*3,
+                heroX-4+leftStep*16,heroY+10+leftStep*3),P);
+        c.drawOval(new RectF(heroX+4+rightStep*16,heroY-6+rightStep*3,
+                heroX+35+rightStep*16,heroY+10+rightStep*3),P);
         P.setShader(new RadialGradient(heroX,heroY+3,
                 46,withAlpha(AMBIENT[Math.max(0,Math.min(9,biome))],45),
                 0x00000000,Shader.TileMode.CLAMP));
