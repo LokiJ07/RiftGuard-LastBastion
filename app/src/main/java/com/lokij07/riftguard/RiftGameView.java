@@ -46,6 +46,7 @@ public final class RiftGameView extends View {
     private int selectedAscensionNode=1;
     private float treeDownX,treeDownY,treeLastY;
     private boolean treeDragging=false;
+    private boolean treeTouchActive=false;
     private boolean briefingOpen=false;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
@@ -2693,8 +2694,9 @@ public final class RiftGameView extends View {
         float x=(ev.getX(index)-offsetX)/scale,y=(ev.getY(index)-offsetY)/scale;
         if(scene==Scene.ASCENSION){
             if(action==MotionEvent.ACTION_DOWN){
+                treeTouchActive=true;
                 treeDownX=x;treeDownY=y;treeLastY=y;treeDragging=false;
-            }else if(action==MotionEvent.ACTION_MOVE&&
+            }else if(action==MotionEvent.ACTION_MOVE&&treeTouchActive&&
                     treeDownX>=TREE_LEFT&&treeDownX<=TREE_RIGHT&&
                     treeDownY>=TREE_TOP&&treeDownY<=TREE_BOTTOM){
                 float delta=y-treeLastY;
@@ -2704,8 +2706,10 @@ public final class RiftGameView extends View {
                             AscensionTree.worldHeight()-(TREE_BOTTOM-TREE_TOP));
                 treeLastY=y;
             }else if(action==MotionEvent.ACTION_UP){
-                if(!treeDragging)tapAscension(x,y);
-                treeDragging=false;
+                // A touch begun in Fortress may have opened this scene on DOWN.
+                // Its corresponding UP must never act as an unrelated Tree tap.
+                if(treeTouchActive&&!treeDragging)tapAscension(x,y);
+                treeDragging=false;treeTouchActive=false;
             }
             invalidate();return true;
         }
