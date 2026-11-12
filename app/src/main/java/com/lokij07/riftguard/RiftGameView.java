@@ -87,6 +87,8 @@ public final class RiftGameView extends View {
     private final WeaponMastery weaponMastery;
     private final GameAudio audio;
     private final CombatAnimationFeel combatFeel=new CombatAnimationFeel();
+    private final WardenAnimationMachine heroAnimation=new WardenAnimationMachine();
+    private boolean liveRenderStep;
     private float animationDelta;
     private int kingdomTab=0;
     private String kingdomMessage="Complete challenges to earn rewards!";
@@ -259,7 +261,13 @@ public final class RiftGameView extends View {
             boolean liveCombat=scene==Scene.PLAY&&!paused&&!briefingOpen;
             animationDelta=liveCombat?combatFeel.frame(dt):dt;
             gameTime+=animationDelta;
-            if(liveCombat)update(dt);
+            if(liveCombat){
+                liveRenderStep=true;
+                update(dt);
+                liveRenderStep=false;
+            }else if(scene==Scene.LOSE){
+                heroAnimation.advance(animationDelta,false);
+            }
         }
         canvas.drawColor(0xff101e22);
         // Portrait/notch/ultrawide letterbox gutters now extend the scene palette
@@ -304,6 +312,7 @@ public final class RiftGameView extends View {
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         motionArt.prepareTerrain(s);
         walkClock=0;heroMoving=false;
+        heroAnimation.reset();
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
         baseHp=coreMaxHp();
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
@@ -367,9 +376,18 @@ public final class RiftGameView extends View {
         if(heroMoving)walkClock+=animationDelta;
         if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
             heroDir=(float)Math.atan2(axisY,axisX);
-        if(pendingMelee && MeleeSwingRules.hitWindow(
-                1f-fireFlash/WeaponAnimation.duration(pendingMeleeWeapon)))
-            resolveMeleeHit();
+        // Exactly one animation controller owns clip priority and contact
+        // events. Direct Robolectric physics calls use dt; rendered gameplay
+        // uses the hitstop-aware animationDelta without freezing simulation.
+        heroAnimation.advance(liveRenderStep?animationDelta:dt,heroMoving);
+        if(heroAnimation.consume(WardenAnimationMachine.Event.FOOTSTEP)
+                &&sparks.size()<160){
+            puff(heroX+(float)Math.sin(walkClock*13f)*13f,heroY-3f,
+                    2,0xff9eb3a7);
+        }
+        boolean contact=heroAnimation.consume(
+                WardenAnimationMachine.Event.ATTACK_CONTACT);
+        if(pendingMelee&&contact)resolveMeleeHit();
         if (firing) fire();
         updateSkillObjects(dt);
         if (!waiting) {
@@ -510,6 +528,7 @@ public final class RiftGameView extends View {
                     distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0){
                 heroHp-=29*DifficultyRules.enemyDamage(difficultyMode);
                 e.dashTime=0;hurtCooldown=.85f;
+                heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
                 puff(heroX,heroY,14,0xffffb27b);
                 audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;markDefeat();return;}
@@ -518,7 +537,9 @@ public final class RiftGameView extends View {
                 heroHp-=(e.kind==2?20:11)*
                         DifficultyRules.enemyDamage(difficultyMode);
                 e.attackAnim=.42f;
-                hurtCooldown=.8f; puff(heroX,heroY,6,0xffff8086);
+                hurtCooldown=.8f;
+                heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
+                puff(heroX,heroY,6,0xffff8086);
                 audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;markDefeat();return;}
             }
@@ -737,11 +758,13 @@ public final class RiftGameView extends View {
     }
     private void fire() {
         if (shotTimer>0 || scene!=Scene.PLAY) return;
+        if(heroAnimation.locked())return;
         Progression.Weapon weapon=Progression.WEAPONS[equippedWeapon];
         Enemy target=closest(heroX,heroY,
                 weapon.range+weaponMastery.bonusRange(equippedWeapon));
         if(target==null) {shotTimer=Math.min(.2f,weapon.cooldown);return;}
         heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
+        if(!heroAnimation.attack(equippedWeapon))return;
         // Spawn the projectile precisely at the displayed weapon's rotating tip,
         // not at the center of the player sprite. This must use the same animation
         // time, attack fraction, and facing transform as MotionArt.hero().
@@ -814,6 +837,11 @@ public final class RiftGameView extends View {
         WardenSkills.Skill info=WardenSkills.SKILLS[skill];
         pulseCooldown=Math.max(3f,WardenSkills.effectiveCooldown(skill,kingdom.shopRank(3))
                 -ascension.spellCooldownReduction());
+        if(heroAnimation.cast()){
+            // Casting interrupts a melee windup. No invisible late sword hit
+            // is allowed after the visibly different skill clip begins.
+            pendingMelee=false;pendingMeleeWeapon=-1;
+        }
         pulseFlash=.55f;
         lastCastSkill=skill;
         audio.play(GameAudio.SPELL);
@@ -938,6 +966,7 @@ public final class RiftGameView extends View {
         recordBattleResult(false);
         audio.play(GameAudio.HURT);
         scene=Scene.LOSE;paused=false;
+        heroAnimation.die();
         clearTouchControls();
     }
     private void complete() {
@@ -1859,11 +1888,33 @@ public final class RiftGameView extends View {
         circle(c,x+15,y-23,3,0xfff9edbe);
     }
     private void drawHero(Canvas c) {
-        float attackProgress=WeaponAnimation.progress(equippedWeapon,fireFlash);
-        float castProgress=pulseFlash>0?1-pulseFlash/.55f:-1f;
+        if(heroAnimation.state()==WardenAnimationMachine.State.DEATH){
+            float t=heroAnimation.deathProgress();
+            c.save();
+            c.rotate(78f*t,heroX,heroY-47);
+            int alpha=Math.max(64,Math.min(255,Math.round(255f-160f*t)));
+            int layer=c.saveLayerAlpha(heroX-140,heroY-185,
+                    heroX+140,heroY+65,alpha);
+            drawHeroActor(c,true);
+            c.restoreToCount(layer);c.restore();
+            return;
+        }
+        drawHeroActor(c,false);
+    }
+    private void drawHeroActor(Canvas c,boolean forcedHurt) {
+        // State-machine clocks drive actual poses. Legacy preview callers
+        // can still set fireFlash/pulseFlash directly for sprite QA captures.
+        boolean interrupted=heroAnimation.isHurt()||
+                heroAnimation.state()==WardenAnimationMachine.State.DEATH;
+        float attackProgress=heroAnimation.attackProgress();
+        if(attackProgress<0&&!interrupted)
+            attackProgress=WeaponAnimation.progress(equippedWeapon,fireFlash);
+        float castProgress=heroAnimation.castProgress();
+        if(castProgress<0&&!interrupted&&pulseFlash>0)
+            castProgress=1-pulseFlash/.55f;
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
-                hurtCooldown>.1f,equippedWeapon,
+                forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
                 weaponMastery.count(equippedWeapon)))return;
         if(characterArt.available()) {
             boolean moving=Math.abs(axisX)+Math.abs(axisY)>.1f;
