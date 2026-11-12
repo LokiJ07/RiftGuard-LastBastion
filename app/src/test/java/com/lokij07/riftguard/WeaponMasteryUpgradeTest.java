@@ -140,6 +140,35 @@ public final class WeaponMasteryUpgradeTest {
                 (float)get(game,"shotTimer"),.001f);
         assertEquals(WeaponAnimation.duration(0),(float)get(game,"fireFlash"),.001f);
     }
+    @Test public void crossbowPinnacleCreatesActualPhantomVolleyExtraDamage()
+            throws Exception {
+        SharedPreferences p=fresh();
+        p.edit().putInt("supplies",50000).putInt("fortress_rank",5).commit();
+        WeaponMastery tree=new WeaponMastery(p);
+        for(int id=1;id<=10;id++)
+            assertTrue("Must purchase all nodes before the signature shot",
+                    tree.buy(0,id,5));
+        assertTrue(tree.mastered(0));
+        RiftGameView game=new RiftGameView(RuntimeEnvironment.getApplication());
+        invoke(game,"start",new Class[]{int.class},0);
+        invoke(game,"spawnEnemy",new Class[0]);
+        @SuppressWarnings("unchecked")
+        List<Object> foes=(List<Object>)get(game,"enemies");
+        Object target=foes.get(0);
+        float x=(float)get(game,"heroX"),y=(float)get(game,"heroY");
+        set(target,"x",x+150f);set(target,"y",y);set(target,"hp",1500f);
+        invoke(game,"fire",new Class[0]);
+        @SuppressWarnings("unchecked")
+        List<Object> bullets=(List<Object>)get(game,"shots");
+        assertEquals(1,bullets.size());
+        Object projectile=bullets.get(0);
+        float damage=(float)get(projectile,"damage");
+        set(projectile,"x",x+150f);set(projectile,"y",y-10f);
+        invoke(game,"update",new Class[]{float.class},.016f);
+        assertEquals("Phantom Volley adds a second 40% contact hit",
+                1500f-damage*1.40f,(float)get(target,"hp"),.7f);
+    }
+
     @Test public void armoryTreeIsActuallyTapSwipeBuyAndEquipInteractive()throws Exception{
         SharedPreferences p=fresh();p.edit().putInt("supplies",900).commit();
         RiftGameView view=new RiftGameView(RuntimeEnvironment.getApplication());
