@@ -44,8 +44,14 @@ public final class BattlefieldLightingTest {
     }
     @Test public void footContactShadowChangesShapeWithStride(){
         Bitmap standing=draw(1,.2f,false),running=draw(1,.2f,true);
-        assertTrue("Grounded hero must visibly move the planted contact shadow",
-                differences(standing,running)>10);
+        // Sample the physical ankle/foot contact, not every fourth pixel
+        // across an unrelated 1280x720 frame. The game-scale footprint is
+        // around (x=328,y=375) under the hero.
+        int footPixels=0;
+        for(int y=354;y<397;y++)for(int x=288;x<368;x++)
+            if(standing.getPixel(x,y)!=running.getPixel(x,y))footPixels++;
+        assertTrue("Both planted foot shadows must shift with stride: "+footPixels,
+                footPixels>30);
         standing.recycle();running.recycle();
     }
 }
