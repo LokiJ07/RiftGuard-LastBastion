@@ -1842,7 +1842,8 @@ public final class RiftGameView extends View {
         float castProgress=pulseFlash>0?1-pulseFlash/.55f:-1f;
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
-                hurtCooldown>.1f,equippedWeapon))return;
+                hurtCooldown>.1f,equippedWeapon,
+                weaponMastery.count(equippedWeapon)))return;
         if(characterArt.available()) {
             boolean moving=Math.abs(axisX)+Math.abs(axisY)>.1f;
             characterArt.hero(c,heroX,heroY,gameTime,moving,fireFlash>0,hurtCooldown>.1f);
@@ -2331,7 +2332,8 @@ public final class RiftGameView extends View {
             if(!motionArt.weaponIcon(c,i,x+69,y+96,100,125))
                 WorldArt.drawWeapon(c,i,x+69,y+96,1.14f,gameTime);
             text(c,w.name,x+146,y+54,24,available?INK:0xffa2a6aa,false);
-            text(c,w.type,x+147,y+85,19,w.color,false);
+            text(c,w.type+"  /  MASTERY "+weaponMastery.count(i)+"/11",
+                    x+147,y+85,16,w.color,false);
             text(c,"DMG "+(int)w.damage+"  •  RANGE "+(int)w.range,
                     x+147,y+113,16,INK,false);
             text(c,available?(i==equippedWeapon?"EQUIPPED  ✓":"TAP TO EQUIP"):
