@@ -559,6 +559,14 @@ public final class RiftGameView extends View {
         Enemy target=closest(heroX,heroY,weapon.range);
         if(target==null) { shotTimer=Math.min(.2f,weapon.cooldown); return; }
         heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
+        // Spawn the projectile precisely at the displayed weapon's rotating tip,
+        // not at the center of the player sprite. This must use the same animation
+        // time, attack fraction, and facing transform as MotionArt.hero().
+        float animTime=heroMoving?walkClock:gameTime;
+        float cast=pulseFlash>0?1-pulseFlash/.55f:-1f;
+        WeaponRig.Point muzzle=WeaponRig.muzzle(equippedWeapon,0f,cast,
+                animTime,heroMoving,heroDir);
+        float muzzleX=heroX+muzzle.x,muzzleY=heroY+muzzle.y;
         shotTimer=weapon.cooldown;
         fireFlash=.23f;
         if("MELEE".equals(weapon.type)) {
@@ -569,12 +577,14 @@ public final class RiftGameView extends View {
                 puff(e.x,e.y,7,weapon.color);
             }
         } else {
-            Shot shot=new Shot(heroX,heroY-18,weapon.damage,
+            Shot shot=new Shot(muzzleX,muzzleY,weapon.damage,
                     equippedWeapon==4?900:730,target,false);
             shot.weaponId=equippedWeapon;
             shots.add(shot);
         }
-        puff(heroX,heroY,5,weapon.color);
+        // Recoil and flash emerge from the held weapon; melee sparks are emitted
+        // at the cutting edge instead of an unrelated circle around the hero.
+        puff(muzzleX,muzzleY,"MELEE".equals(weapon.type)?2:4,weapon.color);
     }
     private void pulse() {
         if(pulseCooldown>0||scene!=Scene.PLAY)return;
