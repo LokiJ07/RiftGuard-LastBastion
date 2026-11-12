@@ -12,11 +12,13 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.GraphicsMode;
 import static org.junit.Assert.*;
 
 /** Checks the actual in-game firing origin, not just isolated animation metadata. */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk=28)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 public final class WeaponMuzzleAlignmentTest {
     @Test public void fourRangedClassesAimTheirBitmapTipsAtTheirTargets() {
         float[] tipLengths={41f,65f,65f,68f,41f,84f};
