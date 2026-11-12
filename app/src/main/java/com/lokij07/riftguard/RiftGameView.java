@@ -86,6 +86,8 @@ public final class RiftGameView extends View {
     private final AscensionTree ascension;
     private final WeaponMastery weaponMastery;
     private final GameAudio audio;
+    private final CombatAnimationFeel combatFeel=new CombatAnimationFeel();
+    private float animationDelta;
     private int kingdomTab=0;
     private String kingdomMessage="Complete challenges to earn rewards!";
     private boolean battleRecorded=false;
@@ -201,6 +203,7 @@ public final class RiftGameView extends View {
         ascension=new AscensionTree(prefs);
         weaponMastery=new WeaponMastery(prefs);
         audio=new GameAudio(context,prefs);
+        combatFeel.setReducedMotion(prefs.getBoolean("reduced_motion",false));
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
         fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
@@ -251,8 +254,12 @@ public final class RiftGameView extends View {
         float dt=lastNs==0 ? 0 : Math.min(.045f,(now-lastNs)/1000000000f);
         lastNs=now;
         if (active) {
-            gameTime+=dt;
-            if (scene==Scene.PLAY && !paused && !briefingOpen) update(dt);
+            // Hitstop freezes only painted-animation clocks, NOT real damage
+            // simulation or touch handling. Feedback remains mobile-friendly.
+            boolean liveCombat=scene==Scene.PLAY&&!paused&&!briefingOpen;
+            animationDelta=liveCombat?combatFeel.frame(dt):dt;
+            gameTime+=animationDelta;
+            if(liveCombat)update(dt);
         }
         canvas.drawColor(0xff101e22);
         // Portrait/notch/ultrawide letterbox gutters now extend the scene palette
@@ -337,6 +344,7 @@ public final class RiftGameView extends View {
             decor.add(new Decor(x,y,.75f+r.nextFloat()*.30f,kind));
         }
         random.setSeed(Campaign.seed(stage)^0xDDEEFF);
+        combatFeel.reset();
         clearTouchControls();
     }
 
@@ -356,7 +364,7 @@ public final class RiftGameView extends View {
         float nextY=LaneRules.heroY(MovementRules.heroNextY(heroX,heroY,axisY*speed*dt));
         if (!hitsBuiltTower(heroX,nextY)) heroY=nextY;
         heroMoving=distance(heroX,heroY,previousHeroX,previousHeroY)>.3f;
-        if(heroMoving)walkClock+=dt;
+        if(heroMoving)walkClock+=animationDelta;
         if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
             heroDir=(float)Math.atan2(axisY,axisX);
         if(pendingMelee && MeleeSwingRules.hitWindow(
@@ -537,6 +545,10 @@ public final class RiftGameView extends View {
             if(d<24) {
                 shot.target.hp-=shot.damage;
                 shot.target.hitReaction=.21f;
+                if(!shot.tower)
+                    combatFeel.onDamage(shot.target.x,shot.target.y-16,
+                            Progression.WEAPONS[shot.weaponId].color,false,
+                            shot.damage);
                 int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
                 if(shot.tower && shot.towerSlot==1) {
                     // Cannon shells hit clustered enemies around the impact point.
@@ -783,6 +795,7 @@ public final class RiftGameView extends View {
                 }
             }
             e.hitReaction=.21f;
+            combatFeel.onDamage(e.x,e.y-18,weapon.color,true,weapon.damage);
             puff(e.x,e.y-18,7,weapon.color);
             if(impacts.size()<64)
                 impacts.add(new Impact(e.x,e.y-18,weapon.color,32));
@@ -956,6 +969,8 @@ public final class RiftGameView extends View {
         // Stable one-route composition: fortress left, incoming enemies right.
         float camX=LaneRules.VIEW_CENTER_X,camY=LaneRules.VIEW_CENTER_Y;
         c.save();
+        // Shake the WORLD only; HUD and touch hitboxes stay fixed.
+        c.translate(combatFeel.shakeX(),combatFeel.shakeY());
         c.translate(W*.5f-camX*BATTLE_ZOOM,H*.5f-camY*BATTLE_ZOOM);
         c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
         drawTerrain(c,biome);
@@ -1037,6 +1052,7 @@ public final class RiftGameView extends View {
             CombatVfx.hit(c,impact.x,impact.y,1f-impact.life/.42f,
                     impact.color,impact.radius);
         }
+        combatFeel.drawContact(c);
         for(Spark s:sparks){
             p.setColor(s.color);p.setAlpha((int)(255*Math.max(0,s.life/s.maxLife)));
             c.drawCircle(s.x,s.y,2.5f+3*s.life/s.maxLife,p);p.setAlpha(255);

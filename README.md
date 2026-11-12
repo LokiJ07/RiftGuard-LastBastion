@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.15.0 — painterly sprite transition and battlefield depth refinements (visual phase 2)
+## Current version: V0.16.0 — collision-driven animation feedback and game feel (visual phase 3)
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -77,6 +77,15 @@ The current initial downloadable pack contains the same art that ships with the 
 - **Weapon/body visual QA fixes:** Android screenshots exposed a pinwheel-looking Crossbow and overly simple arm lines. Rebuilt the Crossbow/Repeater as compact recurved limbs, taut bowstring, loaded bolt and small feed mechanism. The Warden now uses contoured painted-metal texture fragments on dynamically hinged upper/forearms. All six weapon attacks shift the chest, shoulder, elbow and glove in concert with the actual targeted weapon, while muzzle effects remain attached.
 - **Visual QA:** real Android Robolectric screenshots include eight sequential Warden pose timestamps and seven moving/attacking monsters; pixel tests measure transitions and lighting. No generated advertising screenshot is counted as a game asset.
 - **Honest art limitation:** the user-named 'AI Animations' skill was not available in the installed skill catalog; Higgsfield generation credits were zero. A generated image was a marketing mockup, not a usable transparent sprite sheet, so it was rejected and was NOT bundled into the APK. Thus v0.15.0 is a real native-renderer animation improvement but not a new high-resolution frame-by-frame AI atlas or complete realistic world overhaul. See [v0.15 QA](docs/V015_VISUAL_ANIMATION_QA.md).
+
+## V0.16.0 — actual combat animation-event feedback
+
+- New `CombatAnimationFeel` system detects actual weapon contact with enemies (not merely a button press). Melee and ranged hits have different short animation hold times; the damage simulation and touch input **never freeze**.
+- Camera shake is limited to the gameplay WORLD. UI and controls stay steady. Screen motion settles automatically within 190 ms, with tightly capped amplitude.
+- Real contact points briefly display directional spark/slash streaks where the weapon hits the enemy, avoiding the previous disconnected ring-only illusion.
+- A saved `reduced_motion` preference suppresses shake and animation hit-pause for accessibility while preserving a brief impact signal.
+- Robolectric tests cover real projectile collisions, timed pause and decay, screen shake, reduced motion, and visible pixel effects.
+- Implemented using the **game animation, game-feel and 2D Canvas principles** from the user's AI Animation Skills reference index. The full referenced `references/*.md` documents were not accessible here; no claims that an AI asset model generated a new HD sprite sheet. Fully illustrated HD player/enemy art remains outstanding.
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
