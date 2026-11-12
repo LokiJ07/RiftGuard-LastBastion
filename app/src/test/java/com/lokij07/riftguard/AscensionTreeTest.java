@@ -141,7 +141,7 @@ public final class AscensionTreeTest {
         game.layout(0,0,1280,720);
         tap(game,467,544); // Home -> Fortress
         assertEquals("FORTRESS",field(game,"scene").toString());
-        tap(game,895,657); // Fortress -> Ascension
+        tap(game,760,657); // Fortress -> Ascension
         assertEquals("ASCENSION",field(game,"scene").toString());
         float bottom=(float)field(game,"ascensionScroll");
         assertTrue(bottom>1200);
@@ -155,7 +155,7 @@ public final class AscensionTreeTest {
         assertTrue(ny>148&&ny<592);
         tap(game,nx,ny);
         assertEquals(node.id,field(game,"selectedAscensionNode"));
-        tap(game,1080,555);
+        tap(game,1049,657);
         assertTrue(new AscensionTree(prefs).owned(1));
         assertEquals(850-node.cost,prefs.getInt("supplies",-1));
         // User swipes UP to climb to high nodes; drag must not accidentally buy.
