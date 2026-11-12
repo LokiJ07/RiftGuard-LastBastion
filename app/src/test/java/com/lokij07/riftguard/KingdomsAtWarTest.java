@@ -154,7 +154,9 @@ public final class KingdomsAtWarTest {
         assertTrue(machine.dodge());
         assertTrue(machine.locked());
         assertFalse(machine.attack(1)); // no attack while rolling
-        machine.advance(DodgeRules.DURATION,true);
+        // Animation clock limits per-frame dt to 200 ms; complete in two frames.
+        machine.advance(.12f,true);
+        machine.advance(.10f,true);
         assertFalse(machine.locked());
         assertFalse(machine.consume(WardenAnimationMachine.Event.ATTACK_CONTACT));
         assertEquals(3,BossTactics.phase(.26f,1f));
