@@ -2784,11 +2784,20 @@ public final class RiftGameView extends View {
                     equipWeapon(selectedMasteryWeapon);
             }else if(action==2)
                 weaponTreeScroll=Math.max(0,weaponTreeScroll-195);
-            else if(action==3&&
-                    weaponMastery.buy(selectedMasteryWeapon,selectedWeaponMasteryNode,
-                            fortressRank)){
-                supplies=prefs.getInt("supplies",supplies);
-                audio.play(GameAudio.BUILD);
+            else if(action==3){
+                int before=weaponForm(selectedMasteryWeapon);
+                if(weaponMastery.buy(selectedMasteryWeapon,
+                        selectedWeaponMasteryNode,fortressRank)){
+                    supplies=prefs.getInt("supplies",supplies);
+                    int after=weaponForm(selectedMasteryWeapon);
+                    if(after>before)
+                        triggerEvolutionReveal("NEW WEAPON FORM UNLOCKED",
+                                EvolutionProgress.formName(selectedMasteryWeapon,after));
+                    else
+                        triggerEvolutionReveal("WEAPON MASTERY UPGRADED",
+                                WeaponMastery.node(selectedMasteryWeapon,
+                                        selectedWeaponMasteryNode).name);
+                }
             }
             return;
         }
@@ -3075,9 +3084,18 @@ public final class RiftGameView extends View {
             else if(action==1)scene=Scene.ARMORY;
             else if(action==2)
                 ascensionScroll=Math.max(0,ascensionScroll-225);
-            else if(action==3&&ascension.buy(selectedAscensionNode,fortressRank)){
-                supplies=prefs.getInt("supplies",supplies);
-                audio.play(GameAudio.BUILD);
+            else if(action==3){
+                int oldArsenal=arsenalTier();
+                if(ascension.buy(selectedAscensionNode,fortressRank)){
+                    supplies=prefs.getInt("supplies",supplies);
+                    int currentArsenal=arsenalTier();
+                    if(currentArsenal>oldArsenal)
+                        triggerEvolutionReveal("NEW FORTRESS WEAPON",
+                                EvolutionProgress.fortressWeapon(currentArsenal));
+                    else
+                        triggerEvolutionReveal("ASCENSION FORM EVOLVED",
+                                AscensionTree.byId(selectedAscensionNode).name);
+                }
             }
             return;
         }
@@ -3097,35 +3115,46 @@ public final class RiftGameView extends View {
         drawBackdrop(c);
         round(c,48,29,1233,694,25,0xf0172e36);
         text(c,"FORTRESS WORKSHOP",85,86,50,GOLD,false);
-        text(c,"Upgrade the base to unlock weapons, towers and extra core health.",
-                88,125,21,INK,false);
+        text(c,"Every rank changes the building. TURRET tree nodes evolve the weapons.",
+                88,125,19,INK,false);
         drawLiveMenuScene(c,75,158,600,390,true);
+        boolean canPreview=fortressRank<Progression.MAX_RANK||arsenalTier()<4;
+        if(canPreview){
+            button(c,439,504,661,544,
+                    previewNextFortressLook?"SHOW CURRENT":"PREVIEW NEXT",
+                    previewNextFortressLook?0xff9a794e:0xff4e8081);
+        }
+        if(previewNextFortressLook&&canPreview){
+            round(c,86,171,339,204,8,0xe62c5053);
+            text(c,"FUTURE FORM  •  PREVIEW",212,193,16,0xffffe1a5,true);
+        }
         round(c,77,553,669,607,13,0xee1c3942);
         textFit(c,"RANK "+fortressRank+" / 5   "+Progression.RANK_NAMES[fortressRank],
                 98,577,536,24,GOLD,false);
         textFit(c,"CORE HP "+(Progression.maxCoreHp(fortressRank)+ascension.coreHp())+
-                "   •   STARTING TOWERS "+(fortressRank>=5?3:fortressRank>=4?2:1),
+                "  •  STARTING TOWERS "+(fortressRank>=5?3:fortressRank>=4?2:1),
                 98,597,536,18,INK,false);
         round(c,718,153,1204,531,22,0xff283e4a);
-        text(c,"KINGDOM SUPPLIES",758,216,25,INK,false);
-        textFit(c,"ARSENAL  "+EvolutionProgress.fortressWeapon(arsenalTier()),
-                759,310,411,17,0xffb0e9e3,false);
-        text(c,""+supplies,758,280,59,GOLD,false);
-        text(c,"CURRENT UPGRADE",758,346,21,0xffb6c9ca,false);
-        if(fortressRank<Progression.MAX_RANK){
-            int next=fortressRank+1;
-            text(c,Progression.RANK_NAMES[next],758,383,30,GOLD,false);
-            text(c,"Unlock: "+Progression.WEAPONS[next].name,758,422,22,INK,false);
-            text(c,"Cost: "+Progression.upgradeCost(fortressRank)+" Supplies",
-                    758,463,25,INK,false);
-            text(c,Progression.canUpgrade(fortressRank,supplies)?
-                    "READY TO CONSTRUCT":"WIN MISSIONS TO EARN MORE",
-                    759,505,18,Progression.canUpgrade(fortressRank,supplies)?
-                            0xff8cdea5:0xffe3af9c,false);
-        }else{
-            text(c,"ARC CITADEL - MAX RANK",759,378,29,GOLD,false);
-            text(c,"All six launch weapons are available.",759,423,21,INK,false);
-        }
+        text(c,"SUPPLIES",752,196,24,INK,false);
+        text(c,""+supplies,752,260,55,GOLD,false);
+        textFit(c,"ACTIVE ARSENAL: "+EvolutionProgress.fortressWeapon(arsenalTier()),
+                752,301,436,18,0xffb0e9e3,false);
+        int nextRank=Math.min(Progression.MAX_RANK,fortressRank+1);
+        int nextArsenal=EvolutionProgress.fortressArsenal(ascension,nextRank);
+        if(nextRank==fortressRank)
+            nextArsenal=Math.min(4,arsenalTier()+1);
+        String nextName=nextRank>fortressRank?
+                Progression.RANK_NAMES[nextRank]:
+                EvolutionProgress.fortressWeapon(nextArsenal);
+        textFit(c,"UP NEXT: "+nextName.toUpperCase(),752,331,430,19,GOLD,false);
+        workshopMiniature(c,750,343,fortressRank,arsenalTier(),"CURRENT • OWNED",true);
+        workshopMiniature(c,973,343,nextRank,nextArsenal,"NEXT • PREVIEW",false);
+        String requirement=fortressRank<Progression.MAX_RANK?
+                "FORTRESS COST  "+Progression.upgradeCost(fortressRank)+" SUPPLIES":
+                (arsenalTier()<4?"UPGRADE TURRET NODES IN ASCENSION":
+                        "ALL FORTRESS FORMS UNLOCKED");
+        textFit(c,requirement,750,518,434,19,
+                fortressRank<Progression.MAX_RANK?INK:0xffaee8dc,false);
         upgradeActions(c,"HOME","ARMORY","ASCENSION",
                 fortressRank==Progression.MAX_RANK?"MAX RANK":"UPGRADE FORT",
                 Progression.canUpgrade(fortressRank,supplies));
@@ -3135,8 +3164,10 @@ public final class RiftGameView extends View {
         if(!Progression.canUpgrade(fortressRank,supplies))return;
         supplies-=Progression.upgradeCost(fortressRank);
         fortressRank++;
-        audio.play(GameAudio.BUILD);
+        previewNextFortressLook=false;
         prefs.edit().putInt("supplies",supplies).putInt("fortress_rank",fortressRank).apply();
+        triggerEvolutionReveal("FORTRESS FORM "+fortressRank+" UNLOCKED",
+                Progression.RANK_NAMES[fortressRank]+" • REAL STRUCTURE EVOLVED");
         announce(Progression.RANK_NAMES[fortressRank]+" CONSTRUCTED");
     }
     private void equipWeapon(int id) {
@@ -3489,6 +3520,11 @@ public final class RiftGameView extends View {
                 }
             }
         }else if(scene==Scene.FORTRESS) {
+            if(x>=439&&x<=661&&y>=504&&y<=546 &&
+                    (fortressRank<Progression.MAX_RANK||arsenalTier()<4)){
+                previewNextFortressLook=!previewNextFortressLook;
+                return;
+            }
             int action=UpgradeActionLayout.hit(x,y);
             if(action==0)scene=Scene.HOME;
             else if(action==1)scene=Scene.ARMORY;
