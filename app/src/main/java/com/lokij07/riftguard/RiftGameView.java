@@ -1905,6 +1905,7 @@ public final class RiftGameView extends View {
         // State-machine clocks drive actual poses. Legacy preview callers
         // can still set fireFlash/pulseFlash directly for sprite QA captures.
         boolean interrupted=heroAnimation.isHurt()||
+                heroAnimation.state()==WardenAnimationMachine.State.CAST||
                 heroAnimation.state()==WardenAnimationMachine.State.DEATH;
         float attackProgress=heroAnimation.attackProgress();
         if(attackProgress<0&&!interrupted)
