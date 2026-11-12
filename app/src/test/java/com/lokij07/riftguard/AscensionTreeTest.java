@@ -99,7 +99,7 @@ public final class AscensionTreeTest {
         assertTrue(tree.coreHp()>=0);
     }
 
-    @Test public void advancedNodesChangeActualWeaponDamageAndPersist(){
+    @Test public void advancedNodesChangeActualWeaponDamageAndPersist()throws Exception{
         SharedPreferences prefs=preferences();
         prefs.edit().putInt("supplies",1200).commit();
         AscensionTree tree=new AscensionTree(prefs);
@@ -108,8 +108,29 @@ public final class AscensionTreeTest {
         assertTrue("Bought upgrade must increase weapon power",multiplier>1f);
         AscensionTree reload=new AscensionTree(prefs);
         assertEquals(multiplier,reload.attackMultiplier(),.0001f);
-        assertEquals(multiplier*Progression.WEAPONS[0].damage,
-                reload.attackMultiplier()*Progression.WEAPONS[0].damage,.01f);
+        // Don't test only the arithmetic: fire a real projectile in the View.
+        RiftGameView live=new RiftGameView(RuntimeEnvironment.getApplication());
+        Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
+        start.setAccessible(true);start.invoke(live,0);
+        Method spawn=RiftGameView.class.getDeclaredMethod("spawnEnemy");
+        spawn.setAccessible(true);spawn.invoke(live);
+        @SuppressWarnings("unchecked")
+        java.util.List<Object> foes=(java.util.List<Object>)field(live,"enemies");
+        Object foe=foes.get(0);
+        Field x=foe.getClass().getDeclaredField("x"),y=foe.getClass().getDeclaredField("y");
+        x.setAccessible(true);y.setAccessible(true);
+        x.setFloat(foe,(float)field(live,"heroX")+155f);
+        y.setFloat(foe,(float)field(live,"heroY"));
+        Method fire=RiftGameView.class.getDeclaredMethod("fire");
+        fire.setAccessible(true);fire.invoke(live);
+        @SuppressWarnings("unchecked")
+        java.util.List<Object> shots=(java.util.List<Object>)field(live,"shots");
+        assertEquals(1,shots.size());
+        Field damage=shots.get(0).getClass().getDeclaredField("damage");
+        damage.setAccessible(true);
+        assertEquals("Permanent ascension must modify actual shot DPS",
+                Progression.WEAPONS[0].damage*multiplier,
+                damage.getFloat(shots.get(0)),.01f);
     }
 
     @Test public void realFortressButtonOpensBottomOriginSwipeClimbsAndPurchases()
