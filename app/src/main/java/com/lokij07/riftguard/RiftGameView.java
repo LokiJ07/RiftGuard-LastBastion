@@ -70,6 +70,7 @@ public final class RiftGameView extends View {
 
     private final SharedPreferences prefs;
     private final KingdomMeta kingdom;
+    private final AscensionTree ascension;
     private final GameAudio audio;
     private int kingdomTab=0;
     private String kingdomMessage="Complete challenges to earn rewards!";
@@ -182,6 +183,7 @@ public final class RiftGameView extends View {
         resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         kingdom=new KingdomMeta(prefs);
+        ascension=new AscensionTree(prefs);
         audio=new GameAudio(context,prefs);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -264,6 +266,9 @@ public final class RiftGameView extends View {
         if (active) postInvalidateOnAnimation();
     }
 
+    private float heroMaxHp(){return kingdom.heroMaxHp()*DifficultyRules.heroHealth(difficultyMode)+ascension.heroHp();}
+    private float coreMaxHp(){return Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp()+ascension.coreHp();}
+
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
@@ -272,14 +277,15 @@ public final class RiftGameView extends View {
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         motionArt.prepareTerrain(s);
         walkClock=0;heroMoving=false;
-        heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=kingdom.heroMaxHp();
-        baseHp=Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp();
+        heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
+        baseHp=coreMaxHp();
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
         pendingMelee=false;pendingMeleeWeapon=-1;
         bannerTime=0;bannerTick=0;trapTime=0;meteorTime=0;
-        waveNotice=2.6f; noticeTimer=0; gold=150+(fortressRank-1)*20; kills=0;
+        waveNotice=2.6f; noticeTimer=0;
+        gold=DifficultyRules.startingGold(fortressRank,difficultyMode)+ascension.startingGold();kills=0;
         enemies.clear();shots.clear();hostileBolts.clear();sparks.clear();
         decor.clear();pickups.clear();
         deaths.clear();impacts.clear();
@@ -287,9 +293,8 @@ public final class RiftGameView extends View {
             towers[i]=0;towerTimers[i]=0;towerRecoil[i]=0;
             towerAim[i]=0;
         }
-        towers[0]=1;
-        if(fortressRank>=4)towers[1]=1;
-        if(fortressRank>=5)towers[2]=1;
+        int initial=DifficultyRules.initialTowers(fortressRank,difficultyMode);
+        for(int i=0;i<initial;i++)towers[i]=1;
         Random r=new Random(Campaign.seed(stage));
         // Scatter environmental art with deliberate negative space around the keep.
         // Poisson-like rejection prevents overlapping forests and improves combat readability.
@@ -323,7 +328,7 @@ public final class RiftGameView extends View {
         waveNotice=Math.max(0,waveNotice-dt);
         noticeTimer=Math.max(0,noticeTimer-dt);
         hazardSlowTimer=Math.max(0,hazardSlowTimer-dt);
-        float speed=245f*(hazardSlowTimer>0?.71f:1f);
+        float speed=245f*ascension.moveMultiplier()*(hazardSlowTimer>0?.71f:1f);
         float previousHeroX=heroX,previousHeroY=heroY;
         // Independent X/Y collision resolution allows sliding along walls.
         float nextX=LaneRules.heroX(MovementRules.heroNextX(heroX,heroY,axisX*speed*dt));
@@ -343,7 +348,7 @@ public final class RiftGameView extends View {
             if (remaining>0 && spawnTimer<=0) {
                 spawnEnemy();
                 remaining--;
-                spawnTimer=Math.max(.23f,1.1f-stage*.0016f);
+                spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
             }
         }
         for (int i=0;i<towers.length;i++) {
@@ -354,7 +359,8 @@ public final class RiftGameView extends View {
                 if (target!=null) {
                     float[] modifiers={1f,1.50f,.77f,1.13f};
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*modifiers[i]*kingdom.towerDamageMultiplier(),
+                            BattleRules.towerDamage(towers[i])*modifiers[i]*
+                                    kingdom.towerDamageMultiplier()*ascension.towerMultiplier(),
                             i==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
@@ -603,20 +609,23 @@ public final class RiftGameView extends View {
             Pickup drop=drops.next();drop.age+=dt;
             if(drop.age>26f) {drops.remove();continue;}
             if(distance(heroX,heroY,drop.x,drop.y)<43) {
-                if(drop.kind==0){heroHp=Math.min(kingdom.heroMaxHp(),heroHp+30);announce("HEALTH RESTORED +30");}
+                if(drop.kind==0){heroHp=Math.min(heroMaxHp(),heroHp+30);announce("HEALTH RESTORED +30");}
                 else {gold+=35;announce("SUPPLY CACHE +35 GOLD");}
                 puff(drop.x,drop.y,9,drop.kind==0?0xfff4949c:GOLD);
                 drops.remove();
             }
         }
         if(remaining==0 && enemies.isEmpty()) {
-            if(!waiting){waiting=true;intermission=2.5f;gold+=25;waveNotice=2.5f;}
+            if(!waiting){waiting=true;
+                intermission=DifficultyRules.betweenWaves(difficultyMode);
+                gold+=25;waveNotice=2.5f;}
             else {
                 intermission-=dt;
                 if(intermission<=0) {
                     if(wave>=DifficultyRules.waves(stage,difficultyMode)){complete();return;}
                     wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
-                    spawnTimer=1.6f;waveNotice=2;waiting=false;
+                    spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
+                    waveNotice=2;waiting=false;
                 }
             }
         }
@@ -628,11 +637,11 @@ public final class RiftGameView extends View {
         int kind=random.nextInt(Math.max(1,pool));
         // The Forest Boar becomes a recognizable charging enemy from wave two.
         if(wave>=2 && random.nextFloat()<.15f)kind=6;
-        boolean elite=DifficultyRules.eliteFinalWave(stage,wave,difficultyMode)
+        boolean elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)
                 && remaining==1;
         if(elite)kind=5;
         float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
-        if(elite)hp*=DifficultyRules.finalBossMultiplier(stage);
+        if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
@@ -679,7 +688,7 @@ public final class RiftGameView extends View {
             pendingMeleeWeapon=equippedWeapon;
             pendingMeleeFacing=heroDir;
         } else {
-            Shot shot=new Shot(muzzleX,muzzleY,weapon.damage,
+            Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*ascension.attackMultiplier(),
                     equippedWeapon==4?900:730,target,false);
             shot.weaponId=equippedWeapon;
             shots.add(shot);
@@ -698,7 +707,7 @@ public final class RiftGameView extends View {
             if(e.hp<=0)continue;
             if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,weapon.range,
                     e.x,e.y))continue;
-            e.hp-=weapon.damage;
+            e.hp-=weapon.damage*ascension.attackMultiplier();
             puff(e.x,e.y-18,7,weapon.color);
             if(impacts.size()<64)
                 impacts.add(new Impact(e.x,e.y-18,weapon.color,32));
@@ -715,7 +724,8 @@ public final class RiftGameView extends View {
         if(!WardenSkills.unlocked(fortressRank,equippedSkill))return;
         int skill=equippedSkill;
         WardenSkills.Skill info=WardenSkills.SKILLS[skill];
-        pulseCooldown=WardenSkills.effectiveCooldown(skill,kingdom.shopRank(3));
+        pulseCooldown=Math.max(3f,WardenSkills.effectiveCooldown(skill,kingdom.shopRank(3))
+                -ascension.spellCooldownReduction());
         pulseFlash=.55f;
         lastCastSkill=skill;
         audio.play(GameAudio.SPELL);
@@ -749,7 +759,7 @@ public final class RiftGameView extends View {
             announce("FROST NOVA  •  "+hits+" FROZEN");
         }else if(skill==WardenSkills.BANNER){
             bannerX=heroX;bannerY=heroY;bannerTime=10f;bannerTick=0;
-            heroHp=WardenSkills.clampHealth(heroHp,24,kingdom.heroMaxHp());
+            heroHp=WardenSkills.clampHealth(heroHp,24,heroMaxHp());
             announce("HEALING BANNER DEPLOYED");
         }else if(skill==WardenSkills.TRAP){
             trapX=BattleRules.clamp(heroX+(float)Math.cos(heroDir)*88,26,WORLD_W-26);
@@ -774,10 +784,10 @@ public final class RiftGameView extends View {
             if(bannerTick<=0){
                 bannerTick=1f;
                 if(WardenSkills.inRadius(bannerX,bannerY,220,heroX,heroY))
-                    heroHp=WardenSkills.clampHealth(heroHp,7,kingdom.heroMaxHp());
+                    heroHp=WardenSkills.clampHealth(heroHp,7,heroMaxHp());
                 if(WardenSkills.inRadius(bannerX,bannerY,550,BASE_X,BASE_Y))
                     baseHp=WardenSkills.clampHealth(baseHp,11,
-                            Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp());
+                            coreMaxHp());
             }
         }
         if(trapTime>0){
@@ -1866,9 +1876,9 @@ public final class RiftGameView extends View {
         text(c,Campaign.title(stage),45,48,25,GOLD,false);
         text(c,Campaign.worldName(stage),45,82,20,INK,false);
         text(c,"CORE",319,38,15,0xffafc6c6,false);
-        bar(c,316,47,243,18,baseHp/(Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp()),0xff79cfad);
+        bar(c,316,47,243,18,baseHp/coreMaxHp(),0xff79cfad);
         text(c,"HERO",319,84,15,0xffafc6c6,false);
-        bar(c,377,69,182,13,heroHp/kingdom.heroMaxHp(),0xffe7a07e);
+        bar(c,377,69,182,13,heroHp/heroMaxHp(),0xffe7a07e);
         text(c,"WAVE "+wave+" / "+DifficultyRules.waves(stage,difficultyMode),
                 617,50,26,INK,false);
         text(c,"GOLD  "+gold,618,83,21,GOLD,false);
@@ -2322,7 +2332,7 @@ public final class RiftGameView extends View {
         round(c,77,554,669,632,13,0xee1c3942);
         text(c,"RANK "+fortressRank+"  /  5     "+Progression.RANK_NAMES[fortressRank],
                 98,587,29,GOLD,false);
-        text(c,"CORE HP: "+Progression.maxCoreHp(fortressRank)+
+        text(c,"CORE HP: "+(Progression.maxCoreHp(fortressRank)+ascension.coreHp())+
                 "     STARTING TOWERS: "+(fortressRank>=5?3:fortressRank>=4?2:1),
                 100,619,20,INK,false);
         round(c,718,153,1204,531,22,0xff283e4a);
