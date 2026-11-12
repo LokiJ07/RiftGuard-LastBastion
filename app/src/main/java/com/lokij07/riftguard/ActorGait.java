@@ -27,8 +27,8 @@ public final class ActorGait {
         float angle=phase+(side==1?(float)Math.PI:0);
         float s=(float)Math.sin(angle),z=(float)Math.cos(angle);
         // The stance phase remains on the floor; the swing phase lifts one foot.
-        float footX=side*height*.10f+s*height*.145f;
-        float lift=Math.max(0,z)*height*.092f;
+        float footX=side*height*.10f+s*height*.075f;
+        float lift=Math.max(0,z)*height*.048f;
         float footY=-lift;
         float kneeX=(hipX+footX)*.5f+side*height*.034f;
         float kneeY=hipY*.45f+footY*.20f-height*.018f;
