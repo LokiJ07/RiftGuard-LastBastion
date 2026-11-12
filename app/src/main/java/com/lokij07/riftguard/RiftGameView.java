@@ -2872,14 +2872,13 @@ public final class RiftGameView extends View {
         // Right details panel communicates precise requirements and benefits.
         round(c,937,132,1224,606,22,0xff253f4c);
         text(c,"YOUR ASCENSION",960,167,23,GOLD,false);
-        if(choice.category==AscensionTree.TOWER){
-            textFit(c,"DEFENSE EVOLUTION • "+
-                    UpgradeEvolution.towerNodes(ascension)+" TURRET NODES",
-                    961,581,246,15,0xffb7e9da,false);
-        }
         text(c,ascension.purchasedCount()+"/40 NODES",960,195,19,INK,false);
         text(c,"SUPPLIES  "+supplies,960,224,21,0xffffd59b,false);
         AscensionTree.Node choice=AscensionTree.byId(selectedAscensionNode);
+        if(choice.category==AscensionTree.TOWER)
+            textFit(c,"DEFENSE EVOLUTION • "+
+                    UpgradeEvolution.towerNodes(ascension)+" TURRET NODES",
+                    961,582,246,15,0xffb7e9da,false);
         int tint=AscensionTree.COLORS[choice.category];
         round(c,960,243,1202,328,15,0xff172e3c);
         drawAscensionGlyph(c,choice.category,998,289,tint);
