@@ -122,7 +122,8 @@ public final class RiftGameView extends View {
     private float meteorX,meteorY,meteorTime;
     private int selectedLevel=1, selectedMap=0, stage=0;
     private boolean regionalMap=false;
-    private int wave, remaining, gold, kills;
+    private int wave, remaining, gold, kills,missionBuilds,objectiveBonus;
+    private boolean defeatedElite;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     // 120-ms button tap buffer per the animation skill's responsive cancel window.
@@ -321,6 +322,7 @@ public final class RiftGameView extends View {
             towerY[pad]=TowerPadLayout.y(stage,pad);
         }
         battleRecorded=false; battlePulses=0;
+        missionBuilds=0;objectiveBonus=0;defeatedElite=false;
         hazardSlowTimer=0;
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         // Full Java version of deployed-map-generator.html. No old scenery.
@@ -457,6 +459,7 @@ public final class RiftGameView extends View {
         while(it.hasNext()) {
             Enemy e=it.next();
             if(e.hp<=0) {
+                if(e.boss)defeatedElite=true;
                 gold+=BattleRules.killCoins(e.kind);
                 kills++;
                 if(pickups.size()<28 && random.nextFloat()<.22f)
@@ -1019,6 +1022,7 @@ public final class RiftGameView extends View {
         }
         int cost=BattleRules.towerCost(towers[choice]);
         if(gold<cost){announce("NEED "+(cost-gold)+" MORE GOLD");return;}
+        if(towers[choice]==0)missionBuilds++;
         gold-=cost;towers[choice]++;
         audio.play(GameAudio.BUILD);
         puff(towerX[choice],towerY[choice],18,GOLD);
@@ -1043,7 +1047,11 @@ public final class RiftGameView extends View {
         scene=Scene.WIN;paused=false;
         boolean firstClear=stage>=unlocked;
         int reward=Progression.stageReward(stage,firstClear);
-        supplies+=reward+DifficultyRules.supplyBonus(difficultyMode,reward);
+        objectiveBonus=MissionObjectives.completed(stage,missionBuilds,
+                baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
+                defeatedElite)?MissionObjectives.bonus(stage):0;
+        supplies+=reward+DifficultyRules.supplyBonus(difficultyMode,reward)
+                +objectiveBonus;
         unlocked=Campaign.unlockedAfter(unlocked,stage);
         prefs.edit().putInt("unlocked",unlocked).putInt("supplies",supplies).apply();
         selectedLevel=Campaign.level(Math.min(stage+1,299));
@@ -2008,6 +2016,14 @@ public final class RiftGameView extends View {
         }
         if(noticeTimer>0 && !bossActive)
             text(c,notice,640,207,30,GOLD,true);
+        if(!bossActive && waveNotice<=0 && noticeTimer<=0){
+            String challenge=MissionObjectives.name(stage)+" • "+
+                    MissionObjectives.status(stage,missionBuilds,
+                            baseHp/Math.max(1f,coreMaxHp()),
+                            heroHp/Math.max(1f,heroMaxHp()),defeatedElite);
+            round(c,448,119,830,153,8,0xcc203941);
+            textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
+        }
         text(c,"MOVE",stickX,688,17,0xffb5cfc5,true);
         if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
             WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
@@ -2948,6 +2964,9 @@ public final class RiftGameView extends View {
                 640,346,22,0xffc1d9d4,true);
         text(c,"Enemies defeated: "+kills+"     Gold earned: "+gold,
                 640,388,21,INK,true);
+        if(scene==Scene.WIN)
+            textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES",640,418,
+                    430,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
         button(c,435,429,845,502,scene==Scene.WIN?"NEXT STAGE":"RETRY STAGE",0xffae7652);
         button(c,435,520,845,585,"CAMPAIGN MAP",0xff3f626e);
     }
