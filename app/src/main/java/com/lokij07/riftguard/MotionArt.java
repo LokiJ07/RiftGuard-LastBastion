@@ -413,6 +413,48 @@ public final class MotionArt {
      * weapon class and the drawn gauntlet covers the weapon's actual grip.
      * Uses the original art; full separated skeletal sprites remain future work.
      */
+    /**
+     * Paint a real illustrated armor fragment along a shoulder-to-elbow or
+     * elbow-to-gauntlet bone. This replaces the plain stick/rod impression:
+     * the source crop comes from the Warden's metal armor, intentionally
+     * avoiding the original right-waist weapon and background.
+     */
+    private void paintedArmorBone(Canvas c,float ax,float ay,
+                                  float bx,float by,boolean forearm){
+        if(!heroReady())return;
+        float dx=bx-ax,dy=by-ay;
+        float len=(float)Math.hypot(dx,dy);
+        if(len<3)return;
+        float radius=forearm?9:12;
+        c.save();
+        c.translate(ax,ay);
+        c.rotate((float)Math.toDegrees(Math.atan2(dy,dx))-90f);
+        Path contour=new Path();
+        contour.moveTo(-radius+2,-2);
+        contour.quadTo(0,-5,radius-1,-2);
+        contour.lineTo(radius,len*.35f);
+        contour.lineTo(radius*.68f,len*.79f);
+        contour.lineTo(radius*.55f,len+2);
+        contour.quadTo(0,len+4,-radius*.62f,len+1);
+        contour.lineTo(-radius*.82f,len*.59f);
+        contour.close();
+        c.clipPath(contour);
+        p.setColor(Color.WHITE);p.setAlpha(255);p.setStyle(Paint.Style.FILL);
+        Rect texture=forearm?new Rect(109,73,137,111):
+                new Rect(102,49,137,100);
+        c.drawBitmap(heroes,texture,
+                new RectF(-radius-1,-3,radius+1,len+3),p);
+        // Local plate edge follows animated bone orientation.
+        Paint accent=new Paint(Paint.ANTI_ALIAS_FLAG);
+        accent.setStrokeCap(Paint.Cap.ROUND);
+        accent.setColor(0x9984a9bb);
+        accent.setStrokeWidth(1.8f);
+        c.drawLine(-radius+2,3,-radius*.55f,len*.80f,accent);
+        accent.setColor(0x99edcf92);
+        c.drawLine(radius*.47f,len*.12f,radius*.40f,len*.59f,accent);
+        c.restore();
+    }
+
     private void drawHeldWeapon(Canvas c,int weaponId,float time,
                                 float attackProgress,float castProgress,
                                 boolean running,float facing,int masteryNodes) {
@@ -454,6 +496,12 @@ public final class MotionArt {
                 pose.elbowX-1,pose.elbowY-2,arm);
         c.drawLine(pose.elbowX-1,pose.elbowY-2,
                 pose.handX-1,pose.handY-1,arm);
+        // Animated painterly armor fragments hide generic rod-style arms
+        // without painting a second built-in weapon on the character.
+        paintedArmorBone(c,pose.shoulderX,pose.shoulderY,
+                pose.elbowX,pose.elbowY,false);
+        paintedArmorBone(c,pose.elbowX,pose.elbowY,
+                pose.handX,pose.handY,true);
         arm.setStyle(Paint.Style.FILL);
         arm.setColor(0xffc2b078);
         c.drawCircle(pose.elbowX,pose.elbowY,5,arm);
@@ -467,6 +515,7 @@ public final class MotionArt {
             c.drawLine(-20,-86,supportX-5,supportY+2,arm);
             arm.setColor(0xff93b7c1);arm.setStrokeWidth(7);
             c.drawLine(-20,-86,supportX-5,supportY+2,arm);
+            paintedArmorBone(c,-20,-86,supportX-5,supportY+2,false);
             arm.setStyle(Paint.Style.FILL);
             arm.setColor(0xffcfbb98);
             c.drawCircle(supportX,supportY,7,arm);
