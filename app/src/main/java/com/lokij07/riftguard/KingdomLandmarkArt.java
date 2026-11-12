@@ -180,6 +180,10 @@ public final class KingdomLandmarkArt {
         }
     }
     public static void drawMotion(Canvas c,int stage,float time,boolean reduced){
+        drawMotion(c,stage,time,reduced,false);
+    }
+    public static void drawMotion(Canvas c,int stage,float time,
+                                  boolean reduced,boolean lowEffects){
         Campaign.checkStage(stage);
         int realm=family(stage), seed=Campaign.seed(stage);
         if(!Float.isFinite(time))return;
@@ -189,7 +193,7 @@ public final class KingdomLandmarkArt {
             // Particles stick to *real* landmark positions.
             float ox=x,oy=y-115*scale;
             int col=ACCENT[realm];
-            for(int i=0;i<7;i++){
+            for(int i=0;i<(lowEffects?3:7);i++){
                 float phase=(i*2.3f+seed%43);
                 float px=ox+(float)Math.cos(t*(realm==7?2.6f:.8f)+phase)*
                         (18+i*7)*scale;
