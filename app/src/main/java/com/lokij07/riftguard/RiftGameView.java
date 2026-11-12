@@ -40,6 +40,7 @@ public final class RiftGameView extends View {
     };
     private enum Scene { HOME, MAP, ARMORY, FORTRESS, RESOURCES, KINGDOM, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
+    private boolean briefingOpen=false;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
     private final CharacterArt characterArt;
@@ -186,6 +187,12 @@ public final class RiftGameView extends View {
         if (active) postInvalidateOnAnimation();
     }
     public boolean handleBack() {
+        if (scene==Scene.PLAY && briefingOpen) {
+            briefingOpen=false;
+            scene=Scene.MAP;
+            clearTouchControls();
+            return true;
+        }
         if (scene==Scene.PLAY) {
             paused=!paused;
             clearTouchControls();
@@ -202,7 +209,7 @@ public final class RiftGameView extends View {
         lastNs=now;
         if (active) {
             gameTime+=dt;
-            if (scene==Scene.PLAY && !paused) update(dt);
+            if (scene==Scene.PLAY && !paused && !briefingOpen) update(dt);
         }
         canvas.drawColor(0xff101e22);
         // Portrait/notch/ultrawide letterbox gutters now extend the scene palette
@@ -227,6 +234,7 @@ public final class RiftGameView extends View {
             drawBattle(canvas);
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
             else if (paused) drawPause(canvas);
+            else if (scene==Scene.PLAY && briefingOpen) drawMissionBriefing(canvas);
         }
         canvas.restore();
         if (active) postInvalidateOnAnimation();
@@ -234,7 +242,7 @@ public final class RiftGameView extends View {
 
     private void start(int s) {
         Campaign.checkStage(s);
-        stage=s; scene=Scene.PLAY; paused=false;
+        stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
         battleRecorded=false; battlePulses=0;
         hazardSlowTimer=0;
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
@@ -1990,6 +1998,58 @@ public final class RiftGameView extends View {
         button(c,435,429,845,502,scene==Scene.WIN?"NEXT STAGE":"RETRY STAGE",0xffae7652);
         button(c,435,520,845,585,"CAMPAIGN MAP",0xff3f626e);
     }
+    /**
+     * Storybook mission panel is a real tap-gated overlay above a live battlefield.
+     * The simulation is frozen until the player deliberately selects BEGIN BATTLE.
+     * Artwork, hitboxes and mission state remain separate from narrative text.
+     */
+    private void drawMissionBriefing(Canvas c) {
+        MissionStory.Briefing story=MissionStory.forStage(stage);
+        rect(c,0,0,W,H,0xd7081520);
+        round(c,76,48,1204,680,30,0xff122732);
+        border(c,76,48,1204,680,30,0xffd2ae70,4);
+        round(c,103,75,1175,126,9,0xff2a4650);
+        text(c,"THE RIFT CHRONICLES  /  MISSION BRIEFING",122,110,29,GOLD,false);
+        text(c,story.chapter,125,161,22,0xffc5e5dc,false);
+        // Actual stage-specific illustrated environment, not a map number tile.
+        round(c,119,192,564,533,16,0xff486676);
+        c.save();
+        c.clipRect(127,200,556,524);
+        WorldArt.drawScene(c,Campaign.world(stage),Campaign.map(stage),
+                127,200,429,324,gameTime);
+        drawStagePreview(c,stage,127,200);
+        c.restore();
+        border(c,127,200,556,524,11,0xffb78a57,3);
+        text(c,story.headline,593,225,27,GOLD,false);
+        text(c,"THE CHRONICLE",596,270,18,0xff9cb6ba,false);
+        drawStoryParagraph(c,story.lore,594,305,552,23,33,0xffecede5);
+        text(c,"WARDEN'S ORDERS",596,384,18,0xff9cb6ba,false);
+        drawStoryParagraph(c,story.order,594,418,552,22,31,INK);
+        text(c,story.objective,134,572,21,0xffc0e0bf,false);
+        drawStoryParagraph(c,story.warning,594,523,538,19,26,0xffffc38f);
+        button(c,700,586,1130,652,"BEGIN BATTLE",0xffa46a45);
+        text(c,"BACK TO ATLAS",141,634,20,0xffcad5cc,false);
+    }
+
+    /** Pixel-width wrapping: no text can spill across panel borders. */
+    private void drawStoryParagraph(Canvas c,String content,float x,float y,
+                                    float maxWidth,float size,float leading,int color) {
+        p.setTypeface(FONT);p.setTextSize(size);
+        StringBuilder line=new StringBuilder();
+        float baseline=y;
+        for(String word:content.split(" ")) {
+            String candidate=line.length()==0?word:line+" "+word;
+            if(line.length()>0 && p.measureText(candidate)>maxWidth) {
+                text(c,line.toString(),x,baseline,size,color,false);
+                baseline+=leading;
+                line.setLength(0);
+            }
+            if(line.length()>0)line.append(' ');
+            line.append(word);
+        }
+        if(line.length()>0)text(c,line.toString(),x,baseline,size,color,false);
+    }
+
     private void drawPause(Canvas c) {
         rect(c,0,0,W,H,0xc3001117);
         round(c,390,166,890,582,27,0xff1f3741);
@@ -2009,6 +2069,18 @@ public final class RiftGameView extends View {
         if(scale<=0)return true;
         float offsetX=(getWidth()-W*scale)*.5f,offsetY=(getHeight()-H*scale)*.5f;
         float x=(ev.getX(index)-offsetX)/scale,y=(ev.getY(index)-offsetY)/scale;
+        if(scene==Scene.PLAY && briefingOpen) {
+            if(action==MotionEvent.ACTION_DOWN && x>680 && x<1150 && y>570 && y<670) {
+                briefingOpen=false;
+                clearTouchControls();
+            } else if(action==MotionEvent.ACTION_DOWN && x>106 && x<364 && y>592 && y<656) {
+                briefingOpen=false;
+                scene=Scene.MAP;
+                clearTouchControls();
+            }
+            invalidate();
+            return true;
+        }
         if(action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) {
             if(scene!=Scene.PLAY) { tapMenu(x,y);invalidate();return true; }
             if(paused) {
@@ -2083,7 +2155,10 @@ public final class RiftGameView extends View {
                 prefs.edit().putInt("difficulty",difficultyMode).apply();
             }else if(y>591 && y<665 && x>405 && x<880) {
                 int mission=Campaign.stage(selectedLevel,selectedMap);
-                if(Campaign.accessible(mission,unlocked))start(mission);
+                if(Campaign.accessible(mission,unlocked)) {
+                    start(mission);
+                    briefingOpen=true;
+                }
             }else if(x<200 && y>594) scene=Scene.HOME;
         }else if(scene==Scene.ARMORY) {
             if(x>80 && x<329 && y>619)scene=Scene.HOME;
@@ -2103,7 +2178,10 @@ public final class RiftGameView extends View {
         }else if(scene==Scene.WIN || scene==Scene.LOSE) {
             if(x>420 && x<860 && y>425 && y<510) {
                 if(scene==Scene.WIN && stage==299)scene=Scene.MAP;
-                else if(scene==Scene.WIN)start(Math.min(299,stage+1));
+                else if(scene==Scene.WIN) {
+                    start(Math.min(299,stage+1));
+                    briefingOpen=true;
+                }
                 else start(stage);
             }else if(x>420 && x<860 && y>514 && y<602)scene=Scene.MAP;
         }
