@@ -70,6 +70,7 @@ public final class RiftGameView extends View {
 
     private final SharedPreferences prefs;
     private final KingdomMeta kingdom;
+    private final GameAudio audio;
     private int kingdomTab=0;
     private String kingdomMessage="Complete challenges to earn rewards!";
     private boolean battleRecorded=false;
@@ -172,6 +173,7 @@ public final class RiftGameView extends View {
         resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         kingdom=new KingdomMeta(prefs);
+        audio=new GameAudio(context,prefs);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
         fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
@@ -194,8 +196,10 @@ public final class RiftGameView extends View {
         active=value;
         lastNs=0;
         if (!value) clearTouchControls();
+        if(active)audio.prepare();
         if (active) postInvalidateOnAnimation();
     }
+    public void releaseAudio(){audio.release();}
     public boolean handleBack() {
         if (scene==Scene.PLAY && briefingOpen) {
             briefingOpen=false;
@@ -344,6 +348,7 @@ public final class RiftGameView extends View {
                             i==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
+                    audio.play(GameAudio.SHOT);
                     towerAim[i]=(float)Math.atan2(target.y-towerY[i],target.x-towerX[i]);
                     towerRecoil[i]=.20f;
                     towerTimers[i]=Math.max(.25f,(i==1?1.35f:i==2?1.02f:.92f)
@@ -440,6 +445,7 @@ public final class RiftGameView extends View {
                         DifficultyRules.enemyDamage(difficultyMode);
                 e.attackAnim=.42f;
                 hurtCooldown=.8f; puff(heroX,heroY,6,0xffff8086);
+                audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;markDefeat();return;}
             }
             if(!hunt && (distance(e.x,e.y,BASE_X,BASE_Y)<190 || (e.kind==5 &&
@@ -503,6 +509,7 @@ public final class RiftGameView extends View {
                 if(impacts.size()<64)impacts.add(new Impact(
                         shot.target.x,shot.target.y-15,impact,
                         shot.tower&&shot.towerSlot==1?85:39));
+                audio.play(GameAudio.IMPACT);
                 sit.remove();
             } else {
                 // Clamp each step to target distance, preventing projectile oscillation.
@@ -599,6 +606,7 @@ public final class RiftGameView extends View {
                 animTime,heroMoving,heroDir);
         float muzzleX=heroX+muzzle.x,muzzleY=heroY+muzzle.y;
         shotTimer=weapon.cooldown;
+        audio.play("MELEE".equals(weapon.type)?GameAudio.BLADE:GameAudio.SHOT);
         fireFlash=.23f;
         if("MELEE".equals(weapon.type)) {
             // Queue contact damage at the MIDPOINT of the animated sword swing.
@@ -646,6 +654,7 @@ public final class RiftGameView extends View {
         pulseCooldown=WardenSkills.effectiveCooldown(skill,kingdom.shopRank(3));
         pulseFlash=.55f;
         lastCastSkill=skill;
+        audio.play(GameAudio.SPELL);
         if(skill==WardenSkills.PULSE){
             battlePulses++;
             int hits=0;
@@ -753,6 +762,7 @@ public final class RiftGameView extends View {
         int cost=BattleRules.towerCost(towers[choice]);
         if(gold<cost){announce("NEED "+(cost-gold)+" MORE GOLD");return;}
         gold-=cost;towers[choice]++;
+        audio.play(GameAudio.BUILD);
         puff(towerX[choice],towerY[choice],18,GOLD);
         announce(towers[choice]==1?"TURRET BUILT":"TURRET LEVEL "+towers[choice]);
     }
@@ -1800,6 +1810,9 @@ public final class RiftGameView extends View {
                 679,595,16,INK,false);
         round(c,54,65,628,650,25,0xe6183039);
         text(c,"RIFTGUARD",87,183,80,GOLD,false);
+        round(c,1010,42,1213,97,14,0xff324f5c);
+        text(c,audio.enabled()?"SOUND: ON":"SOUND: OFF",
+                1112,77,21,audio.enabled()?0xffb7f1c8:0xffffc0aa,true);
         text(c,"LAST BASTION",91,240,35,INK,false);
         rect(c,93,259,577,264,0xff709c9d);
         text(c,"RECLAIM THE TEN REALMS",94,318,26,0xffe2b995,false);
@@ -2251,6 +2264,7 @@ public final class RiftGameView extends View {
         if(!Progression.canUpgrade(fortressRank,supplies))return;
         supplies-=Progression.upgradeCost(fortressRank);
         fortressRank++;
+        audio.play(GameAudio.BUILD);
         prefs.edit().putInt("supplies",supplies).putInt("fortress_rank",fortressRank).apply();
         announce(Progression.RANK_NAMES[fortressRank]+" CONSTRUCTED");
     }
@@ -2404,7 +2418,8 @@ public final class RiftGameView extends View {
     }
     private void tapMenu(float x,float y) {
         if(scene==Scene.HOME) {
-            if(x>665 && x<1205 && y>447 && y<517)scene=Scene.KINGDOM;
+            if(x>1007 && x<1216 && y>39 && y<104)audio.toggle();
+            else if(x>665 && x<1205 && y>447 && y<517)scene=Scene.KINGDOM;
             else if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
             else if(x>93 && x<610 && y>408 && y<492)scene=Scene.MAP;
             else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
