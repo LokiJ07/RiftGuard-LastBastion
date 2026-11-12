@@ -203,6 +203,17 @@ public final class MotionArt {
         c.rotate(tilt);
         Rect source=new Rect(frameLeft+cropLeft,frameTop+cropTop,
                 frameLeft+cropRight,frameTop+cropBottom);
+        // A tapered boot/greave silhouette avoids the old billboard-like
+        // rectangular armor crops and retains the original painted textures.
+        Path legShape=new Path();
+        legShape.moveTo(-width*.38f,-8);
+        legShape.quadTo(0,-13,width*.38f,-8);
+        legShape.lineTo(width*.48f,dy*.56f);
+        legShape.lineTo(width*.39f,dy+5);
+        legShape.quadTo(0,dy+9,-width*.45f,dy+5);
+        legShape.lineTo(-width*.48f,dy*.58f);
+        legShape.close();
+        c.clipPath(legShape);
         p.setStyle(Paint.Style.FILL);p.setColor(Color.WHITE);
         p.setAlpha(hurt?195:255);
         c.drawBitmap(atlas,source,
@@ -266,10 +277,23 @@ public final class MotionArt {
         // The cape is a separately swaying crop of the SAME painted armor set.
         float wind=running?(float)Math.sin(phase)*11:((float)Math.sin(phase*.3f))*2;
         p.setColor(Color.WHITE);p.setAlpha(hurt?190:245);
+        // Cloth uses the actual illustrated fabric, but its outer silhouette
+        // now bends and tapers with the wind instead of exposing a rectangle.
+        c.save();
+        Path capeShape=new Path();
+        capeShape.moveTo(-40+wind*.36f,-70);
+        capeShape.quadTo(-65+wind*.52f,-43,-64+wind*.58f,-8);
+        capeShape.lineTo(-55+wind*.66f,9);
+        capeShape.lineTo(-35+wind*.33f,2);
+        capeShape.lineTo(-14+wind*.22f,-20);
+        capeShape.lineTo(-13+wind*.22f,-67);
+        capeShape.close();
+        c.clipPath(capeShape);
         c.drawBitmap(heroes,
                 new Rect(column*HERO_W+17,row*HERO_H+82,
                          column*HERO_W+71,row*HERO_H+184),
                 new RectF(-63+wind*.55f,-69,-13+wind*.22f,10),p);
+        c.restore();
         p.setAlpha(255);
         // Individually anchored original boots and greaves rotate around their hip.
         paintedLeg(c,heroes,column*HERO_W,row*HERO_H,
@@ -299,8 +323,17 @@ public final class MotionArt {
         Rect tabard=new Rect(column*HERO_W+73,row*HERO_H+97,
                 column*HERO_W+113,row*HERO_H+176);
         p.setAlpha(hurt?185:255);
+        c.save();
+        Path tabardShape=new Path();
+        tabardShape.moveTo(-17+cloth*.55f,-57);
+        tabardShape.lineTo(21+cloth*.18f,-57);
+        tabardShape.lineTo(17+cloth*.20f,-6);
+        tabardShape.quadTo(6+cloth*.45f,7,-13+cloth*.55f,1);
+        tabardShape.close();
+        c.clipPath(tabardShape);
         c.drawBitmap(heroes,tabard,
                 new RectF(-17+cloth*.55f,-57,22+cloth*.18f,4),p);
+        c.restore();
         p.setAlpha(255);c.restore();
         c.restore();
     }
