@@ -228,6 +228,13 @@ public final class WorldArt {
             poly(c,highlight,0,-58,-5,-47,5,-47);
             rounded(c,-9,-15,9,-8,3,0xff4c626c);
             circle(c,-2,-12,3,0xfff7db9a);
+            // Engraved crossbow stock, trigger guard and limb rivets.
+            line(c,-3,-5,-3,12,0xffffd9a1,1.5f);
+            line(c,-8,17,7,17,0xff2d3839,3);
+            circle(c,-26,-30,3,metal);
+            circle(c,26,-30,3,metal);
+            line(c,-12,-31,-19,-28,0xffd9ece6,2);
+            line(c,12,-31,19,-28,0xffd9ece6,2);
             if(idx==4) {
                 // Repeater has a small feed magazine and second, *short*
                 // barrel rail, not extra windmill wings.
@@ -246,6 +253,14 @@ public final class WorldArt {
             line(c,0,-9,0,30,0xff654c42,8);
             circle(c,0,31,7,0xffe7bc6c);
             circle(c,0,-10,6,0xffd7bc80);
+            // Blade fuller, two-stage crossguard and gem-set pommel. The
+            // details move with the same weapon's real attack frames.
+            line(c,-1,-51,-1,-19,0xfffbfff7,1.4f);
+            line(c,-16,-12,-9,-7,0xff735e54,2);
+            line(c,16,-12,9,-7,0xff735e54,2);
+            circle(c,0,-11,3,idx==2?0xffffe9a4:0xff7edbe2);
+            line(c,-4,6,-4,24,0xffb28d67,1.6f);
+            line(c,4,7,4,25,0xff392c2c,1.4f);
             if(idx==2){
                 circle(c,0,-32,21,0x33ff9b49);
                 poly(c,0xfffbe4a2,-3,-18,-13,-39,-3,-49,3,-29,14,-48,12,-27);
@@ -256,6 +271,14 @@ public final class WorldArt {
             circle(c,4,-41,12,0xff263e56);
             poly(c,gem,4+sway,-68,18,-42,4,-25,-12,-42);
             circle(c,4,-43,8,0xffffffff);
+            // Socket rings and repeated shaft wrappings anchor the crystal
+            // instead of making it appear disconnected from the weapon.
+            for(int ring=0;ring<4;ring++){
+                float y=-20+ring*14;
+                line(c,-7,y,9,y+1,idx==3?0xffddba82:0xffe8fcff,2.3f);
+            }
+            poly(c,0xff5f7385,-8,-41,-4,-49,13,-49,18,-40,8,-35);
+            circle(c,4,-42,5,gem);
             if(idx==5){
                 poly(c,0xffd2faff,-17,-50,4,-84,18,-50,5,-59);
                 poly(c,0xff73bcca,-27,-4,-5,-14,5,-2,-5,7);

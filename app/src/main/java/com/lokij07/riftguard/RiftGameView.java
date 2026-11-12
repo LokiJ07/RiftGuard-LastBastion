@@ -2031,16 +2031,13 @@ public final class RiftGameView extends View {
         rect(c,left,top+height*.77f,left+width,top+height,0x440b2431);
         float centerX=left+width*.44f;
         float bottomY=top+height*.69f;
-        if(fortressRank>=3 && motionArt.fortressReady()){
-            motionArt.fortress(c,centerX,bottomY,fortressRank,gameTime);
-        }else{
-            c.save();
-            float sz=workshop?.88f:.74f;
-            c.translate(centerX,bottomY);c.scale(sz,sz);
-            c.translate(-BASE_X,-BASE_Y);
-            drawWoodOutpost(c,biome);
-            c.restore();
-        }
+        // Same native 5-rank fortress in Home, Workshop and actual battle:
+        // eliminates old-menu-vs-new-map discrepancy.
+        c.save();
+        float sz=workshop?1.11f:.95f;
+        c.translate(centerX,bottomY);c.scale(sz,sz);
+        NativeDeployedMapArt.fort(c,0,0,fortressRank,gameTime,1f);
+        c.restore();
         // Individually animated hero, creatures, flag and floating ambient lights.
         float heroX=left+width*.79f,heroY=top+height*.81f;
         boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
@@ -2071,17 +2068,19 @@ public final class RiftGameView extends View {
     private void drawMap(Canvas c) {
         drawBackdrop(c);
         round(c,35,21,1245,700,27,0xf0162b32);
-        text(c,"RIFTGUARD  /  THE KINGDOM ATLAS",65,82,38,GOLD,false);
-        text(c,"100 LEVELS   /   300 MISSIONS",917,82,21,INK,false);
-        round(c,64,111,879,578,21,0xff9f845f);
+        text(c,"RIFTGUARD  /  KINGDOM ATLAS",65,82,36,GOLD,false);
+        text(c,"10 REALMS  •  300 STAGES",917,82,20,INK,false);
+        round(c,60,107,882,581,22,0xffb68e58);
+        round(c,64,111,879,578,18,0xff254a4b);
         int current=(selectedLevel-1)/10;
         if(regionalMap)
             RegionJourney.draw(c,current,selectedLevel,unlocked,gameTime,biomeProps);
         else AtlasArt.draw(c,current,unlocked,gameTime);
         button(c,729,48,873,93,regionalMap?"WORLD":"EXPLORE",0xff416c71);
         round(c,893,111,1216,576,20,0xff182f3a);
-        text(c,Campaign.WORLDS[current].toUpperCase(),912,155,23,GOLD,false);
+        textFit(c,Campaign.WORLDS[current].toUpperCase(),912,155,287,23,GOLD,false);
         text(c,"LEVEL "+selectedLevel+" / 100",916,185,22,INK,false);
+        bar(c,912,189,284,5,unlocked/300f,0xffb9daa5);
         for(int m=0;m<3;m++) {
             int mission=Campaign.stage(selectedLevel,m);
             boolean accessible=Campaign.accessible(mission,unlocked);
@@ -2106,14 +2105,14 @@ public final class RiftGameView extends View {
             text(c,accessible?(mission<unlocked?"DONE":"GO"):"LOCK",
                     1173,top+91,15,accessible?0xffb6e3a0:0xffffb5a4,true);
         }
-        text(c,"< LEVEL",936,551,22,GOLD,false);
-        text(c,"LEVEL >",1199,551,22,GOLD,true);
+        button(c,904,532,1049,571,"PREVIOUS",0xff42616a);
+        button(c,1057,532,1206,571,"NEXT LEVEL",0xff42616a);
         int chosen=Campaign.stage(selectedLevel,selectedMap);
         button(c,406,599,875,655,
                 Campaign.accessible(chosen,unlocked)?
                         "DEPLOY TO MAP "+(char)('A'+selectedMap):"UNLOCK PREVIOUS STAGE",
                 Campaign.accessible(chosen,unlocked)?0xffb1764c:0xff46515b);
-        text(c,"BACK",81,652,24,INK,false);
+        button(c,77,602,325,660,"BACK TO HOME",0xff3e626b);
         // Fully interactive difficulty selector; affects actual combat, not art alone.
         text(c,"BATTLE DIFFICULTY",905,583,17,INK,false);
         for(int mode=0;mode<4;mode++) {
@@ -2129,7 +2128,7 @@ public final class RiftGameView extends View {
         text(c,"+"+DifficultyRules.bonusWaves(difficultyMode)+" WAVES    BONUS +"+
                         DifficultyRules.supplyBonus(difficultyMode,baseReward)+"%",
                 905,679,15,INK,false);
-        text(c,"CLEARED: "+unlocked+" / 300",1110,701,15,GOLD,true);
+        text(c,"CLEARED  "+unlocked+" / 300",1110,699,15,GOLD,true);
     }
 
     private static final String[] KINGDOM_TABS={
@@ -2357,12 +2356,10 @@ public final class RiftGameView extends View {
                     "UNLOCK: FORT RANK "+w.requiredRank,
                     x+148,y+162,17,available?GOLD:0xffffaa9c,false);
         }
-        button(c,80,625,317,679,"BACK TO HOME",0xff3d6067);
-        button(c,351,625,648,679,"UPGRADE FORTRESS",0xff9d6b4e);
-        button(c,696,625,1118,679,"EQUIP COMBAT ABILITIES",0xff53699a);
-        // Separate mastery trees do not replace the existing Skills button.
-        round(c,890,111,1213,153,12,0xff4f756c);
-        text(c,"WEAPON UPGRADE TREES",1052,139,21,INK,true);
+        // Navigation is in the same bottom row as the fortress and both trees.
+        upgradeActions(c,"HOME","FORTRESS","ABILITIES","WEAPON TREES",true);
+        text(c,"TAP A WEAPON TO EQUIP  •  USE WEAPON TREES FOR UPGRADES",
+                92,141,17,0xffb7d7d0,false);
     }
 
     /** Six separate bottom-to-top permanent upgrade trees, one for each weapon. */
@@ -2450,16 +2447,15 @@ public final class RiftGameView extends View {
                 "LOCKED: PARENT / FORT RANK";
         text(c,status,846,510,17,weaponMastery.owned(selectedMasteryWeapon,node.id)?
                 0xff8eebbd:0xffffb18e,false);
-        button(c,837,527,1196,580,
-                weaponMastery.owned(selectedMasteryWeapon,node.id)?
-                        "ACTIVATED":"UNLOCK MASTER NODE",
+        round(c,846,531,1191,579,11,0xff1c3844);
+        textFit(c,"SELECT NODE • PURCHASE BELOW",1018,562,326,18,
+                0xffd8e6dc,true);
+        upgradeActions(c,"ARMORY",
+                selectedMasteryWeapon==equippedWeapon?"EQUIPPED":"EQUIP",
+                "CLIMB TREE",weaponMastery.owned(selectedMasteryWeapon,node.id)?
+                "OWNED":"UNLOCK NODE",
                 weaponMastery.available(selectedMasteryWeapon,node.id,fortressRank)
-                        &&supplies>=node.cost?0xffa67c49:0xff52616a);
-        button(c,76,623,397,683,"BACK TO ARMORY",0xff456c73);
-        button(c,417,623,799,683,
-                selectedMasteryWeapon==equippedWeapon?"EQUIPPED":"EQUIP WEAPON",
-                0xff897052);
-        button(c,823,623,1196,683,"ASCEND  ▲",0xff52726c);
+                        &&supplies>=node.cost);
     }
 
     private void drawWeaponMasteryNode(Canvas c,int weapon,int id,float x,float y){
@@ -2500,13 +2496,20 @@ public final class RiftGameView extends View {
     }
 
     private void tapWeaponTree(float x,float y){
-        if(y>=617){
-            if(x>=74&&x<400)scene=Scene.ARMORY;
-            else if(x>=414&&x<805) {
+        int action=UpgradeActionLayout.hit(x,y);
+        if(action>=0){
+            if(action==0)scene=Scene.ARMORY;
+            else if(action==1){
                 if(Progression.canEquip(fortressRank,selectedMasteryWeapon))
                     equipWeapon(selectedMasteryWeapon);
-            } else if(x>=817&&x<1211)
+            }else if(action==2)
                 weaponTreeScroll=Math.max(0,weaponTreeScroll-195);
+            else if(action==3&&
+                    weaponMastery.buy(selectedMasteryWeapon,selectedWeaponMasteryNode,
+                            fortressRank)){
+                supplies=prefs.getInt("supplies",supplies);
+                audio.play(GameAudio.BUILD);
+            }
             return;
         }
         if(y>=118&&y<169){
@@ -2516,14 +2519,6 @@ public final class RiftGameView extends View {
                 selectedMasteryWeapon=index;
                 selectedWeaponMasteryNode=1;
                 weaponTreeScroll=WM_SCROLL_MAX;
-            }
-            return;
-        }
-        if(x>=836&&x<1207&&y>=520&&y<591){
-            if(weaponMastery.buy(selectedMasteryWeapon,selectedWeaponMasteryNode,
-                    fortressRank)){
-                supplies=prefs.getInt("supplies",supplies);
-                audio.play(GameAudio.BUILD);
             }
             return;
         }
@@ -2565,9 +2560,7 @@ public final class RiftGameView extends View {
                     "LOCKED UNTIL RANK "+skill.requiredRank,
                     x+145,y+160,17,unlockedSkill?GOLD:0xffffaa9c,false);
         }
-        button(c,80,625,317,679,"BACK TO HOME",0xff3d6067);
-        button(c,351,625,648,679,"WEAPONS",0xff9d6b4e);
-        button(c,696,625,1118,679,"UPGRADE FORTRESS",0xff53699a);
+        upgradeActions(c,"HOME","ARMORY","FORTRESS","WEAPON TREES",true);
     }
 
     private void drawSkillSymbol(Canvas c,int id,float x,float y,float size) {
@@ -2692,15 +2685,12 @@ public final class RiftGameView extends View {
         text(c,status,961,475,17,ascension.owned(choice.id)?
                 0xff83e0b8:0xffffb18e,false);
         text(c,"COST  "+choice.cost,961,506,21,GOLD,false);
-        button(c,957,527,1201,580,
-                ascension.owned(choice.id)?"ACTIVATED":"UNLOCK NODE",
-                ascension.available(choice.id,fortressRank)&&supplies>=choice.cost?
-                        0xffa97844:0xff52616a);
-        button(c,72,621,330,681,"BACK TO FORTRESS",0xff496b71);
-        button(c,351,621,613,681,"ARMORY",0xff65727f);
-        button(c,632,621,895,681,"GO UP  /  ▲",0xff637b70);
-        text(c,"HIGHER TIERS NEED RANK + SUPPLIES",942,650,14,0xffabc8ca,false);
-        text(c,"SWIPE UP TO CLIMB / DOWN TO RETURN",942,678,13,0xff9cb5b7,false);
+        round(c,957,526,1205,577,11,0xff173441);
+        textFit(c,"UNLOCK FROM THE BOTTOM ROW",1081,556,233,16,
+                0xffc3dad9,true);
+        upgradeActions(c,"FORTRESS","ARMORY","CLIMB TREE",
+                ascension.owned(choice.id)?"OWNED":"UNLOCK NODE",
+                ascension.available(choice.id,fortressRank)&&supplies>=choice.cost);
     }
 
     private void drawAscensionNode(Canvas c,AscensionTree.Node node,float x,float y){
@@ -2782,15 +2772,13 @@ public final class RiftGameView extends View {
     }
 
     private void tapAscension(float x,float y) {
-        if(y>=614){
-            if(x>=64&&x<336)scene=Scene.FORTRESS;
-            else if(x>345&&x<620)scene=Scene.ARMORY;
-            else if(x>625&&x<904)
+        int action=UpgradeActionLayout.hit(x,y);
+        if(action>=0){
+            if(action==0)scene=Scene.FORTRESS;
+            else if(action==1)scene=Scene.ARMORY;
+            else if(action==2)
                 ascensionScroll=Math.max(0,ascensionScroll-225);
-            return;
-        }
-        if(x>=953&&x<1210&&y>=516&&y<592){
-            if(ascension.buy(selectedAscensionNode,fortressRank)) {
+            else if(action==3&&ascension.buy(selectedAscensionNode,fortressRank)){
                 supplies=prefs.getInt("supplies",supplies);
                 audio.play(GameAudio.BUILD);
             }
@@ -2815,12 +2803,12 @@ public final class RiftGameView extends View {
         text(c,"Upgrade the base to unlock weapons, towers and extra core health.",
                 88,125,21,INK,false);
         drawLiveMenuScene(c,75,158,600,390,true);
-        round(c,77,554,669,632,13,0xee1c3942);
-        text(c,"RANK "+fortressRank+"  /  5     "+Progression.RANK_NAMES[fortressRank],
-                98,587,29,GOLD,false);
-        text(c,"CORE HP: "+(Progression.maxCoreHp(fortressRank)+ascension.coreHp())+
-                "     STARTING TOWERS: "+(fortressRank>=5?3:fortressRank>=4?2:1),
-                100,619,20,INK,false);
+        round(c,77,553,669,607,13,0xee1c3942);
+        textFit(c,"RANK "+fortressRank+" / 5   "+Progression.RANK_NAMES[fortressRank],
+                98,577,536,24,GOLD,false);
+        textFit(c,"CORE HP "+(Progression.maxCoreHp(fortressRank)+ascension.coreHp())+
+                "   •   STARTING TOWERS "+(fortressRank>=5?3:fortressRank>=4?2:1),
+                98,597,536,18,INK,false);
         round(c,718,153,1204,531,22,0xff283e4a);
         text(c,"KINGDOM SUPPLIES",758,216,25,INK,false);
         text(c,""+supplies,758,280,59,GOLD,false);
@@ -2839,12 +2827,9 @@ public final class RiftGameView extends View {
             text(c,"ARC CITADEL - MAX RANK",759,378,29,GOLD,false);
             text(c,"All six launch weapons are available.",759,423,21,INK,false);
         }
-        button(c,738,554,1195,627,fortressRank==Progression.MAX_RANK?
-                "FORTRESS COMPLETE":"UPGRADE / CONSTRUCT",
-                Progression.canUpgrade(fortressRank,supplies)?0xffb0704e:0xff566166);
-        text(c,"BACK",92,669,24,INK,false);
-        text(c,"ARMORY",453,669,25,GOLD,false);
-        button(c,738,634,1195,686,"ASCENSION  /  UPGRADE TREE",0xff476f68);
+        upgradeActions(c,"HOME","ARMORY","ASCENSION",
+                fortressRank==Progression.MAX_RANK?"MAX RANK":"UPGRADE FORT",
+                Progression.canUpgrade(fortressRank,supplies));
     }
 
     private void upgradeFortress() {
@@ -2948,10 +2933,41 @@ public final class RiftGameView extends View {
         button(c,456,332,825,414,"RESUME BATTLE",0xffae7652);
         button(c,456,439,825,517,"RETURN TO MAP",0xff42616b);
     }
+    /**
+     * Fixed, accessible upgrade navigation across Armory, Skills, Fortress,
+     * Weapon Mastery and Ascension. Rectangles match UpgradeActionLayout.hit().
+     */
+    private void upgradeActions(Canvas c,String a,String b,String d,String action,
+                                boolean enabled){
+        round(c,55,614,1224,702,16,0xf0142d38);
+        String[] names={a,b,d,action};
+        for(int i=0;i<4;i++){
+            int color=i==3?(enabled?0xffac7950:0xff52626b):
+                    i==0?0xff41636e:i==1?0xff4a6772:0xff566f70;
+            button(c,UpgradeActionLayout.LEFT[i],UpgradeActionLayout.TOP,
+                    UpgradeActionLayout.RIGHT[i],UpgradeActionLayout.BOTTOM,
+                    names[i],color);
+        }
+    }
+    private void textFit(Canvas c,String value,float x,float y,float maxWidth,
+                         float size,int color,boolean centered){
+        p.setTypeface(FONT);p.setTextSize(size);
+        while(size>13&&p.measureText(value)>maxWidth){
+            size-=1;p.setTextSize(size);
+        }
+        text(c,value,x,y,size,color,centered);
+    }
     private void button(Canvas c,float l,float t,float r,float b,String label,int color){
-        round(c,l,t+6,r,b+6,17,0x77000000);
-        round(c,l,t,r,b,17,color);
-        text(c,label,(l+r)/2,(t+b)/2+10,29,INK,true);
+        round(c,l,t+5,r,b+5,14,0x88000000);
+        round(c,l,t,r,b,14,color);
+        round(c,l+3,t+3,r-3,t+6,3,0x66e8f5ea);
+        p.setTypeface(FONT);
+        float size=b-t<49?21f:26f;
+        p.setTextSize(size);
+        while(size>15f&&p.measureText(label)>r-l-26f){
+            size-=1f;p.setTextSize(size);
+        }
+        text(c,label,(l+r)/2,(t+b)/2+size*.34f,size,0xfff8f5e9,true);
     }
 
     @Override public boolean onTouchEvent(MotionEvent ev) {
@@ -3097,18 +3113,18 @@ public final class RiftGameView extends View {
                     start(mission);
                     briefingOpen=true;
                 }
-            }else if(x<200 && y>594) scene=Scene.HOME;
+            }else if(x>=77 && x<=330 && y>=598 && y<=666) scene=Scene.HOME;
         }else if(scene==Scene.ARMORY) {
-            if(x>885 && y>=107 && y<154){
+            int action=UpgradeActionLayout.hit(x,y);
+            if(action==0)scene=Scene.HOME;
+            else if(action==1)scene=Scene.FORTRESS;
+            else if(action==2)scene=Scene.SKILLS;
+            else if(action==3){
                 selectedMasteryWeapon=equippedWeapon;
                 selectedWeaponMasteryNode=1;
                 weaponTreeScroll=WM_SCROLL_MAX;
                 weaponTouchActive=false;scene=Scene.WEAPON_TREE;
-            }
-            else if(x>80 && x<329 && y>619)scene=Scene.HOME;
-            else if(x>342 && x<655 && y>619)scene=Scene.FORTRESS;
-            else if(x>687 && x<1125 && y>619)scene=Scene.SKILLS;
-            else if(y>=151 && y<570) {
+            } else if(y>=151 && y<570) {
                 int col=(int)((x-79)/375),row=(int)((y-155)/218);
                 if(col>=0 && col<3 && row>=0 && row<2) {
                     float localX=(x-79)%375,localY=(y-155)%218;
@@ -3117,10 +3133,16 @@ public final class RiftGameView extends View {
                 }
             }
         }else if(scene==Scene.SKILLS) {
-            if(x>79 && x<327 && y>619)scene=Scene.HOME;
-            else if(x>345 && x<654 && y>619)scene=Scene.ARMORY;
-            else if(x>687 && x<1126 && y>619)scene=Scene.FORTRESS;
-            else if(y>=151 && y<570){
+            int action=UpgradeActionLayout.hit(x,y);
+            if(action==0)scene=Scene.HOME;
+            else if(action==1)scene=Scene.ARMORY;
+            else if(action==2)scene=Scene.FORTRESS;
+            else if(action==3){
+                selectedMasteryWeapon=equippedWeapon;
+                selectedWeaponMasteryNode=1;
+                weaponTreeScroll=WM_SCROLL_MAX;
+                weaponTouchActive=false;scene=Scene.WEAPON_TREE;
+            }else if(y>=151 && y<570){
                 int col=(int)((x-79)/375),row=(int)((y-155)/218);
                 if(col>=0 && col<3 && row>=0 && row<2) {
                     float localX=(x-79)%375,localY=(y-155)%218;
@@ -3129,10 +3151,11 @@ public final class RiftGameView extends View {
                 }
             }
         }else if(scene==Scene.FORTRESS) {
-            if(y>634 && x>722)scene=Scene.ASCENSION;
-            else if(y>539 && y<630 && x>722)upgradeFortress();
-            else if(y>630 && x<300)scene=Scene.HOME;
-            else if(y>630 && x>339 && x<690)scene=Scene.ARMORY;
+            int action=UpgradeActionLayout.hit(x,y);
+            if(action==0)scene=Scene.HOME;
+            else if(action==1)scene=Scene.ARMORY;
+            else if(action==2)scene=Scene.ASCENSION;
+            else if(action==3)upgradeFortress();
         }else if(scene==Scene.WIN || scene==Scene.LOSE) {
             if(x>420 && x<860 && y>425 && y<510) {
                 if(scene==Scene.WIN && stage==299)scene=Scene.MAP;

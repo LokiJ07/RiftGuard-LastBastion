@@ -110,7 +110,7 @@ public final class RiftGameViewSmokeTest {
         tap(475,540); // Home -> fortress
         assertEquals("FORTRESS",value(view,"scene").toString());
         paint();
-        tap(1000,580); // Buy permanent Rank 2
+        tap(1049,657); // Buy permanent Rank 2 from consistent footer
         assertEquals(2,value(view,"fortressRank"));
         assertEquals(0,value(view,"supplies"));
         tap(480,660); // Fortress -> Armory

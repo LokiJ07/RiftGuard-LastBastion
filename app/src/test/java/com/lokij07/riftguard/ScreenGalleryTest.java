@@ -375,6 +375,24 @@ public class ScreenGalleryTest {
         capture(game,"52-stage-300-parallax-mission-briefing");
     }
 
+    /** Gallery includes the ACTUAL Android splash and launcher vector. */
+    private void captureLokiJVisualIdentity()throws Exception{
+        LokiSplashView splash=new LokiSplashView(context);
+        splash.layout(0,0,1280,720);
+        Bitmap splashFrame=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        splash.draw(new Canvas(splashFrame));
+        saveCustom(splashFrame,"55-lokij-loading-screen");
+        splashFrame.recycle();
+        Bitmap appIcon=Bitmap.createBitmap(720,720,Bitmap.Config.ARGB_8888);
+        Canvas canvas=new Canvas(appIcon);canvas.drawColor(0xff0e222d);
+        android.graphics.drawable.Drawable logo=context.getDrawable(R.drawable.ic_launcher);
+        assertNotNull(logo);
+        logo.setBounds(110,110,610,610);
+        logo.draw(canvas);
+        saveCustom(appIcon,"56-riftguard-new-app-icon");
+        appIcon.recycle();
+    }
+
     @Test public void captureActualUiAsVisualGallery() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().putInt("fortress_rank",2).putInt("supplies",220)
@@ -384,6 +402,7 @@ public class ScreenGalleryTest {
         captureSixWeaponAnimationGallery();
         captureInterpolatedSpriteAnimation();
         captureRealAnimationStateMachine();
+        captureLokiJVisualIdentity();
         RiftGameView view=new RiftGameView(context);
         view.layout(0,0,1280,720);
         capture(view,"01-home");
@@ -405,7 +424,7 @@ public class ScreenGalleryTest {
         tap(view,100,639);
         tap(view,215,544); // armory
         capture(view,"03-armory");
-        tap(view,1053,132); // Armory -> real six weapon mastery trees
+        tap(view,1053,655); // Armory -> real six weapon mastery trees
         capture(view,"39-cross-weapon-tree-bottom");
         for(int w=0;w<6;w++){
             tap(view,77+w*189+87,144);
@@ -431,7 +450,7 @@ public class ScreenGalleryTest {
         tap(view,450,651); // skill screen -> weapons
         tap(view,450,656); // fortress
         capture(view,"04-fortress");
-        tap(view,890,655); // Fortress -> the upward Ascension Tree
+        tap(view,760,655); // Fortress -> the upward Ascension Tree
         capture(view,"32-ascension-bottom-origin");
         // Demonstrate genuinely PURCHASED paths, not just brightened icons.
         android.content.SharedPreferences ascPrefs=context.getSharedPreferences(

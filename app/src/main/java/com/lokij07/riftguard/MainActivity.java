@@ -8,6 +8,15 @@ import android.view.WindowManager;
 
 public final class MainActivity extends Activity {
     private RiftGameView game;
+    private LokiSplashView splash;
+    private boolean closing;
+    private final Runnable enterGame=()->{
+        if(closing||isFinishing()||game!=null)return;
+        game=new RiftGameView(this);
+        setContentView(game);
+        game.setActive(true);
+        splash=null;
+    };
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -15,8 +24,11 @@ public final class MainActivity extends Activity {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
         immersive();
-        game = new RiftGameView(this);
-        setContentView(game);
+        // Show the real native LokiJ identity before creating the game view.
+        // No fake loading percentage and no added network requirement.
+        splash=new LokiSplashView(this);
+        setContentView(splash);
+        splash.postDelayed(enterGame,850);
     }
     private void immersive() {
         getWindow().getDecorView().setSystemUiVisibility(
@@ -27,6 +39,8 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() { super.onResume(); immersive(); if (game != null) game.setActive(true); }
     @Override protected void onPause() { if (game != null) game.setActive(false); super.onPause(); }
     @Override protected void onDestroy(){
+        closing=true;
+        if(splash!=null)splash.removeCallbacks(enterGame);
         if(game!=null)game.releaseAudio();
         super.onDestroy();
     }

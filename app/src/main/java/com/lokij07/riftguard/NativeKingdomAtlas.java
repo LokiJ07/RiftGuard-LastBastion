@@ -166,7 +166,10 @@ public final class NativeKingdomAtlas {
                 fill(0xaaffedbe);P.setStyle(Paint.Style.STROKE);
                 P.setStrokeWidth(2);c.drawCircle(x,y,46+(float)Math.sin(time*3)*3,P);
                 P.setStyle(Paint.Style.FILL);
-                caption(c,Campaign.WORLDS[i].toUpperCase(),x,y-55,15,0xffffdd8b);
+                // The side details panel already names the selected region.
+                // Do not print its long name beside LOCK labels on nearby pins.
+                // Greenhaven's title previously collided with realm 2's LOCK.
+                circle(c,x,y-49,3,0xffffe2a5);
             }
             caption(c,open?String.valueOf(i+1):"LOCK",x,y+52,14,0xffffffff);
         }

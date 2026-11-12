@@ -314,6 +314,69 @@ public final class NativeDeployedMapArt {
             oval(c,cx,cy-157,23+pulse,23+pulse,0x667fe9f7);
             oval(c,cx,cy-157,8,8,0xffd8fbff);
         }
+        // v0.30 MATERIAL PASS: the fort has visible planks, masonry joints,
+        // rivets, roof shingles and a rank-specific heraldic core. These are
+        // painted only on the actual solid castle, not fake gameplay pads.
+        for(int row=0;row<7;row++){
+            float yy=t+27+row*25f;
+            if(tier>=3){
+                for(int column=0;column<8;column++){
+                    float xx=l+17+column*32f+((row%2)*12);
+                    if(xx>l+width-20)continue;
+                    line(c,xx,yy,Math.min(l+width-17,xx+24),yy,
+                            1.7f,0x88606b67);
+                    if(column%3==0)line(c,xx+24,yy,xx+24,yy+18,
+                            1.2f,0x665e6867);
+                }
+            }else{
+                line(c,l+16,yy,l+width-15,yy,1.8f,0x446c4d30);
+                for(int column=0;column<6;column++){
+                    float xx=l+24+column*43;
+                    line(c,xx,yy+3,xx,yy+15,1.4f,0x55805232);
+                }
+            }
+        }
+        // Bright roof cap, shadow beneath eaves and a real shield plaque.
+        line(c,cx-72,cy+9,cx+72,cy+9,4,0xff223e3e);
+        for(int i=0;i<7;i++){
+            float shingleX=cx-58+i*18;
+            line(c,shingleX,cy-22-Math.max(0,44-Math.abs(shingleX-cx)*.65f),
+                    shingleX+15,cy-12-Math.max(0,44-Math.abs(shingleX-cx)*.65f),
+                    2,0x99bcd1c0);
+        }
+        oval(c,cx,cy+53,16,14,tier>=4?0xff9bcbd3:0xffa9844d);
+        poly(c,0xff263f46,cx-8,cy+48,cx+8,cy+48,cx+9,cy+57,
+                cx,cy+68,cx-9,cy+57);
+        // Rank glyph changes as the player advances in the fortress economy.
+        for(int star=0;star<Math.min(tier,5);star++){
+            float px=cx-19+star*9;
+            oval(c,px,cy+57,2.1f,2.1f,0xfff1d49c);
+        }
+        if(tier>=3){
+            for(int side=-1;side<=1;side+=2){
+                float bx=cx+side*111;
+                // Dressed stone buttresses support the turret parapets.
+                poly(c,0xff77878a,bx-15,cy+102,bx-20,cy-37,
+                        bx+11,cy-37,bx+22,cy+102);
+                line(c,bx-12,cy+34,bx+14,cy+34,4,0xffc3c8bd);
+                line(c,bx-13,cy+65,bx+16,cy+65,3,0xff3b565b);
+            }
+        }
+        if(tier>=4){
+            // Cast iron struts + stained glass create a visible upper tier.
+            line(c,cx-126,cy+89,cx-126,cy-80,8,0xff465866);
+            line(c,cx+126,cy+89,cx+126,cy-80,8,0xff465866);
+            oval(c,cx-99,cy-69,7,11,0xffefc47e);
+            oval(c,cx+99,cy-69,7,11,0xffefc47e);
+        }
+        if(tier>=5){
+            // Energy crest is supported by the spire, not a floating sticker.
+            line(c,cx,cy-108,cx,cy-151,6,0xff637e86);
+            poly(c,0xffbcf7fa,cx-11,cy-154,cx,cy-184,cx+11,cy-154);
+            poly(c,0xff6bacc8,cx,cy-184,cx+11,cy-154,cx,cy-145);
+            oval(c,cx,cy-165,27+(float)Math.sin(time*2.7)*3,
+                    13,0x5579dff4);
+        }
         if(healthRatio<.48f){
             for(int k=0;k<4;k++)
                 line(c,l+45+k*51,cy-5,l+35+k*51,cy+27,
