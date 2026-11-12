@@ -237,8 +237,12 @@ public final class RiftGameView extends View {
     public void setActive(boolean value) {
         active=value;
         lastNs=0;
-        if (!value) clearTouchControls();
-        if(active)audio.prepare();
+        if (!value){clearTouchControls();audio.stopAmbient();}
+        if(active){
+            audio.prepare();
+            if(scene==Scene.PLAY&&!paused&&!briefingOpen)
+                audio.setAmbientBiome(Campaign.world(stage));
+        }
         if (active) postInvalidateOnAnimation();
     }
     public void releaseAudio(){audio.release();}
@@ -317,6 +321,7 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
+        if(active)audio.setAmbientBiome(Campaign.world(stage));
         activeTowerCount=TowerPadLayout.count(stage);
         selectedTowerPad=-1;
         for(int pad=0;pad<activeTowerCount;pad++){
@@ -553,6 +558,7 @@ public final class RiftGameView extends View {
                         }
                     }
                     e.bossPhase=newPhase;
+                    audio.play(GameAudio.BOSS_PHASE);
                     announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
                 }
                 e.specialTimer-=dt;
@@ -560,6 +566,7 @@ public final class RiftGameView extends View {
                         distance(e.x,e.y,BASE_X,BASE_Y)<440f){
                     e.specialCharge=BossTactics.chargeTime(stage,e.bossPhase);
                     e.specialTimer=BossTactics.interval(stage,e.bossPhase);
+                    audio.play(GameAudio.BOSS_CHARGE);
                 }else if(e.specialCharge>0){
                     e.specialCharge-=dt;
                     if(e.specialCharge<=0){
@@ -1045,6 +1052,7 @@ public final class RiftGameView extends View {
         recordBattleResult(false);
         audio.play(GameAudio.HURT);
         scene=Scene.LOSE;paused=false;
+        audio.stopAmbient();
         heroAnimation.die();
         clearTouchControls();
     }
@@ -1052,6 +1060,7 @@ public final class RiftGameView extends View {
         recordBattleResult(true);
         audio.play(GameAudio.VICTORY);
         scene=Scene.WIN;paused=false;
+        audio.stopAmbient();
         boolean firstClear=stage>=unlocked;
         int reward=Progression.stageReward(stage,firstClear);
         objectiveBonus=MissionObjectives.completed(stage,missionBuilds,
@@ -3219,6 +3228,7 @@ public final class RiftGameView extends View {
         pendingMelee=false;pendingMeleeWeapon=-1;
         bufferedAttackTime=0;
         puff(heroX,heroY,6,0xffa6dfe0);
+        audio.play(GameAudio.DODGE);
     }
     private void updateStick(float x,float y) {
         float dx=x-stickHudX(),dy=y-568,d=(float)Math.hypot(dx,dy);
