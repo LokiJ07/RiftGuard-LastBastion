@@ -52,6 +52,16 @@ public final class EvolutionProgress {
         return Math.min(4,Math.max(0,(fortressRank-1)/2+
                 Math.min(2,heroes)+(attacks>=3?1:0)));
     }
+    /** Other tree branches each receive a visible purchased reward. */
+    public static int coreForm(AscensionTree ascension){
+        return Math.min(4,ownedCategory(ascension,AscensionTree.CORE));
+    }
+    public static int treasuryForm(AscensionTree ascension){
+        return Math.min(4,ownedCategory(ascension,AscensionTree.GOLD));
+    }
+    public static int speedForm(AscensionTree ascension){
+        return Math.min(4,ownedCategory(ascension,AscensionTree.SPEED));
+    }
     public static int skillForm(AscensionTree ascension,int fortressRank){
         int skillNodes=ownedCategory(ascension,AscensionTree.SKILL);
         return Math.min(4,Math.max(0,skillNodes+
