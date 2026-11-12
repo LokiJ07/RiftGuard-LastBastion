@@ -1,5 +1,16 @@
 # RIFTGUARD: Last Bastion
 
+## v0.50.0-rc1 — Upgrade Evolution (development candidate)
+
+- **Six weapons, thirty distinct visual forms:** each of the six existing melee/ranged/magic families has 5 distinct native transparent models. Every form derives from the highest **purchased** Weapon Mastery tier, not a clicked preview. The Armory, Weapon Mastery tabs, before/after node preview, battle HUD and Warden's **animated wrist-mounted equipped weapon** all share it.
+- **Persistent, existing saves:** forms read original `weapon.mastery.<id>.v1` node ownership and `ascension.purchased.v1`, without new cosmetic flags or migration. Reopening the game keeps appearances intact.
+- **Fortress weapons gained through Ascension TOWER purchases:** five arsenal configurations appear on the actual fortress in Home, Workshop and Battle: Timber Ballista, Ironbolt Battery, Ember Mortar, Storm Conductor and Guardian Prism. The built siege mounts and structural components gain distinct shapes; the ascension tech prerequisites plus fortress rank determine which is earned.
+- **Real combat for fortress weapons:** arcane armament buys increase tower damage slightly; Ember Mortar adds burn, Storm Conductor chains to nearby foes, and Guardian Prism restores a small amount of core HP upon tower kills. Existing tower types, build pad geometry and the 300-stage campaign remain functional.
+- **All permanent upgrade screens have visual consequences:** HERO ascension unlocks new Warden armor shapes, SKILL ascension adds live spell/ability effect forms and badges, TOWER ascension visibly changes castle artillery, ATTACK weapon upgrades transform the actual hand-held weapon. Buttons retain the same consistent bottom action geometry.
+- **Automated visual proof:** `EvolutionUpgradeTest` checks real 30 weapon model differences, 5 fortress+hero+spell forms, saved purchase reload, real fortress-unlock requirements and an in-battle screenshot.
+- **Limitations:** Native Canvas procedural models—not a new hand-painted sprite package. Physical-device thermal/FPS and battery testing require a connected handset. This is an RC candidate pending CI and Android emulator verification; not final production v0.50.
+
+
 Mobile-first, fully offline Android fortress-defense action game.
 
 ## v0.40.0-rc2 — four-pillar polishing candidate (pending CI / emulator verification)

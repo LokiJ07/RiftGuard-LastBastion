@@ -117,6 +117,23 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Retry transient corrupted Android emulator ZIP install
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          for attempt in 1 2 3; do
+            if "$MANAGER" --install "emulator"; then
+              echo "Android emulator SDK ready"
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Emulator SDK download failed after three attempts"
+              exit 1
+            fi
+            rm -rf "$ANDROID_HOME/.temp" || true
+            sleep 9
+          done
       - name: Boot real Android emulator and exercise installed game
         uses: reactivecircus/android-emulator-runner@v2
         with:

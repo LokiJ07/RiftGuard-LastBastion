@@ -127,6 +127,8 @@ public final class RiftGameView extends View {
     private boolean defeatedElite;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
+    private float fortressArsenalTimer;
+    private int fortressArsenalShots;
     // 120-ms button tap buffer per the animation skill's responsive cancel window.
     private float bufferedAttackTime;
     private float dodgeTime,dodgeCooldown,dodgeDirX,dodgeDirY;
@@ -313,6 +315,13 @@ public final class RiftGameView extends View {
 
     private float heroMaxHp(){return kingdom.heroMaxHp()*DifficultyRules.heroHealth(difficultyMode)+ascension.heroHp();}
     private float coreMaxHp(){return Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp()+ascension.coreHp();}
+    private int arsenalTier(){return EvolutionProgress.fortressArsenal(ascension,fortressRank);}
+    private int weaponForm(int weapon){return EvolutionProgress.weaponForm(weaponMastery,weapon);}
+    private int armorForm(){return EvolutionProgress.armorForm(ascension,fortressRank);}
+    private int skillForm(){return EvolutionProgress.skillForm(ascension,fortressRank);}
+    private int coreForm(){return EvolutionProgress.coreForm(ascension);}
+    private int treasuryForm(){return EvolutionProgress.treasuryForm(ascension);}
+    private int speedForm(){return EvolutionProgress.speedForm(ascension);}
 
     private void start(int s) {
         Campaign.checkStage(s);
@@ -336,6 +345,7 @@ public final class RiftGameView extends View {
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
+        fortressArsenalTimer=.95f;fortressArsenalShots=0;
         bufferedAttackTime=0;
         dodgeTime=dodgeCooldown=0;
         dodgeDirX=0;dodgeDirY=0;
@@ -441,7 +451,8 @@ public final class RiftGameView extends View {
                     float[] modifiers={1f,1.50f,.77f,1.13f};
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
                             BattleRules.towerDamage(towers[i])*modifiers[TowerPadLayout.family(i)]*
-                                    kingdom.towerDamageMultiplier()*ascension.towerMultiplier(),
+                                    kingdom.towerDamageMultiplier()*ascension.towerMultiplier()*
+                                    FortressEvolutionArt.damageBonus(arsenalTier()),
                             TowerPadLayout.family(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
@@ -456,6 +467,31 @@ public final class RiftGameView extends View {
                             -towers[i]*.11f);
                     puff(towerX[i],towerY[i]-38,6,towerColor(TowerPadLayout.family(i)));
                 }
+            }
+        }
+        // Purchased fortress arsenal is genuine independently firing artillery.
+        // The attached weapons in FortressEvolutionArt launch these projectiles;
+        // they do not consume or occupy any of the 5–8 usable tower pads.
+        fortressArsenalTimer-=dt;
+        int keepArsenal=arsenalTier();
+        if(keepArsenal>0 && fortressArsenalTimer<=0){
+            Enemy siegeTarget=closest(BASE_X,BASE_Y,
+                    FortressArmamentRules.range(keepArsenal));
+            if(siegeTarget!=null&&shots.size()<110){
+                float spawnX=FortressArmamentRules.muzzleX(BASE_X,fortressArsenalShots);
+                float spawnY=FortressArmamentRules.muzzleY(BASE_Y,keepArsenal);
+                Shot battery=new Shot(spawnX,spawnY,
+                        FortressArmamentRules.damage(keepArsenal)*
+                                kingdom.towerDamageMultiplier()*ascension.towerMultiplier(),
+                        FortressArmamentRules.speed(keepArsenal),siegeTarget,true);
+                battery.towerSlot=FortressArmamentRules.family(keepArsenal);
+                shots.add(battery);
+                fortressArsenalShots++;
+                fortressArsenalTimer=FortressArmamentRules.cooldown(keepArsenal);
+                int category=FortressArmamentRules.family(keepArsenal);
+                audio.play(category==1?GameAudio.TOWER_CANNON:
+                        category==3?GameAudio.TOWER_ARC:GameAudio.SHOT);
+                puff(spawnX,spawnY,8,keepArsenal>=3?0xffb4edfb:0xffffca8e);
             }
         }
         // Boss reinforcements are collected separately so the active enemy
@@ -648,6 +684,30 @@ public final class RiftGameView extends View {
                             Progression.WEAPONS[shot.weaponId].color,false,
                             shot.damage);
                 int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
+                // Each bought fortress arsenal unlocks combat, not only models.
+                if(shot.tower){
+                    int arsenal=arsenalTier();
+                    if(FortressEvolutionArt.emberShell(arsenal)){
+                        shot.target.burnTimer=Math.max(shot.target.burnTimer,2.3f);
+                        shot.target.burnDps=Math.max(shot.target.burnDps,9f+arsenal*4f);
+                        puff(shot.target.x,shot.target.y-18,4,0xffffa46a);
+                    }
+                    if(FortressEvolutionArt.stormChain(arsenal)){
+                        for(Enemy nearby:enemies)
+                            if(nearby!=shot.target&&nearby.hp>0&&
+                                    distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<140){
+                                nearby.hp-=shot.damage*.24f;
+                                nearby.hitReaction=.21f;
+                                puff(nearby.x,nearby.y-15,5,0xffa8d7ff);
+                                break;
+                            }
+                    }
+                    if(FortressEvolutionArt.guardianRepair(arsenal)&&
+                            shot.target.hp<=0){
+                        baseHp=Math.min(coreMaxHp(),baseHp+3f);
+                        puff(BASE_X,BASE_Y-110,3,0xffabf7d8);
+                    }
+                }
                 if(shot.tower && TowerPadLayout.family(shot.towerSlot)==1) {
                     // Cannon shells hit clustered enemies around the impact point.
                     for(Enemy nearby:enemies)
@@ -1290,6 +1350,8 @@ public final class RiftGameView extends View {
             circle(c,heroX+(float)Math.cos(heroDir)*65,heroY-126,
                     8*intensity+2,0xffffeeae);
         }
+        EvolutionEffects.cast(c,lastCastSkill,skillForm(),
+                heroX,heroY,gameTime,t);
     }
 
     private void updateStageHazards(float dt) {
@@ -1699,6 +1761,11 @@ public final class RiftGameView extends View {
         // (wood walls, corner towers, hut and banner) with rank-aware skins.
         NativeDeployedMapArt.fort(c,BASE_X,BASE_Y,fortressRank,gameTime,
                 baseHp/Math.max(1f,coreMaxHp()));
+        FortressStructures.rankStructures(c,BASE_X,BASE_Y,fortressRank,gameTime);
+        FortressEvolutionArt.draw(c,BASE_X,BASE_Y,fortressRank,
+                arsenalTier(),gameTime);
+        EvolutionEffects.fortressBranches(c,BASE_X,BASE_Y,
+                coreForm(),treasuryForm());
     }
     private static int towerColor(int slot) {
         return new int[]{0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff}[slot];
@@ -1942,19 +2009,28 @@ public final class RiftGameView extends View {
             int layer=c.saveLayerAlpha(heroX-140,heroY-185,
                     heroX+140,heroY+65,alpha);
             drawHeroActor(c,true);
+            // Armor, greaves and Warden share the SAME death transform/fade.
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             c.restoreToCount(layer);c.restore();
             return;
         }
         if(dodgeTime>0){
             float t=1-Math.max(0,dodgeTime)/DodgeRules.DURATION;
-            // Lean and squash the *real illustrated Warden*, rather than
-            // animating the glowing afterimages alone.
+            // Armor and greaves lean with the real Warden body rather than
+            // floating upright after the animated dodge transform is restored.
             c.save();
             c.rotate((float)Math.sin(Math.PI*t)*(-24f),heroX,heroY-53);
             c.scale(1.08f,.87f,heroX,heroY-4);
             drawHeroActor(c,false);
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             c.restore();
-        }else drawHeroActor(c,false);
+        }else{
+            drawHeroActor(c,false);
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
+        }
     }
     private void drawHeroActor(Canvas c,boolean forcedHurt) {
         // State-machine clocks drive actual poses. Legacy preview callers
@@ -1971,14 +2047,15 @@ public final class RiftGameView extends View {
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
-                weaponMastery.count(equippedWeapon)))return;
+                weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon)))return;
         if(characterArt.available()) {
             boolean moving=Math.abs(axisX)+Math.abs(axisY)>.1f;
             characterArt.hero(c,heroX,heroY,gameTime,moving,fireFlash>0,hurtCooldown>.1f);
             // The currently equipped weapon still changes independently of hero art.
             c.save(); c.translate(heroX+22,heroY-27);
             c.rotate(fireFlash>0?28:0);
-            WorldArt.drawWeapon(c,equippedWeapon,0,0,.38f,gameTime);
+            EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                    0,0,.38f,gameTime);
             c.restore();
             return;
         }
@@ -2000,7 +2077,8 @@ public final class RiftGameView extends View {
         circle(c,-25,-5,13,0xff355d73);circle(c,-25,-5,5,GOLD);
         c.save();
         c.rotate((float)Math.sin(gameTime*8)*5+(fireFlash>0?36:0),26,-13);
-        WorldArt.drawWeapon(c,equippedWeapon,26,-18,.66f,gameTime);
+        EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                26,-18,.66f,gameTime);
         c.restore();
         if(fireFlash>0 && (equippedWeapon==1 || equippedWeapon==2)){
             circleStroke(c,0,0,Progression.WEAPONS[equippedWeapon].range*.55f,
@@ -2065,8 +2143,8 @@ public final class RiftGameView extends View {
         text(c,selectedTowerPad<0?"PADS "+activeTowerCount:
                 "PAD "+(selectedTowerPad+1)+"/"+activeTowerCount,
                 buildHudX(),680,15,0xffb9ddd2,true);
-        if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
-            WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
+        EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                624,652,.61f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
                 624,703,17,GOLD,true);
         for(int i=0;i<StageHazards.count(stage);i++){
@@ -2169,12 +2247,19 @@ public final class RiftGameView extends View {
         float sz=workshop?1.11f:.95f;
         c.translate(centerX,bottomY);c.scale(sz,sz);
         NativeDeployedMapArt.fort(c,0,0,fortressRank,gameTime,1f);
+        FortressStructures.rankStructures(c,0,0,fortressRank,gameTime);
+        FortressEvolutionArt.draw(c,0,0,fortressRank,arsenalTier(),gameTime);
+        EvolutionEffects.fortressBranches(c,0,0,coreForm(),treasuryForm());
         c.restore();
         // Individually animated hero, creatures, flag and floating ambient lights.
         float heroX=left+width*.79f,heroY=top+height*.81f;
         boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
-                -2.2f,false,-1,-1,false,equippedWeapon);
-        if(!rendered)WorldArt.drawWeapon(c,equippedWeapon,heroX,heroY-58,.9f,gameTime);
+                -2.2f,false,-1,-1,false,equippedWeapon,
+                weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
+        if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
+                weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
+        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
         if(!workshop) {
             motionArt.enemy(c,0,left+width*.91f,top+height*.86f,gameTime,
                     true,-1,false);
@@ -2480,9 +2565,10 @@ public final class RiftGameView extends View {
                     i==equippedWeapon?GOLD:0xff49616b);
             round(c,x,y,x+340,y+192,14,available?0xff294955:0xff293640);
             round(c,x+12,y+15,x+128,y+167,12,0xff172d39);
-            if(!motionArt.weaponIcon(c,i,x+69,y+96,100,125))
-                WorldArt.drawWeapon(c,i,x+69,y+96,1.14f,gameTime);
-            text(c,w.name,x+146,y+54,24,available?INK:0xffa2a6aa,false);
+            EvolvedWeaponArt.draw(c,i,weaponForm(i),
+                    x+69,y+109,1.10f,gameTime);
+            textFit(c,EvolutionProgress.formName(i,weaponForm(i)),
+                    x+146,y+54,180,22,available?INK:0xffa2a6aa,false);
             text(c,w.type+"  /  MASTERY "+weaponMastery.count(i)+"/11",
                     x+147,y+85,16,w.color,false);
             text(c,"DMG "+(int)w.damage+"  •  RANGE "+(int)w.range,
@@ -2510,8 +2596,8 @@ public final class RiftGameView extends View {
             boolean selected=weapon==selectedMasteryWeapon;
             round(c,left,122,left+176,166,11,
                     selected?0xffa27853:0xff405768);
-            if(motionArt.weaponIcon(c,weapon,left+23,144,35,36)){}
-            else WorldArt.drawHeldWeapon(c,weapon,left+23,145,.38f,gameTime);
+            EvolvedWeaponArt.draw(c,weapon,weaponForm(weapon),
+                    left+23,159,.33f,gameTime);
             String label=Progression.WEAPONS[weapon].name.toUpperCase();
             if(label.length()>15)label=label.substring(0,15);
             text(c,label,left+104,151,15,selected?0xffffe0a6:INK,true);
@@ -2569,8 +2655,13 @@ public final class RiftGameView extends View {
         text(c,weaponMastery.count(selectedMasteryWeapon)+"/11 NODES  •  FORT "+
                 fortressRank,845,276,18,INK,false);
         round(c,846,297,1191,365,13,0xff152c38);
-        WorldArt.drawHeldWeapon(c,selectedMasteryWeapon,894,341,.62f,gameTime);
-        drawStoryParagraph(c,node.name,936,329,240,24,25,GOLD);
+        int currentForm=weaponForm(selectedMasteryWeapon);
+        int previewForm=Math.max(currentForm,node.tier);
+        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,currentForm,883,350,.52f,gameTime);
+        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,previewForm,954,350,.52f,gameTime);
+        textFit(c,"NOW  ->  NEXT APPEARANCE",1080,321,200,15,GOLD,true);
+        textFit(c,EvolutionProgress.formName(selectedMasteryWeapon,previewForm),
+                1080,348,205,16,0xffc3eddb,true);
         text(c,"TIER "+node.tier+"   /   "+WeaponMastery.PATH_NAMES[node.lane],
                 846,403,18,INK,false);
         drawStoryParagraph(c,WeaponMastery.benefit(node),846,440,329,18,26,INK);
@@ -2607,9 +2698,9 @@ public final class RiftGameView extends View {
         round(c,x-32,y-33,x+32,y+31,11,
                 owned?0xff224d46:available?0xff29495a:0xff1b2f39);
         if(id==0||id==10){
-            WorldArt.drawHeldWeapon(c,weapon,x,y+15,.38f,gameTime);
+            EvolvedWeaponArt.draw(c,weapon,node.tier,x,y+21,.34f,gameTime);
         }else if(node.lane==0){
-            WorldArt.drawHeldWeapon(c,weapon,x,y+15,.32f,gameTime);
+            EvolvedWeaponArt.draw(c,weapon,node.tier,x,y+21,.30f,gameTime);
         }else if(node.lane==1){
             polygon(c,new float[]{x-16,y+9,x-9,y-10,x+3,y-15,
                     x+19,y+5,x+1,y+18},0xffb5d9e9);
@@ -2726,6 +2817,7 @@ public final class RiftGameView extends View {
                     x-30,y+7},color);
             line(c,x-36,y+36,x+35,y-38,0xffffdd9a,5);
         }
+        EvolutionEffects.badge(c,x,y,skillForm(),id);
     }
 
     private void equipSkill(int skillId){
@@ -2812,14 +2904,30 @@ public final class RiftGameView extends View {
         text(c,AscensionTree.CATEGORIES[choice.category],961,358,18,tint,false);
         drawStoryParagraph(c,AscensionTree.benefit(choice),961,388,245,20,26,INK);
         text(c,"TIER "+choice.tier+"  /  FORT RANK "+choice.requiredRank,961,443,18,INK,false);
+        if(choice.category==AscensionTree.TOWER)
+            textFit(c,"ARSENAL: "+EvolutionProgress.fortressWeapon(arsenalTier()),
+                    962,461,235,16,0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.HERO)
+            text(c,"ARMOR FORM "+armorForm()+"/4",961,461,16,0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.SKILL)
+            text(c,"SKILL FORM "+skillForm()+"/4",961,461,16,0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.CORE)
+            text(c,"MASONRY FORM "+coreForm()+"/4",961,461,16,
+                    0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.GOLD)
+            text(c,"TREASURY FORM "+treasuryForm()+"/4",961,461,16,
+                    0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.SPEED)
+            text(c,"GREAVES FORM "+speedForm()+"/4",961,461,16,
+                    0xffa8e6d9,false);
         String status=ascension.owned(choice.id)?"OWNED / ACTIVE":
                 fortressRank<choice.requiredRank?"FORT RANK TOO LOW":
                 choice.predecessor>=0&&!ascension.owned(choice.predecessor)?
                         "UNLOCK PREVIOUS NODE":
                 supplies<choice.cost?"NOT ENOUGH SUPPLIES":"READY TO PURCHASE";
-        text(c,status,961,475,17,ascension.owned(choice.id)?
+        text(c,status,961,485,17,ascension.owned(choice.id)?
                 0xff83e0b8:0xffffb18e,false);
-        text(c,"COST  "+choice.cost,961,506,21,GOLD,false);
+        text(c,"COST  "+choice.cost,961,513,21,GOLD,false);
         round(c,957,526,1205,577,11,0xff173441);
         textFit(c,"UNLOCK FROM THE BOTTOM ROW",1081,556,233,16,
                 0xffc3dad9,true);
@@ -2866,7 +2974,7 @@ public final class RiftGameView extends View {
         switch(category){
             case AscensionTree.ATTACK:
                 // The actual Warden's independent greatsword model.
-                WorldArt.drawHeldWeapon(c,1,0,19,.45f,gameTime);
+                EvolvedWeaponArt.draw(c,1,weaponForm(1),0,19,.45f,gameTime);
                 break;
             case AscensionTree.CORE:
                 polygon(c,new float[]{-23,27,-23,-10,-14,-10,-14,-25,
@@ -2946,17 +3054,19 @@ public final class RiftGameView extends View {
                 98,597,536,18,INK,false);
         round(c,718,153,1204,531,22,0xff283e4a);
         text(c,"KINGDOM SUPPLIES",758,216,25,INK,false);
+        textFit(c,"ARSENAL  "+EvolutionProgress.fortressWeapon(arsenalTier()),
+                759,310,411,17,0xffb0e9e3,false);
         text(c,""+supplies,758,280,59,GOLD,false);
-        text(c,"CURRENT UPGRADE",758,329,21,0xffb6c9ca,false);
+        text(c,"CURRENT UPGRADE",758,346,21,0xffb6c9ca,false);
         if(fortressRank<Progression.MAX_RANK){
             int next=fortressRank+1;
-            text(c,Progression.RANK_NAMES[next],758,371,30,GOLD,false);
-            text(c,"Unlock: "+Progression.WEAPONS[next].name,758,410,22,INK,false);
+            text(c,Progression.RANK_NAMES[next],758,383,30,GOLD,false);
+            text(c,"Unlock: "+Progression.WEAPONS[next].name,758,422,22,INK,false);
             text(c,"Cost: "+Progression.upgradeCost(fortressRank)+" Supplies",
-                    758,453,25,INK,false);
+                    758,463,25,INK,false);
             text(c,Progression.canUpgrade(fortressRank,supplies)?
                     "READY TO CONSTRUCT":"WIN MISSIONS TO EARN MORE",
-                    759,496,18,Progression.canUpgrade(fortressRank,supplies)?
+                    759,505,18,Progression.canUpgrade(fortressRank,supplies)?
                             0xff8cdea5:0xffe3af9c,false);
         }else{
             text(c,"ARC CITADEL - MAX RANK",759,378,29,GOLD,false);

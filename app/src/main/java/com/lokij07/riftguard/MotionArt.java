@@ -394,6 +394,12 @@ public final class MotionArt {
     public boolean hero(Canvas c,float x,float y,float time,float facing,
                         boolean running,float attackProgress,float castProgress,
                         boolean hurt,int weaponId,int masteryNodes) {
+        return hero(c,x,y,time,facing,running,attackProgress,castProgress,
+                hurt,weaponId,masteryNodes,0);
+    }
+    public boolean hero(Canvas c,float x,float y,float time,float facing,
+                        boolean running,float attackProgress,float castProgress,
+                        boolean hurt,int weaponId,int masteryNodes,int visualForm) {
         if(!heroReady())return false;
         int state=castProgress>=0?3:attackProgress>=0?2:running?1:0;
         boolean left=Math.cos(facing)<-.28f;
@@ -406,7 +412,7 @@ public final class MotionArt {
         c.save();c.translate(x,y);
         if(left)c.scale(-1,1);
         drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running,
-                facing,masteryNodes);
+                facing,masteryNodes,visualForm);
         c.restore();
         return true;
     }
@@ -459,7 +465,8 @@ public final class MotionArt {
 
     private void drawHeldWeapon(Canvas c,int weaponId,float time,
                                 float attackProgress,float castProgress,
-                                boolean running,float facing,int masteryNodes) {
+                                boolean running,float facing,int masteryNodes,
+                                int visualForm) {
         int id=Math.max(0,Math.min(5,weaponId));
         WeaponRig.Pose pose=WeaponRig.aimedPose(id,attackProgress,castProgress,
                 time,running,facing);
@@ -538,7 +545,8 @@ public final class MotionArt {
         c.scale(WeaponRig.renderScale(id),WeaponRig.renderScale(id));
         // Unlike the inventory bitmap, these in-hand weapon models have
         // transparent backgrounds. Never paint a solid equipment-card tile.
-        WorldArt.drawHeldWeapon(c,id,0,0,1f,time);
+        EvolvedWeaponArt.draw(c,id,Math.max(0,Math.min(4,visualForm)),
+                0,0,1f,time);
         // Mastery marks are IN the rotated weapon's local coordinates. They
         // stay glued to the weapon (not a floating HUD ring) across all poses.
         if(masteryNodes>=2) {
