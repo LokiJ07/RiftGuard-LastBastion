@@ -289,6 +289,38 @@ public class ScreenGalleryTest {
         sheet.recycle();
     }
 
+    /**
+     * Authentic production battlefield screenshots for all TEN biome themes,
+     * three real mission variants and the stage-300 landscape briefing.
+     * No HTML overlay or fake AI concept images are counted as runtime art.
+     */
+    @Test public void captureTenActualParallaxWorlds() throws Exception {
+        RiftGameView game=new RiftGameView(context);
+        game.layout(0,0,1280,720);
+        java.lang.reflect.Method start=RiftGameView.class.getDeclaredMethod(
+                "start",int.class);
+        start.setAccessible(true);
+        java.lang.reflect.Method spawn=RiftGameView.class.getDeclaredMethod(
+                "spawnEnemy");
+        spawn.setAccessible(true);
+        for(int world=0;world<10;world++){
+            int stage=world*30;
+            start.invoke(game,stage);
+            for(int enemy=0;enemy<3;enemy++)spawn.invoke(game);
+            capture(game,"50-parallax-world-"+world);
+        }
+        for(int map=0;map<3;map++){
+            start.invoke(game,map);
+            for(int enemy=0;enemy<2;enemy++)spawn.invoke(game);
+            capture(game,"51-parallax-map-type-"+map);
+        }
+        start.invoke(game,299);
+        java.lang.reflect.Field briefing=RiftGameView.class.getDeclaredField(
+                "briefingOpen");
+        briefing.setAccessible(true);briefing.setBoolean(game,true);
+        capture(game,"52-stage-300-parallax-mission-briefing");
+    }
+
     @Test public void captureActualUiAsVisualGallery() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().putInt("fortress_rank",2).putInt("supplies",220)
