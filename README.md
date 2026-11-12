@@ -2,6 +2,16 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
+## v0.50.0-rc1 — Visible Upgrade Evolution (under verification)
+
+- All six independent weapon mastery trees now unlock **five physical weapon forms per weapon**: 30 silhouettes across crossbows, swords, staves and lances. The form comes from the highest purchased mastery tier, persists under the existing `weapon.mastery.*.v1` save key and is rendered in the Warden's actual animated weapon rig, Armory cards, mastery tabs and tree detail preview.
+- The fortress receives real rank-based architectural transformations across its five ranks, including buttresses, gate reinforcement and spires; the actual battle castle and Home/Workshop castle use the same evolution layer.
+- Paid Ascension TURRET nodes grant TWO fortress-exclusive **functional** defenses: Thunder Lance (rank 3 plus one turret node) and Guardian Beam (rank 5 plus two turret nodes). Both fire genuine targeted projectiles with unique appearances and real combat damage. Their physically mounted roof weapon assemblies become visible as they unlock.
+- Ascension HERO nodes unlock Warden pauldron/chest/helmet armor forms, and SKILL nodes evolve a combat sigil. Visual tiers follow real saved purchases rather than a decorative fake progression.
+- Existing costs, prerequisites, 300 stages, saves, tower construction, damage stats and combat authority remain intact. No new virtual currency.
+- Robolectric tests create actual screenshots of all 30 weapon silhouettes and five fortress tiers, and verify saved unlocks and real fortress projectile firing.
+- This is a **candidate**, not a completed final release. Automated CI, screenshot review and virtual Android input/performance smoke checks are required; physical handset validation remains unverified.
+
 ## v0.40.0-rc2 — four-pillar polishing candidate (pending CI / emulator verification)
 
 - **World detail:** `KingdomSetPieces` adds ten distinct architectural landmark families (Greenhaven timber gate, Hollow giant-tree shrine, swamp stilt sanctuary, volcanic forge, frozen temple, industrial watch, arcane crystal gate, tempest towers, shadow ossuary and eclipse obelisk). Seeded mission A/B/C variants render directly into the native cached battlefield. Light motes animate in real world positions without moving enemy/tower interaction coordinates.
