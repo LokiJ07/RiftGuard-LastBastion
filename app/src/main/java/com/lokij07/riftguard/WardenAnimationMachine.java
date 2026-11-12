@@ -20,7 +20,7 @@ public final class WardenAnimationMachine {
     private static final float DEATH_SECONDS=.66f;
     private static final float RUN_STEP_SECONDS=.235f;
     private static final float MAX_FRAME_STEP=.20f;
-    private static final float[] CONTACT={.28f,.43f,.37f,.44f,.23f,.51f};
+    private static final float[] CONTACT={.28f,.36f,.37f,.44f,.23f,.51f};
     private State state=State.IDLE;
     private float time=0, duration=0, footTimer=0;
     private int weapon=0;
