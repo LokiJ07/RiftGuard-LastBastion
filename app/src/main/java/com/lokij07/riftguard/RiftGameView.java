@@ -38,11 +38,17 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, PLAY, WIN, LOSE }
+    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
     private static final float TREE_LEFT=75f,TREE_TOP=148f,TREE_RIGHT=906f,
             TREE_BOTTOM=592f;
     private float ascensionScroll=AscensionTree.worldHeight()-(TREE_BOTTOM-TREE_TOP);
+    private static final float WM_TOP=180f,WM_BOTTOM=584f,WM_LEFT=72f,WM_RIGHT=790f;
+    private static final float WM_SCROLL_MAX=310f;
+    private int selectedMasteryWeapon=0,selectedWeaponMasteryNode=1;
+    private float weaponTreeScroll=WM_SCROLL_MAX,weaponTouchStartX,weaponTouchStartY,
+            weaponLastY;
+    private boolean weaponTreeDragging,weaponTouchActive;
     private int selectedAscensionNode=1;
     private float treeDownX,treeDownY,treeLastY;
     private boolean treeDragging=false;
@@ -234,6 +240,7 @@ public final class RiftGameView extends View {
             return true;
         }
         if (scene==Scene.ASCENSION) {scene=Scene.FORTRESS;return true;}
+        if (scene==Scene.WEAPON_TREE) {scene=Scene.ARMORY;return true;}
         if (scene!=Scene.HOME) { scene=Scene.HOME; return true; }
         return false;
     }
@@ -266,6 +273,7 @@ public final class RiftGameView extends View {
         else if (scene==Scene.SKILLS) drawSkills(canvas);
         else if (scene==Scene.FORTRESS) drawFortress(canvas);
         else if (scene==Scene.ASCENSION) drawAscension(canvas);
+        else if (scene==Scene.WEAPON_TREE) drawWeaponMastery(canvas);
         else if (scene==Scene.RESOURCES) drawResources(canvas);
         else if (scene==Scene.KINGDOM) drawKingdom(canvas);
         else {
@@ -2333,6 +2341,181 @@ public final class RiftGameView extends View {
         button(c,80,625,317,679,"BACK TO HOME",0xff3d6067);
         button(c,351,625,648,679,"UPGRADE FORTRESS",0xff9d6b4e);
         button(c,696,625,1118,679,"EQUIP COMBAT ABILITIES",0xff53699a);
+        // Separate mastery trees do not replace the existing Skills button.
+        round(c,890,111,1213,153,12,0xff4f756c);
+        text(c,"WEAPON UPGRADE TREES",1052,139,21,INK,true);
+    }
+
+    /** Six separate bottom-to-top permanent upgrade trees, one for each weapon. */
+    private void drawWeaponMastery(Canvas c){
+        drawBackdrop(c);
+        round(c,43,25,1237,696,25,0xf0152935);
+        text(c,"WEAPON MASTERY",77,78,45,GOLD,false);
+        text(c,"Six independent weapon trees. Purchase from bottom to summit.",
+                80,109,19,INK,false);
+        // Switching tabs never borrows another weapon's purchased upgrades.
+        for(int weapon=0;weapon<6;weapon++){
+            float left=77+weapon*189;
+            boolean selected=weapon==selectedMasteryWeapon;
+            round(c,left,122,left+176,166,11,
+                    selected?0xffa27853:0xff405768);
+            if(motionArt.weaponIcon(c,weapon,left+23,144,35,36)){}
+            else WorldArt.drawHeldWeapon(c,weapon,left+23,145,.38f,gameTime);
+            String label=Progression.WEAPONS[weapon].name.toUpperCase();
+            if(label.length()>15)label=label.substring(0,15);
+            text(c,label,left+104,151,15,selected?0xffffe0a6:INK,true);
+        }
+        round(c,64,170,806,605,20,0xff35515d);
+        round(c,WM_LEFT,WM_TOP,WM_RIGHT,WM_BOTTOM,13,0xff0c2030);
+        c.save();c.clipRect(WM_LEFT,WM_TOP,WM_RIGHT,WM_BOTTOM);
+        for(int i=0;i<45;i++){
+            float px=WM_LEFT+((i*149+(int)(gameTime*2.4f))%718);
+            float py=WM_TOP+((i*103+(int)(gameTime*1.2f))%405);
+            circle(c,px,py,1.2f+(i%3)*.4f,0x665fa7bb);
+        }
+        for(int id=1;id<WeaponMastery.NODES_PER_WEAPON;id++){
+            WeaponMastery.Node n=WeaponMastery.node(selectedMasteryWeapon,id);
+            WeaponMastery.Node parent=WeaponMastery.node(selectedMasteryWeapon,n.parent);
+            float px=WM_LEFT+WeaponMastery.x(parent.id);
+            float py=WM_TOP+WeaponMastery.worldY(parent.id)-weaponTreeScroll;
+            float x=WM_LEFT+WeaponMastery.x(n.id);
+            float y=WM_TOP+WeaponMastery.worldY(n.id)-weaponTreeScroll;
+            if(y<WM_TOP-80&&py<WM_TOP-80)continue;
+            if(y>WM_BOTTOM+80&&py>WM_BOTTOM+80)continue;
+            Path path=new Path();path.moveTo(px,py-30);
+            path.cubicTo(px,py-65,x,y+65,x,y+30);
+            boolean owned=weaponMastery.owned(selectedMasteryWeapon,id);
+            boolean ready=weaponMastery.available(selectedMasteryWeapon,id,fortressRank);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeWidth(owned?9:6);
+            p.setColor(owned?0x7753dfb7:0x88445a67);c.drawPath(path,p);
+            p.setStrokeWidth(owned?4:3);
+            p.setColor(owned?0xffa6f4d2:ready?0xffd6bf80:0xff596e7b);
+            c.drawPath(path,p);p.setStyle(Paint.Style.FILL);
+            if(owned){
+                float t=(gameTime*.40f+id*.13f)%1f;
+                float fx=px+(x-px)*t;
+                float fy=py+(y-py)*t;
+                circle(c,fx,fy-16,3.5f,0xffcefcef);
+            }
+        }
+        for(int id=0;id<WeaponMastery.NODES_PER_WEAPON;id++){
+            float x=WM_LEFT+WeaponMastery.x(id);
+            float y=WM_TOP+WeaponMastery.worldY(id)-weaponTreeScroll;
+            if(y<WM_TOP-65||y>WM_BOTTOM+65)continue;
+            drawWeaponMasteryNode(c,selectedMasteryWeapon,id,x,y);
+        }
+        c.restore();p.setStyle(Paint.Style.FILL);
+        text(c,"ASCEND  ▲",90,204,15,0xffc7dcc7,false);
+        text(c,"ORIGIN  /  SWIPE UP",91,577,15,0xffbfd9c7,false);
+        // Live details/purchase panel.
+        round(c,822,177,1212,605,19,0xff273f4b);
+        WeaponMastery.Node node=WeaponMastery.node(
+                selectedMasteryWeapon,selectedWeaponMasteryNode);
+        Progression.Weapon weapon=Progression.WEAPONS[selectedMasteryWeapon];
+        text(c,"WEAPON PROGRESSION",846,214,23,GOLD,false);
+        text(c,weapon.name.toUpperCase(),845,246,22,weapon.color,false);
+        text(c,weaponMastery.count(selectedMasteryWeapon)+"/11 NODES  •  FORT "+
+                fortressRank,845,276,18,INK,false);
+        round(c,846,297,1191,365,13,0xff152c38);
+        WorldArt.drawHeldWeapon(c,selectedMasteryWeapon,894,341,.62f,gameTime);
+        drawStoryParagraph(c,node.name,936,329,240,24,25,GOLD);
+        text(c,"TIER "+node.tier+"   /   "+WeaponMastery.PATH_NAMES[node.lane],
+                846,403,18,INK,false);
+        drawStoryParagraph(c,WeaponMastery.benefit(node),846,440,329,18,26,INK);
+        text(c,"COST  "+node.cost+"   •   SUPPLIES  "+supplies,847,478,18,GOLD,false);
+        String status=weaponMastery.owned(selectedMasteryWeapon,node.id)?
+                "OWNED / ACTIVE":
+                weaponMastery.available(selectedMasteryWeapon,node.id,fortressRank)?
+                supplies>=node.cost?"READY TO PURCHASE":"NEED MORE SUPPLIES":
+                "LOCKED: PARENT / FORT RANK";
+        text(c,status,846,510,17,weaponMastery.owned(selectedMasteryWeapon,node.id)?
+                0xff8eebbd:0xffffb18e,false);
+        button(c,837,527,1196,580,
+                weaponMastery.owned(selectedMasteryWeapon,node.id)?
+                        "ACTIVATED":"UNLOCK MASTER NODE",
+                weaponMastery.available(selectedMasteryWeapon,node.id,fortressRank)
+                        &&supplies>=node.cost?0xffa67c49:0xff52616a);
+        button(c,76,623,397,683,"BACK TO ARMORY",0xff456c73);
+        button(c,417,623,799,683,
+                selectedMasteryWeapon==equippedWeapon?"EQUIPPED":"EQUIP WEAPON",
+                0xff897052);
+        button(c,823,623,1196,683,"ASCEND  ▲",0xff52726c);
+    }
+
+    private void drawWeaponMasteryNode(Canvas c,int weapon,int id,float x,float y){
+        WeaponMastery.Node node=WeaponMastery.node(weapon,id);
+        boolean owned=weaponMastery.owned(weapon,id);
+        boolean available=weaponMastery.available(weapon,id,fortressRank);
+        if(selectedWeaponMasteryNode==id){
+            float pulse=(float)Math.sin(gameTime*3.6f)*3;
+            round(c,x-45-pulse,y-44-pulse,x+45+pulse,y+42+pulse,
+                    16,0x9986bad3);
+        }
+        round(c,x-37,y-38,x+37,y+36,13,
+                owned?0xff82ddb4:available?0xffd6bf77:0xff455e6a);
+        round(c,x-32,y-33,x+32,y+31,11,
+                owned?0xff224d46:available?0xff29495a:0xff1b2f39);
+        if(id==0||id==10){
+            WorldArt.drawHeldWeapon(c,weapon,x,y+15,.38f,gameTime);
+        }else if(node.lane==0){
+            WorldArt.drawHeldWeapon(c,weapon,x,y+15,.32f,gameTime);
+        }else if(node.lane==1){
+            polygon(c,new float[]{x-16,y+9,x-9,y-10,x+3,y-15,
+                    x+19,y+5,x+1,y+18},0xffb5d9e9);
+            circle(c,x+2,y+3,5,0xff42677a);
+        }else{
+            circle(c,x,y-2,19,Progression.WEAPONS[weapon].color);
+            polygon(c,new float[]{x,y-17,x+15,y,x,y+18,x-15,y},0xfff6e7c8);
+        }
+        if(owned){
+            circle(c,x+31,y-31,10,0xff65cfa6);
+            text(c,"✓",x+31,y-26,14,0xff18342d,true);
+        }else if(!available){
+            circle(c,x+31,y-31,9,0xff785563);
+            text(c,"×",x+31,y-26,13,INK,true);
+        }
+        String title=node.name.length()>16?node.name.substring(0,16):node.name;
+        text(c,title.toUpperCase(),x,y+55,14,
+                owned?0xffd2ffea:available?0xffffddb0:0xff94aeb7,true);
+    }
+
+    private void tapWeaponTree(float x,float y){
+        if(y>=617){
+            if(x>=74&&x<400)scene=Scene.ARMORY;
+            else if(x>=414&&x<805) {
+                if(Progression.canEquip(fortressRank,selectedMasteryWeapon))
+                    equipWeapon(selectedMasteryWeapon);
+            } else if(x>=817&&x<1211)
+                weaponTreeScroll=Math.max(0,weaponTreeScroll-195);
+            return;
+        }
+        if(y>=118&&y<169){
+            int index=(int)((x-77)/189);
+            if(index>=0&&index<6&&x>=77+index*189&&
+                    x<=77+index*189+176){
+                selectedMasteryWeapon=index;
+                selectedWeaponMasteryNode=1;
+                weaponTreeScroll=WM_SCROLL_MAX;
+            }
+            return;
+        }
+        if(x>=836&&x<1207&&y>=520&&y<591){
+            if(weaponMastery.buy(selectedMasteryWeapon,selectedWeaponMasteryNode,
+                    fortressRank)){
+                supplies=prefs.getInt("supplies",supplies);
+                audio.play(GameAudio.BUILD);
+            }
+            return;
+        }
+        if(x<WM_LEFT||x>WM_RIGHT||y<WM_TOP||y>WM_BOTTOM)return;
+        for(int id=0;id<WeaponMastery.NODES_PER_WEAPON;id++){
+            float nx=WM_LEFT+WeaponMastery.x(id);
+            float ny=WM_TOP+WeaponMastery.worldY(id)-weaponTreeScroll;
+            if(Math.abs(x-nx)<42&&Math.abs(y-ny)<44){
+                selectedWeaponMasteryNode=id;return;
+            }
+        }
     }
 
     /** Interactive six-skill loadout; one ability active during each defense. */
@@ -2759,6 +2942,29 @@ public final class RiftGameView extends View {
         if(scale<=0)return true;
         float offsetX=(getWidth()-W*scale)*.5f,offsetY=(getHeight()-H*scale)*.5f;
         float x=(ev.getX(index)-offsetX)/scale,y=(ev.getY(index)-offsetY)/scale;
+        if(scene==Scene.WEAPON_TREE){
+            if(action==MotionEvent.ACTION_DOWN){
+                weaponTouchActive=true;weaponTreeDragging=false;
+                weaponTouchStartX=x;weaponTouchStartY=y;weaponLastY=y;
+            }else if(action==MotionEvent.ACTION_MOVE&&weaponTouchActive&&
+                    weaponTouchStartX>=WM_LEFT&&weaponTouchStartX<=WM_RIGHT&&
+                    weaponTouchStartY>=WM_TOP&&weaponTouchStartY<=WM_BOTTOM){
+                float delta=y-weaponLastY;
+                if(Math.abs(y-weaponTouchStartY)>8)weaponTreeDragging=true;
+                if(weaponTreeDragging)
+                    weaponTreeScroll=BattleRules.clamp(weaponTreeScroll+delta,
+                            0,WM_SCROLL_MAX);
+                weaponLastY=y;
+            }else if(action==MotionEvent.ACTION_UP){
+                // Never treat the RELEASE of the Armory -> Tree button
+                // as a second, unrelated click inside the new screen.
+                if(weaponTouchActive&&!weaponTreeDragging)tapWeaponTree(x,y);
+                weaponTouchActive=false;weaponTreeDragging=false;
+            }else if(action==MotionEvent.ACTION_CANCEL){
+                weaponTouchActive=false;weaponTreeDragging=false;
+            }
+            invalidate();return true;
+        }
         if(scene==Scene.ASCENSION){
             if(action==MotionEvent.ACTION_DOWN){
                 treeTouchActive=true;
@@ -2873,7 +3079,13 @@ public final class RiftGameView extends View {
                 }
             }else if(x<200 && y>594) scene=Scene.HOME;
         }else if(scene==Scene.ARMORY) {
-            if(x>80 && x<329 && y>619)scene=Scene.HOME;
+            if(x>885 && y>=107 && y<154){
+                selectedMasteryWeapon=equippedWeapon;
+                selectedWeaponMasteryNode=1;
+                weaponTreeScroll=WM_SCROLL_MAX;
+                weaponTouchActive=false;scene=Scene.WEAPON_TREE;
+            }
+            else if(x>80 && x<329 && y>619)scene=Scene.HOME;
             else if(x>342 && x<655 && y>619)scene=Scene.FORTRESS;
             else if(x>687 && x<1125 && y>619)scene=Scene.SKILLS;
             else if(y>=151 && y<570) {
