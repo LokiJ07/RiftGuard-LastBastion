@@ -1,5 +1,16 @@
 # RIFTGUARD: Last Bastion
 
+## v0.51.0-rc1 — Dramatic Fortress and Weapon Identity (under test)
+
+This update strengthens the existing saved progression without adding fake cosmetic items:
+- **Five substantially different actual fortresses:** starter timber palisade, reinforced stone garrison, rune stronghold, broad royal bastion and towering arc citadel. The architecture occupies the real battle/Workshop/Home fort coordinates; all tower pads and enemy path physics remain unchanged.
+- **Five prominent arsenal models:** unowned has no phantom tower; purchases unlock visible Ironbolt Battery (reinforced magazine crossbows), Ember Mortar (twin forged blast barrels), Storm Conductor (three-prong induction structure) and Guardian Prism (massive crystalline optical weapon). These supplement the already functional `FortressArmamentRules` projectile/combat system, not a new decoration-only currency.
+- **All six weapon trees gain more exaggerated physical models:** wider sword guards, jagged elite blades, compound bow cams/magazines, runic staff prongs and crystal spear heads. They are attached inside the same held-weapon transform during live combat.
+- **Workshop before/after:** current owned rank and next fortress/arsenal appearance shown side by side, plus a separate **PREVIEW NEXT** toggle on the live workshop scene. It does not change stats, rank, supply balance or save data.
+- **Upgrade reveals:** purchasing fortress ranks, mastery nodes or ascension nodes displays a brief, labeled upgrade banner with an original offline confirmation sting. Both actual bought-node visuals and unlock requirements still derive from existing save keys; no automatic purchase in preview.
+- **Release gates:** Android Java compile + JUnit/Robolectric rendering and interaction tests, visual screenshots of five fort ranks, four distinct purchased arsenal machines, all 30 weapon forms and actual workshop touch sequences. Emulator gameplay QA and real-device profiling remain separate.
+- This is a release candidate, not a final physical-phone certification.
+
 ## v0.50.0-rc1 — Upgrade Evolution (development candidate)
 
 - **Six weapons, thirty distinct visual forms:** each of the six existing melee/ranged/magic families has 5 distinct native transparent models. Every form derives from the highest **purchased** Weapon Mastery tier, not a clicked preview. The Armory, Weapon Mastery tabs, before/after node preview, battle HUD and Warden's **animated wrist-mounted equipped weapon** all share it.
