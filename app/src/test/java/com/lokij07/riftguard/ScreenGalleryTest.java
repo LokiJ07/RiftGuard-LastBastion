@@ -179,6 +179,54 @@ public class ScreenGalleryTest {
         screen.recycle();
     }
 
+    /**
+     * Actual in-game sprites at interpolated timestamps, rendered by the
+     * production animation pipeline. NOT an AI promotional concept image.
+     */
+    private void captureInterpolatedSpriteAnimation()throws Exception {
+        Bitmap image=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(image);
+        c.drawColor(0xff0c1e2b);
+        android.graphics.Paint label=new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        label.setColor(0xffe8d3a6);label.setTextSize(29);
+        c.drawText("RIFTGUARD — REAL PAINTED FRAME-TRANSITION QA",30,45,label);
+        label.setTextSize(17);label.setColor(0xffbbd4d6);
+        c.drawText("8 timestamps from the actual game renderer. No new AI sprite sheet is implied.",
+                30,73,label);
+        MotionArt art=new MotionArt(context);
+        float[] times={.00f,.045f,.080f,.095f,.100f,.150f,.195f,.205f};
+        for(int i=0;i<times.length;i++){
+            float x=11+i*158;
+            label.setColor(0xff273f50);
+            c.drawRoundRect(x,92,x+148,360,12,12,label);
+            c.save();
+            c.translate(x+10,114);
+            c.scale(1.15f,1.15f);
+            assertTrue(art.hero(c,55,177,times[i],0,true,-1,-1,
+                    false,0,0));
+            c.restore();
+            label.setColor(0xffe5c99e);label.setTextSize(17);
+            c.drawText("t="+times[i],x+24,337,label);
+        }
+        label.setColor(0xffe9ce9f);label.setTextSize(22);
+        c.drawText("ENEMY BODY MOTION  •  ALTERNATE FOOT CONTACT AND ATTACK LUNGE",
+                35,399,label);
+        for(int kind=0;kind<7;kind++){
+            float x=16+kind*181;
+            label.setColor(0xff263c4a);c.drawRoundRect(x,422,x+171,685,13,13,label);
+            c.save();c.translate(x+18,438);
+            c.scale(1.30f,1.30f);
+            assertTrue(art.enemy(c,kind,47,162,1.3f+kind*.14f,
+                    true,.48f,false));
+            c.restore();
+            label.setColor(0xffcbdad9);label.setTextSize(17);
+            c.drawText("Enemy class "+kind,x+22,660,label);
+        }
+        saveCustom(image,"43-painted-sprite-transition-qa");
+        image.recycle();
+    }
+
     @Test public void captureActualUiAsVisualGallery() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().putInt("fortress_rank",2).putInt("supplies",220)
@@ -186,6 +234,7 @@ public class ScreenGalleryTest {
         captureCleanHeroRig();
         captureBiomeAtmosphere();
         captureSixWeaponAnimationGallery();
+        captureInterpolatedSpriteAnimation();
         RiftGameView view=new RiftGameView(context);
         view.layout(0,0,1280,720);
         capture(view,"01-home");
