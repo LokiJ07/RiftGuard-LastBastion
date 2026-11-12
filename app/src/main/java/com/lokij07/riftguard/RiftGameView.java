@@ -59,6 +59,7 @@ public final class RiftGameView extends View {
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
     private final BiomeProps biomeProps;
+    private final LivingBattlefield livingWorld=new LivingBattlefield();
     private ResourcePacks.State resourceState;
     private volatile boolean resourceBusy=false;
     private volatile boolean resourceSuccess=false;
@@ -314,6 +315,9 @@ public final class RiftGameView extends View {
         hazardSlowTimer=0;
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         motionArt.prepareTerrain(s);
+        // The landscape renderer caches ONLY the current level, not 300
+        // enormous maps. Rebuild the five parallax layers on stage change.
+        livingWorld.prepare(s);
         walkClock=0;heroMoving=false;
         heroAnimation.reset();
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
@@ -1010,6 +1014,10 @@ public final class RiftGameView extends View {
         c.translate(W*.5f-camX*BATTLE_ZOOM,H*.5f-camY*BATTLE_ZOOM);
         c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
         drawTerrain(c,biome);
+        // The user's HTML castle/cliffs/mountain/lake scene is now native
+        // Android scenery underneath real game enemies and the fortress.
+        livingWorld.draw(c,stage,gameTime,heroX,heroY,
+                combatFeel.reducedMotion());
         BattlefieldLighting.drawGround(c,biome,stage,gameTime,BASE_X,BASE_Y);
         // Multi-depth light shafts and biome weather live in world coordinates,
         // so scenery moves with the level rather than scrolling over the HUD.
@@ -1095,6 +1103,7 @@ public final class RiftGameView extends View {
         }
         if(pulseFlash>0)drawActiveSkillVfx(c);
         BiomeAtmosphere.drawFront(c,biome,stage,gameTime);
+        livingWorld.drawForeground(c,stage,gameTime,combatFeel.reducedMotion());
         c.restore();
         if(scene==Scene.PLAY)drawHud(c,biome);
         else drawHudTop(c,biome);
@@ -2157,7 +2166,7 @@ public final class RiftGameView extends View {
             round(c,901,top-3,1208,top+103,12,selectedMap==m?GOLD:0xff45616b);
             c.save();
             c.clipRect(905,top,1204,top+68);
-            WorldArt.drawScene(c,current,m,905,top,299,68,gameTime);
+            livingWorld.thumbnail(c,mission,905,top,299,68);
             drawStagePreview(c,mission,905,top);
             c.restore();
             rect(c,905,top+67,1204,top+99,0xee182e37);
@@ -2970,8 +2979,7 @@ public final class RiftGameView extends View {
         round(c,119,192,564,533,16,0xff486676);
         c.save();
         c.clipRect(127,200,556,524);
-        WorldArt.drawScene(c,Campaign.world(stage),Campaign.map(stage),
-                127,200,429,324,gameTime);
+        livingWorld.preview(c,stage,127,200,429,324);
         drawStagePreview(c,stage,127,200);
         c.restore();
         border(c,127,200,556,524,11,0xffb78a57,3);

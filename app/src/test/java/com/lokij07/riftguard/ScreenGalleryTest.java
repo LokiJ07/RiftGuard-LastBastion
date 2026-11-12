@@ -289,6 +289,61 @@ public class ScreenGalleryTest {
         sheet.recycle();
     }
 
+    /**
+     * Authentic production battlefield screenshots for all TEN biome themes,
+     * three real mission variants and the stage-300 landscape briefing.
+     * No HTML overlay or fake AI concept images are counted as runtime art.
+     */
+    @Test public void captureTenLocalLevelLightingMoods()throws Exception{
+        Bitmap atlas=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(atlas);
+        c.drawColor(0xff101c29);
+        android.graphics.Paint title=new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        title.setColor(0xffedd2a4);title.setTextSize(26);
+        title.setFakeBoldText(true);
+        c.drawText("RIFTGUARD — TEN DISTINCT LEVEL MOODS PER REALM",24,43,title);
+        title.setFakeBoldText(false);
+        LivingBattlefield world=new LivingBattlefield();
+        for(int i=0;i<10;i++){
+            float x=18+(i%5)*252,y=70+(i/5)*305;
+            world.preview(c,i*3,x,y,235,218);
+            title.setColor(0xffcce1e7);title.setTextSize(17);
+            c.drawText("LEVEL "+(i+1)+" • "+LivingBattlefield.stageMood(i*3),
+                    x,y+245,title);
+        }
+        world.release();
+        saveCustom(atlas,"53-ten-level-lighting-moods");
+        atlas.recycle();
+    }
+
+    @Test public void captureTenActualParallaxWorlds() throws Exception {
+        RiftGameView game=new RiftGameView(context);
+        game.layout(0,0,1280,720);
+        java.lang.reflect.Method start=RiftGameView.class.getDeclaredMethod(
+                "start",int.class);
+        start.setAccessible(true);
+        java.lang.reflect.Method spawn=RiftGameView.class.getDeclaredMethod(
+                "spawnEnemy");
+        spawn.setAccessible(true);
+        for(int world=0;world<10;world++){
+            int stage=world*30;
+            start.invoke(game,stage);
+            for(int enemy=0;enemy<3;enemy++)spawn.invoke(game);
+            capture(game,"50-parallax-world-"+world);
+        }
+        for(int map=0;map<3;map++){
+            start.invoke(game,map);
+            for(int enemy=0;enemy<2;enemy++)spawn.invoke(game);
+            capture(game,"51-parallax-map-type-"+map);
+        }
+        start.invoke(game,299);
+        java.lang.reflect.Field briefing=RiftGameView.class.getDeclaredField(
+                "briefingOpen");
+        briefing.setAccessible(true);briefing.setBoolean(game,true);
+        capture(game,"52-stage-300-parallax-mission-briefing");
+    }
+
     @Test public void captureActualUiAsVisualGallery() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().putInt("fortress_rank",2).putInt("supplies",220)
