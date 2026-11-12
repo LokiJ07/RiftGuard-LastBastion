@@ -828,6 +828,9 @@ public final class RiftGameView extends View {
             if(entry.type==DECOR)drawDecor(c,(Decor)entry.entity,biome);
             else if(entry.type==KEEP) {
                 drawBase(c,biome);
+                FortressDamageFx.draw(c,BASE_X,BASE_Y,fortressRank,baseHp,
+                        Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp(),
+                        gameTime);
                 FortressStructures.turretMounts(c,BASE_X,BASE_Y,
                         fortressRank,towerX,towerY,gameTime);
             }
