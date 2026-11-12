@@ -317,6 +317,9 @@ public final class RiftGameView extends View {
     private int weaponForm(int weapon){return EvolutionProgress.weaponForm(weaponMastery,weapon);}
     private int armorForm(){return EvolutionProgress.armorForm(ascension,fortressRank);}
     private int skillForm(){return EvolutionProgress.skillForm(ascension,fortressRank);}
+    private int coreForm(){return EvolutionProgress.coreForm(ascension);}
+    private int treasuryForm(){return EvolutionProgress.treasuryForm(ascension);}
+    private int speedForm(){return EvolutionProgress.speedForm(ascension);}
 
     private void start(int s) {
         Campaign.checkStage(s);
@@ -1733,6 +1736,8 @@ public final class RiftGameView extends View {
         FortressStructures.rankStructures(c,BASE_X,BASE_Y,fortressRank,gameTime);
         FortressEvolutionArt.draw(c,BASE_X,BASE_Y,fortressRank,
                 arsenalTier(),gameTime);
+        EvolutionEffects.fortressBranches(c,BASE_X,BASE_Y,
+                coreForm(),treasuryForm());
     }
     private static int towerColor(int slot) {
         return new int[]{0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff}[slot];
@@ -1990,6 +1995,7 @@ public final class RiftGameView extends View {
             c.restore();
         }else drawHeroActor(c,false);
         EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
     }
     private void drawHeroActor(Canvas c,boolean forcedHurt) {
         // State-machine clocks drive actual poses. Legacy preview callers
@@ -2208,6 +2214,7 @@ public final class RiftGameView extends View {
         NativeDeployedMapArt.fort(c,0,0,fortressRank,gameTime,1f);
         FortressStructures.rankStructures(c,0,0,fortressRank,gameTime);
         FortressEvolutionArt.draw(c,0,0,fortressRank,arsenalTier(),gameTime);
+        EvolutionEffects.fortressBranches(c,0,0,coreForm(),treasuryForm());
         c.restore();
         // Individually animated hero, creatures, flag and floating ambient lights.
         float heroX=left+width*.79f,heroY=top+height*.81f;
@@ -2217,6 +2224,7 @@ public final class RiftGameView extends View {
         if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
                 weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
         EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
         if(!workshop) {
             motionArt.enemy(c,0,left+width*.91f,top+height*.86f,gameTime,
                     true,-1,false);
@@ -2868,6 +2876,15 @@ public final class RiftGameView extends View {
             text(c,"ARMOR FORM "+armorForm()+"/4",961,471,16,0xffa8e6d9,false);
         else if(choice.category==AscensionTree.SKILL)
             text(c,"SKILL FORM "+skillForm()+"/4",961,471,16,0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.CORE)
+            text(c,"MASONRY FORM "+coreForm()+"/4",961,471,16,
+                    0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.GOLD)
+            text(c,"TREASURY FORM "+treasuryForm()+"/4",961,471,16,
+                    0xffa8e6d9,false);
+        else if(choice.category==AscensionTree.SPEED)
+            text(c,"GREAVES FORM "+speedForm()+"/4",961,471,16,
+                    0xffa8e6d9,false);
         String status=ascension.owned(choice.id)?"OWNED / ACTIVE":
                 fortressRank<choice.requiredRank?"FORT RANK TOO LOW":
                 choice.predecessor>=0&&!ascension.owned(choice.predecessor)?
