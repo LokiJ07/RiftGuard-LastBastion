@@ -81,7 +81,12 @@ public final class WeaponRig {
         }
         float elbowX=sx+(handX-sx)*.49f+8;
         float elbowY=sy+(handY-sy)*.45f+4;
-        return new Pose(sx,sy,elbowX,elbowY,handX,handY,angle);
+        // Shoulder, elbow and wrist translate with the same body wind-up
+        // that MotionArt paints. No disconnected weapon in front of torso.
+        float shiftX=WeaponAnimation.torsoShiftX(weaponId,attack);
+        float shiftY=WeaponAnimation.torsoShiftY(weaponId,attack);
+        return new Pose(sx+shiftX,sy+shiftY,elbowX+shiftX,
+                elbowY+shiftY,handX+shiftX,handY+shiftY,angle);
     }
 
     /**
