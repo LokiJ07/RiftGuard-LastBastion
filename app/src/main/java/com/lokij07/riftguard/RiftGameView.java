@@ -2871,28 +2871,28 @@ public final class RiftGameView extends View {
         text(c,"TIER "+choice.tier+"  /  FORT RANK "+choice.requiredRank,961,443,18,INK,false);
         if(choice.category==AscensionTree.TOWER)
             textFit(c,"ARSENAL: "+EvolutionProgress.fortressWeapon(arsenalTier()),
-                    962,471,235,16,0xffa8e6d9,false);
+                    962,461,235,16,0xffa8e6d9,false);
         else if(choice.category==AscensionTree.HERO)
-            text(c,"ARMOR FORM "+armorForm()+"/4",961,471,16,0xffa8e6d9,false);
+            text(c,"ARMOR FORM "+armorForm()+"/4",961,461,16,0xffa8e6d9,false);
         else if(choice.category==AscensionTree.SKILL)
-            text(c,"SKILL FORM "+skillForm()+"/4",961,471,16,0xffa8e6d9,false);
+            text(c,"SKILL FORM "+skillForm()+"/4",961,461,16,0xffa8e6d9,false);
         else if(choice.category==AscensionTree.CORE)
-            text(c,"MASONRY FORM "+coreForm()+"/4",961,471,16,
+            text(c,"MASONRY FORM "+coreForm()+"/4",961,461,16,
                     0xffa8e6d9,false);
         else if(choice.category==AscensionTree.GOLD)
-            text(c,"TREASURY FORM "+treasuryForm()+"/4",961,471,16,
+            text(c,"TREASURY FORM "+treasuryForm()+"/4",961,461,16,
                     0xffa8e6d9,false);
         else if(choice.category==AscensionTree.SPEED)
-            text(c,"GREAVES FORM "+speedForm()+"/4",961,471,16,
+            text(c,"GREAVES FORM "+speedForm()+"/4",961,461,16,
                     0xffa8e6d9,false);
         String status=ascension.owned(choice.id)?"OWNED / ACTIVE":
                 fortressRank<choice.requiredRank?"FORT RANK TOO LOW":
                 choice.predecessor>=0&&!ascension.owned(choice.predecessor)?
                         "UNLOCK PREVIOUS NODE":
                 supplies<choice.cost?"NOT ENOUGH SUPPLIES":"READY TO PURCHASE";
-        text(c,status,961,475,17,ascension.owned(choice.id)?
+        text(c,status,961,485,17,ascension.owned(choice.id)?
                 0xff83e0b8:0xffffb18e,false);
-        text(c,"COST  "+choice.cost,961,506,21,GOLD,false);
+        text(c,"COST  "+choice.cost,961,513,21,GOLD,false);
         round(c,957,526,1205,577,11,0xff173441);
         textFit(c,"UNLOCK FROM THE BOTTOM ROW",1081,556,233,16,
                 0xffc3dad9,true);
@@ -3020,18 +3020,18 @@ public final class RiftGameView extends View {
         round(c,718,153,1204,531,22,0xff283e4a);
         text(c,"KINGDOM SUPPLIES",758,216,25,INK,false);
         textFit(c,"ARSENAL  "+EvolutionProgress.fortressWeapon(arsenalTier()),
-                759,245,411,17,0xffb0e9e3,false);
+                759,310,411,17,0xffb0e9e3,false);
         text(c,""+supplies,758,280,59,GOLD,false);
-        text(c,"CURRENT UPGRADE",758,329,21,0xffb6c9ca,false);
+        text(c,"CURRENT UPGRADE",758,346,21,0xffb6c9ca,false);
         if(fortressRank<Progression.MAX_RANK){
             int next=fortressRank+1;
-            text(c,Progression.RANK_NAMES[next],758,371,30,GOLD,false);
-            text(c,"Unlock: "+Progression.WEAPONS[next].name,758,410,22,INK,false);
+            text(c,Progression.RANK_NAMES[next],758,383,30,GOLD,false);
+            text(c,"Unlock: "+Progression.WEAPONS[next].name,758,422,22,INK,false);
             text(c,"Cost: "+Progression.upgradeCost(fortressRank)+" Supplies",
-                    758,453,25,INK,false);
+                    758,463,25,INK,false);
             text(c,Progression.canUpgrade(fortressRank,supplies)?
                     "READY TO CONSTRUCT":"WIN MISSIONS TO EARN MORE",
-                    759,496,18,Progression.canUpgrade(fortressRank,supplies)?
+                    759,505,18,Progression.canUpgrade(fortressRank,supplies)?
                             0xff8cdea5:0xffe3af9c,false);
         }else{
             text(c,"ARC CITADEL - MAX RANK",759,378,29,GOLD,false);
