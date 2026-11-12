@@ -74,7 +74,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RiftGuard-screen-gallery
-          path: app/build/screenshots/*.png
+          path: |
+            app/build/screenshots/*.png
+            app/build/screenshots/*-frame-metrics.txt
           if-no-files-found: ignore
       - name: Report APK signing certificate
         if: success()
