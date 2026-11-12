@@ -43,6 +43,20 @@ public class ScreenGalleryTest {
         view.onTouchEvent(up);up.recycle();
     }
 
+    private void swipe(RiftGameView view,float x,float from,float to){
+        long now=SystemClock.uptimeMillis();
+        MotionEvent down=MotionEvent.obtain(now,now,MotionEvent.ACTION_DOWN,x,from,0);
+        view.onTouchEvent(down);down.recycle();
+        for(int i=1;i<=8;i++){
+            float y=from+(to-from)*i/8;
+            MotionEvent move=MotionEvent.obtain(now,now+i*26,
+                    MotionEvent.ACTION_MOVE,x,y,0);
+            view.onTouchEvent(move);move.recycle();
+        }
+        MotionEvent up=MotionEvent.obtain(now,now+250,MotionEvent.ACTION_UP,x,to,0);
+        view.onTouchEvent(up);up.recycle();
+    }
+
     private void capture(RiftGameView view,String name) throws Exception {
         File root=new File(System.getProperty("user.dir"));
         File folder=new File(root,new File("app/build.gradle").exists()
@@ -89,6 +103,24 @@ public class ScreenGalleryTest {
         tap(view,450,651); // skill screen -> weapons
         tap(view,450,656); // fortress
         capture(view,"04-fortress");
+        tap(view,890,655); // Fortress -> the upward Ascension Tree
+        capture(view,"32-ascension-bottom-origin");
+        // Demonstrate genuinely PURCHASED paths, not just brightened icons.
+        android.content.SharedPreferences ascPrefs=context.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE);
+        ascPrefs.edit().putInt("supplies",1600).commit();
+        AscensionTree exampleTree=new AscensionTree(ascPrefs);
+        for(int node=1;node<=8;node++)
+            assertTrue("The growing example follows real prerequisites",
+                    exampleTree.buy(node,2));
+        java.lang.reflect.Field ascSupply=RiftGameView.class.getDeclaredField("supplies");
+        ascSupply.setAccessible(true);
+        ascSupply.setInt(view,ascPrefs.getInt("supplies",0));
+        capture(view,"35-ascension-purchased-paths");
+        // Six upward swipes are enough to reach the true summit of the tree.
+        for(int i=0;i<7;i++)swipe(view,445,462,178);
+        capture(view,"33-ascension-top-summit");
+        tap(view,185,649); // Return to fortress, then Home
         tap(view,120,654); // home
         tap(view,250,449);
         tap(view,630,613); // deploy with the animated chronicle gate
@@ -115,6 +147,22 @@ public class ScreenGalleryTest {
             py.setFloat(enemy,LaneRules.stagePathY(0,ex)+(kind%3-1)*40f);
         }
         capture(view,"05-battle");
+        // Every mode snapshot starts a REAL new battle so the hero HP,
+        // initial towers and initial gold actually reflect its mode.
+        java.lang.reflect.Field modeField=RiftGameView.class.getDeclaredField("difficultyMode");
+        modeField.setAccessible(true);
+        java.lang.reflect.Method restart=RiftGameView.class.getDeclaredMethod(
+                "start",int.class);
+        restart.setAccessible(true);
+        for(int mode=0;mode<4;mode++){
+            modeField.setInt(view,mode);
+            restart.invoke(view,0);
+            for(int k=0;k<7;k++)spawn.invoke(view);
+            capture(view,"34-difficulty-"+DifficultyRules.NAMES[mode].toLowerCase());
+        }
+        modeField.setInt(view,DifficultyRules.NORMAL);
+        restart.invoke(view,0);
+        for(int k=0;k<7;k++)spawn.invoke(view);
         // Exercise actual movement and weapon attack state and capture the renderer.
         java.lang.reflect.Field axis=RiftGameView.class.getDeclaredField("axisX");
         axis.setAccessible(true);axis.setFloat(view,.9f);

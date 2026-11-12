@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.11.0 — six real Warden abilities, living enemies and battle damage
+## Current version: V0.12.0 — bottom-to-top ascension tree and true four-mode difficulty
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -40,12 +40,23 @@ The current initial downloadable pack contains the same art that ships with the 
 - **Better visual verification:** automated screenshots of all six skill attacks, equipped-skill menu and damaged fortress. Android tests cover real gameplay state and generated WAV data.
 - **Not claimed yet:** all-new weapon-free high-definition hero art, full 300 artist-authored scenes, production soundtrack, additional original boss sprite families, device performance/final polish. See [v0.11 QA notes](docs/V011_ABILITY_AUDIO_ENEMY_QA.md).
 
+## V0.12.0 — visually linked upgrades and real difficulty scaling
+
+- **Bottom-to-top Ascension Tree** directly accessible from **Home → Fortress → ASCENSION / UPGRADE TREE**. A large 40-node graph spans ten tiers, beginning at the free Origin and leading up to LAST BASTION. Nodes have original weapon/tower/hero/spell icons, glowing animated connectors and status colors (purchased, available, locked).
+- Swipe **up** to climb toward stronger upgrades; swipe down to return to the root, or tap GO UP. Select a node to view its name, benefits, parent/fortress gate and permanent supply purchase. Purchases survive app restarts.
+- **Every paid node has a combat effect**: direct Warden damage, turret damage, core/hero max health, starting battle gold, spell cooldown or movement speed. All upgrades apply to the actual game loop, not just decorative icons. The five-stage fortress path and all six existing weapons are retained.
+- **Rebalanced Easy / Normal / Hard / Expert**: at the same stage Expert has **3.85× Normal enemy health, 2.95× damage**, +5 waves, +11 enemies/wave, ~2.17× faster spawns, recurring elites every other wave and fewer starting defenses. Hard also adds elites and faster, stronger waves. Easy grants much more breathing room and supplies. Higher risks grant larger victory supply bonuses.
+- The campaign difficulty UI now shows the selected HP/damage and wave/reward differences.
+- **Regression-tested:** tree graph connectivity, unlocking, persistent benefits, swipe navigation, strong mode separation and real gameplay changes. See [v0.12 audit and table](docs/V012_ASCENSION_DIFFICULTY_QA.md).
+- **Remaining:** fully authored HD sprite animations, sophisticated unique map art, physical phone FPS evaluation, and human-playtested balance. Android CI cannot guarantee the new Expert mode is fair across all 300 stages.
+
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
 2. Move using left thumb, hold ATTACK to use equipped weapon, use PULSE and BUILD to defend.
 3. Win to earn permanent supplies. Home → FORTRESS → upgrade rank to unlock weapons and abilities.
-4. Home → ARMORY → tap an unlocked weapon to equip it; choose EQUIP COMBAT ABILITIES to set a distinct skill.
-5. On the Home screen tap SOUND ON/OFF to control the locally generated game sounds.
+4. In FORTRESS tap ASCENSION / UPGRADE TREE; swipe up from the Origin and buy connected combat upgrades using supplies.
+5. Home → ARMORY → tap an unlocked weapon to equip it; choose EQUIP COMBAT ABILITIES to set a distinct skill.
+6. On the Home screen tap SOUND ON/OFF to control the locally generated game sounds.
 
 ## Build
 Android Gradle Plugin 8.7.3, Gradle 8.10.2, JDK 17, Android SDK 35. On GitHub see Actions → Android CI → successful run → Artifacts → `RiftGuard-debug-apk`.
