@@ -486,7 +486,7 @@ public final class RiftGameView extends View {
             Enemy siegeTarget=closest(BASE_X,BASE_Y,
                     FortressArmamentRules.range(keepArsenal));
             if(siegeTarget!=null&&shots.size()<110){
-                float spawnX=FortressArmamentRules.muzzleX(BASE_X,fortressArsenalShots);
+                float spawnX=FortressArmamentRules.muzzleX(BASE_X,fortressArsenalShots,keepArsenal);
                 float spawnY=FortressArmamentRules.muzzleY(BASE_Y,keepArsenal);
                 Shot battery=new Shot(spawnX,spawnY,
                         FortressArmamentRules.damage(keepArsenal)*
