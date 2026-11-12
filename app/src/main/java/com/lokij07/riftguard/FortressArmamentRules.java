@@ -30,12 +30,28 @@ public final class FortressArmamentRules {
         if(arsenal==2)return 1; // ember mortar
         return 3;               // storm conductor / prism bolts
     }
+    /** Legacy coordinate helper retained for existing battery diagnostics. */
     public static float muzzleX(float keepX,int shotCount){
-        return keepX+((shotCount&1)==0?-147f:147f);
+        return muzzleX(keepX,shotCount,1);
+    }
+    /** Spawn from the actual visible weapon, not arbitrary old side towers.
+     * Ironbolt and Ember have two barrels; Storm/Guardian have a central
+     * mounted conductor/prism and must fire from its crystal focus. */
+    public static float muzzleX(float keepX,int shotCount,int arsenal){
+        require(arsenal);
+        if(arsenal>=3)return keepX;
+        float offset=arsenal==2?169f:147f;
+        return keepX+((shotCount&1)==0?-offset:offset);
     }
     public static float muzzleY(float keepY,int arsenal){
         require(arsenal);
-        return keepY-(arsenal>=3?166f:87f);
+        switch(arsenal){
+            case 1:return keepY-88f;    // Ironbolt rail between bow limbs
+            case 2:return keepY-105f;   // Ember mortar muzzle
+            case 3:return keepY-218f;   // Storm central induction cage
+            case 4:return keepY-249f;   // Guardian prism optical focus
+            default:return keepY-87f;
+        }
     }
     private static void require(int arsenal){
         if(arsenal<0||arsenal>4)throw new IllegalArgumentException("arsenal");
