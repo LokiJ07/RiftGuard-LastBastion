@@ -146,12 +146,46 @@ public class ScreenGalleryTest {
         image.recycle();
     }
 
+    /** Actual MotionArt combat poses for ALL six in-game rigs, no concept art. */
+    private void captureSixWeaponAnimationGallery()throws Exception{
+        Bitmap screen=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(screen);c.drawColor(0xff10202e);
+        android.graphics.Paint label=new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        label.setColor(0xffedca88);label.setTextSize(27);
+        label.setFakeBoldText(true);
+        c.drawText("RIFTGUARD — SIX ACTUAL WEAPON-SPECIFIC ATTACK ANIMATIONS",
+                29,47,label);
+        MotionArt art=new MotionArt(context);
+        for(int weapon=0;weapon<6;weapon++){
+            int col=weapon%3,row=weapon/3;
+            float left=20+col*421,top=68+row*318;
+            label.setColor(0xff284b5b);
+            c.drawRoundRect(left,top,left+406,top+300,15,15,label);
+            label.setTextSize(19);label.setColor(0xfff6d69d);
+            c.drawText(Progression.WEAPONS[weapon].name,left+18,top+27,label);
+            float[] frames={-1f,.15f,.46f,.80f};
+            for(int i=0;i<frames.length;i++){
+                c.save();c.translate(left+8+i*101,top+46);c.scale(.78f,.78f);
+                assertTrue(art.hero(c,57,213,1f,0,false,frames[i],-1f,
+                        false,weapon));
+                c.restore();
+            }
+            label.setTextSize(14);label.setColor(0xffb2cbd1);
+            c.drawText("IDLE      WINDUP         CONTACT         RECOVERY",
+                    left+15,top+285,label);
+        }
+        saveCustom(screen,"38-six-weapon-animated-attacks");
+        screen.recycle();
+    }
+
     @Test public void captureActualUiAsVisualGallery() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().putInt("fortress_rank",2).putInt("supplies",220)
                 .putInt("weapon",2).commit();
         captureCleanHeroRig();
         captureBiomeAtmosphere();
+        captureSixWeaponAnimationGallery();
         RiftGameView view=new RiftGameView(context);
         view.layout(0,0,1280,720);
         capture(view,"01-home");
@@ -173,7 +207,16 @@ public class ScreenGalleryTest {
         tap(view,100,639);
         tap(view,215,544); // armory
         capture(view,"03-armory");
-        tap(view,842,651); // NEW: equipable skill armory
+        tap(view,1053,132); // Armory -> real six weapon mastery trees
+        capture(view,"39-cross-weapon-tree-bottom");
+        for(int w=0;w<6;w++){
+            tap(view,77+w*189+87,144);
+            capture(view,"40-weapon-tree-"+w);
+        }
+        swipe(view,430,472,205);
+        capture(view,"41-weapon-tree-summit");
+        tap(view,189,650); // Tree -> Armory
+        tap(view,842,651); // existing skill armory remains accessible
         capture(view,"29-ability-loadout");
         tap(view,450,651); // skill screen -> weapons
         tap(view,450,656); // fortress
