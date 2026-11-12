@@ -215,6 +215,24 @@ public final class MotionArt {
         // weapon: selected equipment exists exclusively in WeaponRig.
         float cast=state==3?frame/3f:-1f;
         WardenBodyArt.draw(c,x,y,phase,running,attack,cast,hurt,flip);
+        // Restore ONLY the hand-painted central armor and helmet texture
+        // from the original high-detail sheet. Both right-waist and arms
+        // (where the old fixed sidearm lived) remain entirely excluded.
+        // This is a rigged PAINTED hybrid, not a flat vector replacement.
+        if(heroReady()){
+            int col=Math.max(0,Math.min(3,frame));
+            int row=Math.max(0,Math.min(3,state));
+            int sx=col*HERO_W,sy=row*HERO_H;
+            c.save();c.translate(x,y);
+            if(flip)c.scale(-1,1);
+            p.setColor(Color.WHITE);p.setAlpha(hurt?184:246);
+            c.drawBitmap(heroes,new Rect(sx+28,sy+2,sx+131,sy+79),
+                    new RectF(-37,-135,36,-72),p);
+            c.drawBitmap(heroes,new Rect(sx+47,sy+77,sx+108,sy+115),
+                    new RectF(-23,-75,23,-41),p);
+            p.setAlpha(255);
+            c.restore();
+        }
     }
 
     /** Hero's armor and limbs without any externally equipped weapon. */
