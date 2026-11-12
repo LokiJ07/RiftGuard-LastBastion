@@ -1,6 +1,9 @@
 package com.lokij07.riftguard;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -29,6 +32,22 @@ public final class WeaponMuzzleAlignmentTest {
             assertEquals("Weapon "+id+" must point downrange",tipLengths[id],projection,.08f);
             assertEquals("Weapon tip is the actual combat model tip",tipLengths[id],
                     (float)Math.hypot(dx,dy),.08f);
+        }
+    }
+
+    @Test public void heldWeaponsHaveNoOpaqueInventoryCardBackground() {
+        for(int weaponId=0;weaponId<6;weaponId++){
+            Bitmap bitmap=Bitmap.createBitmap(180,190,Bitmap.Config.ARGB_8888);
+            Canvas canvas=new Canvas(bitmap);
+            WorldArt.drawHeldWeapon(canvas,weaponId,90,140,1f,1f);
+            int occupied=0;
+            for(int y=50;y<167;y++)for(int x=40;x<140;x++)
+                if(Color.alpha(bitmap.getPixel(x,y))>120)occupied++;
+            assertTrue("Weapon must actually be visible: "+weaponId,occupied>90);
+            assertTrue("Opaque card or badge must not be held as a weapon: "+weaponId,
+                    occupied<4200);
+            assertEquals(Color.TRANSPARENT,bitmap.getPixel(8,16));
+            bitmap.recycle();
         }
     }
 
