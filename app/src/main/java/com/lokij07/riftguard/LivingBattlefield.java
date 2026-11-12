@@ -125,13 +125,26 @@ public final class LivingBattlefield {
         c.drawOval(x-rx,y-ry,x+rx,y+ry,p);
     }
     private void buildSky(Canvas c,int world,int stage){
+        int beat=chapterBeat(stage);
+        // Ten distinct local-level lighting beats, generated once per stage.
+        float[] moodBrightness={1.08f,1.16f,.87f,1.09f,.78f,
+                .89f,.69f,.47f,.58f,.93f};
+        float light=moodBrightness[beat];
         p.setStyle(Paint.Style.FILL);
         p.setShader(new LinearGradient(0,-10,0,505,
-                new int[]{SKY_TOP[world],shift(SKY_BOTTOM[world],.76f),SKY_BOTTOM[world]},
+                new int[]{shift(SKY_TOP[world],light),
+                        shift(SKY_BOTTOM[world],.76f*light),
+                        shift(SKY_BOTTOM[world],light)},
                 new float[]{0,.57f,1},Shader.TileMode.CLAMP));
         c.drawRect(-80,-20,1980,BACK_H,p);p.setShader(null);
         int seed=environmentSignature(stage);
-        int beat=chapterBeat(stage);
+        int hue=beat==4?0xffff916d:beat==6?0xffae8dea:
+                beat==7?0xff365b9b:beat==8?0xff526779:
+                beat==9?0xffcd70e3:0;
+        if(hue!=0){
+            p.setColor(tint(hue,beat==9?43:68));
+            c.drawRect(-80,-20,1980,BACK_H,p);
+        }
         float sx=450+noise(seed,2)*1070,sy=56+noise(seed,3)*46;
         int sun=(beat==7||beat==9||world==8||world==9)?
                 0xffe3b9f6:0xffffe9b4;
@@ -421,6 +434,15 @@ public final class LivingBattlefield {
             }
         }
         lay(c,4,-look*65f+vertical*12f);
+        // An independent storm weather beat even in otherwise sunny worlds.
+        if(!reducedMotion&&chapterBeat(stage)==8){
+            int stormSeed=environmentSignature(stage);
+            for(int i=0;i<25;i++){
+                float wx=(noise(stormSeed,870+i)*1900+time*85f)%1900;
+                float wy=(noise(stormSeed,900+i)*540+time*160f)%540;
+                line(c,wx,wy,wx-12f,wy+18f,0x5599dbe5,1.5f);
+            }
+        }
         // Actual moving lake reflections, carefully above the water strip only.
         if(!reducedMotion){
             int world=biome(stage),seed=environmentSignature(stage);
