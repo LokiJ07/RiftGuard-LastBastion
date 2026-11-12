@@ -427,7 +427,7 @@ public final class MotionArt {
         float dx=bx-ax,dy=by-ay;
         float len=(float)Math.hypot(dx,dy);
         if(len<3)return;
-        float radius=forearm?9:12;
+        float radius=forearm?7:9;
         c.save();
         c.translate(ax,ay);
         c.rotate((float)Math.toDegrees(Math.atan2(dy,dx))-90f);
@@ -478,7 +478,7 @@ public final class MotionArt {
             arc.setStyle(Paint.Style.STROKE);
             arc.setStrokeCap(Paint.Cap.ROUND);
             int tint=id==2?0xffff9d55:0xffb2edff;
-            arc.setColor(tint);arc.setStrokeWidth(15f*(1-t*.4f));
+            arc.setColor(tint);arc.setStrokeWidth(10f*(1-t*.4f));
             arc.setAlpha((int)(185*Math.sin(Math.PI*t)));
             c.drawPath(slash,arc);
             arc.setColor(Color.WHITE);arc.setStrokeWidth(3);
@@ -489,11 +489,11 @@ public final class MotionArt {
         Paint arm=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
         arm.setStrokeCap(Paint.Cap.ROUND);
         arm.setStyle(Paint.Style.STROKE);
-        arm.setColor(0xff21394b);arm.setStrokeWidth(15);
+        arm.setColor(0xff21394b);arm.setStrokeWidth(10);
         c.drawLine(pose.shoulderX,pose.shoulderY,
                 pose.elbowX,pose.elbowY,arm);
         c.drawLine(pose.elbowX,pose.elbowY,pose.handX,pose.handY,arm);
-        arm.setColor(0xff7c9db1);arm.setStrokeWidth(9);
+        arm.setColor(0xff7c9db1);arm.setStrokeWidth(6);
         c.drawLine(pose.shoulderX-1,pose.shoulderY-1,
                 pose.elbowX-1,pose.elbowY-2,arm);
         c.drawLine(pose.elbowX-1,pose.elbowY-2,
@@ -505,22 +505,29 @@ public final class MotionArt {
         paintedArmorBone(c,pose.elbowX,pose.elbowY,
                 pose.handX,pose.handY,true);
         arm.setStyle(Paint.Style.FILL);
-        arm.setColor(0xffc2b078);
-        c.drawCircle(pose.elbowX,pose.elbowY,5,arm);
+        // Small contoured hinge plate instead of a large exposed beige ball.
+        arm.setColor(0xff294658);
+        c.drawRoundRect(pose.elbowX-5,pose.elbowY-5,
+                pose.elbowX+5,pose.elbowY+5,3,3,arm);
+        arm.setColor(0xffa2b8c4);
+        c.drawCircle(pose.elbowX-1,pose.elbowY-1,2.3f,arm);
         // Real support-hand grip on the large sword, channel staff and lance.
         // It moves WITH the animated main hand, not at a fixed screen coordinate.
         if(id==1||id==3||id==5){
             float supportX=pose.handX-(id==1?10:12);
             float supportY=pose.handY+(id==1?12:8);
-            arm.setColor(0xff283a4c);arm.setStrokeWidth(12f);
+            arm.setColor(0xff283a4c);arm.setStrokeWidth(9f);
             arm.setStyle(Paint.Style.STROKE);
             c.drawLine(-20,-86,supportX-5,supportY+2,arm);
-            arm.setColor(0xff93b7c1);arm.setStrokeWidth(7);
+            arm.setColor(0xff93b7c1);arm.setStrokeWidth(5);
             c.drawLine(-20,-86,supportX-5,supportY+2,arm);
             paintedArmorBone(c,-20,-86,supportX-5,supportY+2,false);
             arm.setStyle(Paint.Style.FILL);
-            arm.setColor(0xffcfbb98);
-            c.drawCircle(supportX,supportY,7,arm);
+            arm.setColor(0xff344e61);
+            c.drawRoundRect(supportX-4,supportY-4,supportX+4,supportY+4,
+                    2,2,arm);
+            arm.setColor(0xffc3d0c8);
+            c.drawCircle(supportX,supportY,1.8f,arm);
         }
         // Weapon image is positioned by the grip socket, not screen-space sticker.
         c.save();
@@ -567,20 +574,28 @@ public final class MotionArt {
             }
         }
         c.restore();
-        // The hand is drawn over the handle, so visibly gripping the weapon.
-        arm.setColor(0xff293d4e);
-        c.drawCircle(pose.handX,pose.handY,9,arm);
-        arm.setColor(0xffc3d4d8);
-        c.drawCircle(pose.handX-1,pose.handY-2,6,arm);
-        arm.setColor(0xffd8b47d);
-        c.drawCircle(pose.handX+2,pose.handY+2,2.7f,arm);
+        // Compact metal gauntlet, aligned to the rotated equipment handle:
+        // no circular flesh-colored joint pasted onto the character.
+        c.save();c.translate(pose.handX,pose.handY);
+        c.rotate(pose.angle-12);
+        Path glove=new Path();
+        glove.moveTo(-6,-8);glove.lineTo(5,-9);
+        glove.lineTo(8,-1);glove.lineTo(5,8);
+        glove.lineTo(-4,8);glove.lineTo(-8,1);
+        glove.close();
+        arm.setColor(0xff243a4b);c.drawPath(glove,arm);
+        arm.setColor(0xff9bb8c7);
+        c.drawRoundRect(-5,-6,5,3,2,2,arm);
+        arm.setColor(0xffd6b66f);
+        c.drawRect(-3,2,3,3.5f,arm);
+        c.restore();
         if(attackProgress>=0&&!blade) {
             Paint glow=new Paint(Paint.ANTI_ALIAS_FLAG);
             int color=id==5?0xffaafaff:id==3?0xffaca5ff:0xffffce8c;
             glow.setColor(color);
             glow.setAlpha((int)(170*(1-clamp01(attackProgress))));
             WeaponRig.Point muzzle=WeaponRig.tip(id,pose);
-            c.drawCircle(muzzle.x,muzzle.y,11,glow);
+            c.drawCircle(muzzle.x,muzzle.y,7,glow);
             glow.setAlpha(240);
             c.drawCircle(muzzle.x,muzzle.y,3,glow);
             glow.setStyle(Paint.Style.STROKE);

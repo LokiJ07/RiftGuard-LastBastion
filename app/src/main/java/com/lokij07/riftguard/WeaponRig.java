@@ -126,7 +126,7 @@ public final class WeaponRig {
     // This is the same artwork drawn by MotionArt for each combat class.
     // In-world weapons are deliberately smaller than Armory inventory cards.
     // A Warden is ~140 world units tall; the old equipment dwarfed their body.
-    private static final float[] WEAPON_SCALE={.58f,.70f,.68f,.68f,.58f,.67f};
+    private static final float[] WEAPON_SCALE={.55f,.55f,.55f,.61f,.55f,.60f};
     private static final float[] TIP_LENGTHS={41f,65f,65f,68f,41f,84f};
     public static float renderScale(int weaponId){
         if(weaponId<0||weaponId>=WEAPON_SCALE.length)
