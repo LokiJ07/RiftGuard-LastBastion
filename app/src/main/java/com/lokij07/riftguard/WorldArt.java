@@ -202,20 +202,41 @@ public final class WorldArt {
 
     private static void drawWeaponGeometry(Canvas c,int idx,float time) {
         float sway=(float)Math.sin(time*3+idx)*2f;
-        if(idx==0 || idx==4) { // Mechanical crossbows, siege repeater has paired arms
-            int brass=idx==4?0xffffce72:0xffb9ccd2;
-            rounded(c,-9,-32,9,30,5,0xff6e483a);
-            rounded(c,-5,-25,5,27,3,brass);
-            line(c,-37,-11,37,-11,brass,7);
-            poly(c,0xff546d71,-42,-14,-24,-28,-17,-6,-43,5);
-            poly(c,0xff546d71,42,-14,24,-28,17,-6,43,5);
-            line(c,-34,-13,0,5,0xfff7e1b7,2);
-            line(c,34,-13,0,5,0xfff7e1b7,2);
-            line(c,0,8,0,-41,0xffd5e8ec,3);
+        if(idx==0 || idx==4) { // Real compact recurve crossbow / siege repeater.
+            int metal=idx==4?0xffddb16e:0xffa5c4cf;
+            int highlight=idx==4?0xffffdd9e:0xffedfaff;
+            // Grip and narrow stock: arrow points up the weapon's own local -Y.
+            rounded(c,-7,-33,7,30,3,0xff3c3032);
+            rounded(c,-4,-28,4,24,2,0xff896b4d);
+            rounded(c,-7,-18,7,-12,2,0xffd6b98b);
+            line(c,-4,16,4,16,0xffdbc6a2,2);
+            // Curved composite bow limbs, not four broad flat paddles.
+            Path bow=new Path();
+            bow.moveTo(-33,-22);
+            bow.cubicTo(-28,-38,-14,-41,0,-31);
+            bow.cubicTo(14,-41,28,-38,33,-22);
+            P.setShader(null);P.setStyle(Paint.Style.STROKE);
+            P.setStrokeCap(Paint.Cap.ROUND);P.setStrokeWidth(7);
+            P.setColor(0xff354f5d);c.drawPath(bow,P);
+            P.setColor(metal);P.setStrokeWidth(3.8f);c.drawPath(bow,P);
+            P.setColor(highlight);P.setStrokeWidth(1.2f);c.drawPath(bow,P);
+            P.setStyle(Paint.Style.FILL);
+            // Draw taut bowstring behind the actual loaded bolt.
+            line(c,-32,-22,0,-9,0xffe1d9c8,1.8f);
+            line(c,32,-22,0,-9,0xffe1d9c8,1.8f);
+            line(c,0,-31,0,-51,0xffe9e6d5,2.5f);
+            poly(c,highlight,0,-58,-5,-47,5,-47);
+            rounded(c,-9,-15,9,-8,3,0xff4c626c);
+            circle(c,-2,-12,3,0xfff7db9a);
             if(idx==4) {
-                line(c,-30,15,30,15,brass,6);
-                circle(c,0,11,9,0xffd09c53);
-                for(int j=-1;j<=1;j++)circle(c,16*j,-11,4,0xfff6dc84);
+                // Repeater has a small feed magazine and second, *short*
+                // barrel rail, not extra windmill wings.
+                rounded(c,-14,-2,-5,22,4,0xff51443e);
+                rounded(c,-12,0,-7,15,2,0xffcfb36d);
+                line(c,-5,-43,-5,-18,highlight,2.3f);
+                circle(c,-3,11,4,0xffffda83);
+                for(int j=0;j<3;j++)line(c,-10+j*6,20,-10+j*6,26,
+                        0xffd6b477,1.5f);
             }
         } else if(idx==1 || idx==2) { // Swords
             int blade=idx==2?0xffff9c54:0xffdeebf1;
