@@ -52,13 +52,38 @@ sleep 1
 take "05-battle-start"
 # Reset Android's hardware frame timeline, then issue actual movement/touch.
 adb shell dumpsys gfxinfo "$APP" reset >/dev/null || true
-for n in $(seq 1 12); do
+# Capture the first real combat inputs promptly: after 12 lengthy ADB input
+# cycles the hero could be defeated, making the final picture an atlas
+# instead of an active-battle validation. Separate survival testing belongs
+# in deterministic game tests, not this launch/input smoke check.
+for n in $(seq 1 3); do
   adb shell input swipe 150 565 215 520 180
   adb shell input tap 730 590
   adb shell input tap 1045 588
 done
-sleep 2
+sleep 0.3
 take "06-battle-interaction"
+# The battle screenshot must differ from the initial start state and cannot
+# silently be the atlas. This test is image-based but not dependent on OCR.
+python3 - "$OUT" <<'PY'
+import sys, pathlib, zlib, struct
+p=pathlib.Path(sys.argv[1])
+def read_png(path):
+    data=path.read_bytes(); pos=8; compressed=b''
+    while pos+12 <= len(data):
+        n=int.from_bytes(data[pos:pos+4],'big')
+        name=data[pos+4:pos+8]
+        chunk=data[pos+8:pos+8+n]
+        pos+=n+12
+        if name==b'IDAT': compressed+=chunk
+        if name==b'IEND': break
+    return zlib.decompress(compressed)
+a=read_png(p/"05-battle-start.png")
+b=read_png(p/"06-battle-interaction.png")
+if a==b:
+    raise SystemExit("Battle inputs did not change any displayed pixels")
+print("Battle interaction screenshot differs from pre-input frame")
+PY
 adb shell dumpsys gfxinfo "$APP" framestats > "$OUT/gfxinfo-framestats.txt" || true
 adb shell dumpsys gfxinfo "$APP" > "$OUT/gfxinfo-summary.txt" || true
 adb shell dumpsys meminfo "$APP" > "$OUT/memory.txt" || true
