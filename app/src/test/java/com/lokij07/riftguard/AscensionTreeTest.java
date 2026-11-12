@@ -95,7 +95,7 @@ public final class AscensionTreeTest {
         assertFalse(tree.available(39,5));
         assertEquals(3,tree.purchasedCount());
         assertEquals(0f,tree.bonus(AscensionTree.ATTACK),.0001f);
-        assertEquals(0,tree.heroHp());
+        assertTrue("Field Medicine node grants real hero vitality",tree.heroHp()>0);
         assertTrue(tree.coreHp()>=0);
     }
 
