@@ -43,6 +43,37 @@ public final class WeaponAnimation {
         if(weapon==5)return 27f*(float)Math.sin(Math.PI*t);
         return -10f*(float)Math.sin(Math.PI*t);
     }
+    /**
+     * Shoulder-driven body translation. Weapons and torso use this identical
+     * function so the in-hand socket follows the real Warden lunge, rather
+     * than leaving the weapon floating in front of an idle torso.
+     */
+    public static float torsoShiftX(int weapon,float progress){
+        check(weapon);
+        if(progress<0)return 0;
+        float t=clamp(progress);
+        float wind=(float)Math.sin(Math.PI*Math.min(1f,t/.35f));
+        float contact=(float)Math.sin(Math.PI*
+                Math.max(0f,Math.min(1f,(t-.30f)/.70f)));
+        switch(weapon){
+            case 0:return -5f*contact; // Crossbow shoulder absorbs recoil
+            case 1:return -11f*wind+16f*contact; // Greatsword wind-up, commit
+            case 2:return -4f*wind+12f*contact; // Forward duelist step
+            case 3:return -5f*wind+7f*contact; // Staff channelling push
+            case 4:return -6f*contact; // Repeater resists burst
+            case 5:return -9f*wind+17f*contact; // Full-body lance thrust
+            default:return 0;
+        }
+    }
+    public static float torsoShiftY(int weapon,float progress){
+        check(weapon);
+        if(progress<0)return 0;
+        float t=clamp(progress);
+        float contact=(float)Math.sin(Math.PI*t);
+        return weapon==1?7f*contact:weapon==2?-3f*contact:
+                weapon==3?-7f*contact:weapon==5?-4f*contact:0;
+    }
+
     public static float recoil(int weapon,float progress){
         check(weapon);if(progress<0)return 0;
         float t=clamp(progress);
