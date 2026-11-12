@@ -2025,6 +2025,7 @@ public final class RiftGameView extends View {
             textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
         }
         text(c,"MOVE",stickX,688,17,0xffb5cfc5,true);
+        text(c,"PADS "+activeTowerCount,buildHudX(),680,15,0xffb9ddd2,true);
         if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
             WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
@@ -2182,6 +2183,9 @@ public final class RiftGameView extends View {
             c.clipRect(905,top,1204,top+68);
             deployedMap.thumbnail(c,mission,905,top,299,68);
             drawStagePreview(c,mission,905,top);
+            round(c,912,top+4,1010,top+27,6,0xdd1a3640);
+            text(c,TowerPadLayout.count(mission)+" REAL PADS",
+                    961,top+21,13,0xffffe3aa,true);
             // Name the actual stage's landscape directly on the illustrated
             // A/B/C mission preview, instead of another anonymous map number.
             rect(c,905,top+43,1204,top+67,0xd0182b35);
@@ -2996,7 +3000,9 @@ public final class RiftGameView extends View {
         drawStoryParagraph(c,story.lore,594,305,552,23,33,0xffecede5);
         text(c,"WARDEN'S ORDERS",596,384,18,0xff9cb6ba,false);
         drawStoryParagraph(c,story.order,594,418,552,22,31,INK);
-        text(c,story.objective,134,572,21,0xffc0e0bf,false);
+        textFit(c,story.objective,134,570,410,21,0xffc0e0bf,false);
+        textFit(c,TowerPadLayout.count(stage)+" LIVE TOWER PADS • "+
+                MissionObjectives.name(stage),134,604,413,16,0xffffd7a1,false);
         drawStoryParagraph(c,story.warning,594,523,538,19,26,0xffffc38f);
         button(c,700,586,1130,652,"BEGIN BATTLE",0xffa46a45);
         text(c,"BACK TO ATLAS",141,634,20,0xffcad5cc,false);
