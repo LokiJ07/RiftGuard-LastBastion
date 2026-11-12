@@ -394,13 +394,17 @@ public final class NativeDeployedMapArt {
         draw(c,chosen,time,false);
     }
     public synchronized void draw(Canvas c,int chosen,float time,boolean reduced){
+        draw(c,chosen,time,reduced,false);
+    }
+    public synchronized void draw(Canvas c,int chosen,float time,
+                                  boolean reduced,boolean lowEffects){
         prepare(chosen);
         float visualTime=reduced?0:time;
         fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
-        KingdomLandmarkArt.drawMotion(c,chosen,visualTime,reduced);
+        KingdomLandmarkArt.drawMotion(c,chosen,visualTime,reduced,lowEffects);
         int col=GLOW[world(chosen)];
         // Deliberately sparse ambient motion, below characters and HUD.
-        for(int i=0;i<23;i++){
+        for(int i=0;i<(lowEffects?9:23);i++){
             float x=((i*137+Campaign.seed(chosen)%97)+visualTime*11)%W;
             float y=270+(i*113)%530+(float)Math.sin(visualTime*.9f+i)*8;
             oval(c,x,y,2,2,alpha(col,65+i%3*28));
