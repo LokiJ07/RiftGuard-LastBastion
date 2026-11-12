@@ -2264,7 +2264,9 @@ public final class RiftGameView extends View {
             text(c,skill.name,x+146,y+51,24,unlockedSkill?INK:0xffa2a6aa,false);
             text(c,"CD "+(int)skill.cooldown+"s  /  RANK "+skill.requiredRank,
                     x+145,y+87,18,skill.color,false);
-            text(c,skill.detail,x+146,y+114,16,INK,false);
+            // Wrap descriptions INSIDE the ability card. Long skills like
+            // Meteor Strike must never cross borders or obscure other cards.
+            drawStoryParagraph(c,skill.detail,x+146,y+114,184,16,18,INK);
             text(c,unlockedSkill?(i==equippedSkill?"EQUIPPED  ✓":"TAP TO EQUIP"):
                     "LOCKED UNTIL RANK "+skill.requiredRank,
                     x+145,y+160,17,unlockedSkill?GOLD:0xffffaa9c,false);
