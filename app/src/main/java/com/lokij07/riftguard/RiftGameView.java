@@ -1971,14 +1971,16 @@ public final class RiftGameView extends View {
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
-                weaponMastery.count(equippedWeapon)))return;
+                weaponMastery.count(equippedWeapon),
+                UpgradeEvolution.weaponForm(weaponMastery,equippedWeapon)))return;
         if(characterArt.available()) {
             boolean moving=Math.abs(axisX)+Math.abs(axisY)>.1f;
             characterArt.hero(c,heroX,heroY,gameTime,moving,fireFlash>0,hurtCooldown>.1f);
             // The currently equipped weapon still changes independently of hero art.
             c.save(); c.translate(heroX+22,heroY-27);
             c.rotate(fireFlash>0?28:0);
-            WorldArt.drawWeapon(c,equippedWeapon,0,0,.38f,gameTime);
+            WeaponEvolutionArt.draw(c,equippedWeapon,
+                    UpgradeEvolution.weaponForm(weaponMastery,equippedWeapon),0,0,.38f,gameTime);
             c.restore();
             return;
         }
@@ -2480,8 +2482,8 @@ public final class RiftGameView extends View {
                     i==equippedWeapon?GOLD:0xff49616b);
             round(c,x,y,x+340,y+192,14,available?0xff294955:0xff293640);
             round(c,x+12,y+15,x+128,y+167,12,0xff172d39);
-            if(!motionArt.weaponIcon(c,i,x+69,y+96,100,125))
-                WorldArt.drawWeapon(c,i,x+69,y+96,1.14f,gameTime);
+            WeaponEvolutionArt.draw(c,i,UpgradeEvolution.weaponForm(weaponMastery,i),
+                    x+69,y+106,1.02f,gameTime);
             text(c,w.name,x+146,y+54,24,available?INK:0xffa2a6aa,false);
             text(c,w.type+"  /  MASTERY "+weaponMastery.count(i)+"/11",
                     x+147,y+85,16,w.color,false);
@@ -2510,8 +2512,9 @@ public final class RiftGameView extends View {
             boolean selected=weapon==selectedMasteryWeapon;
             round(c,left,122,left+176,166,11,
                     selected?0xffa27853:0xff405768);
-            if(motionArt.weaponIcon(c,weapon,left+23,144,35,36)){}
-            else WorldArt.drawHeldWeapon(c,weapon,left+23,145,.38f,gameTime);
+            WeaponEvolutionArt.draw(c,weapon,
+                    UpgradeEvolution.weaponForm(weaponMastery,weapon),
+                    left+23,145,.34f,gameTime);
             String label=Progression.WEAPONS[weapon].name.toUpperCase();
             if(label.length()>15)label=label.substring(0,15);
             text(c,label,left+104,151,15,selected?0xffffe0a6:INK,true);
@@ -2569,7 +2572,9 @@ public final class RiftGameView extends View {
         text(c,weaponMastery.count(selectedMasteryWeapon)+"/11 NODES  •  FORT "+
                 fortressRank,845,276,18,INK,false);
         round(c,846,297,1191,365,13,0xff152c38);
-        WorldArt.drawHeldWeapon(c,selectedMasteryWeapon,894,341,.62f,gameTime);
+        WeaponEvolutionArt.draw(c,selectedMasteryWeapon,
+                UpgradeEvolution.weaponForm(weaponMastery,selectedMasteryWeapon),
+                894,341,.62f,gameTime);
         drawStoryParagraph(c,node.name,936,329,240,24,25,GOLD);
         text(c,"TIER "+node.tier+"   /   "+WeaponMastery.PATH_NAMES[node.lane],
                 846,403,18,INK,false);
