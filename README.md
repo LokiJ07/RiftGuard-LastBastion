@@ -2,6 +2,14 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
+## v0.40.0-rc2 — four-pillar polishing candidate (pending CI / emulator verification)
+
+- **World detail:** `KingdomSetPieces` adds ten distinct architectural landmark families (Greenhaven timber gate, Hollow giant-tree shrine, swamp stilt sanctuary, volcanic forge, frozen temple, industrial watch, arcane crystal gate, tempest towers, shadow ossuary and eclipse obelisk). Seeded mission A/B/C variants render directly into the native cached battlefield. Light motes animate in real world positions without moving enemy/tower interaction coordinates.
+- **Character/enemy motion:** all seven enemy species get independently anchored and timed weapon, wing, hooves and boss-phase embellishments over the original painted sprite animation; the Warden's *actual sprite* tilts and squashes during 210 ms dodge, not just a detached afterimage.
+- **Audio/VFX:** 14 offline original synthesized audio events (including DODGE, BOSS_WARN, BOSS_PHASE and tower family cues, plus quiet ambience) with per-event debounce; timed live VFX for freezing, burning, boss telegraphs and Warden dodge direction.
+- **Performance/QA:** `FinalPillarsV040Test` verifies painted pixel distinctions, audio signatures and draws a native frame-latency measurement explicitly labelled *Robolectric software Canvas only*. A second GitHub Actions job boots an Android API 29 emulator, installs the generated APK, navigates the menu, performs real touch inputs, collects PNG screenshots, Android meminfo and gfxinfo frame samples and flags crashes/ANRs. **Emulator metrics are NOT certified FPS or battery life for a physical phone.**
+- **Release gate:** Do not call this production-ready until all tests and the emulator smoke job finish successfully and gallery images have been inspected. The user's own physical-device performance cannot be measured or controlled remotely; it remains a separately labelled acceptance check.
+
 ## v0.40.0-rc1 — Kingdoms at War gameplay candidate (under test)
 
 This release candidate moves the v0.40 plan forward with **real playable code**, not a completed v0.40 claim:
