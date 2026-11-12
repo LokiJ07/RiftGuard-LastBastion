@@ -1824,6 +1824,8 @@ public final class RiftGameView extends View {
                         4,0xffdbb0ef);
             }
             if(e.specialCharge>0) {
+                CombatImpactPolish.boss(c,e.x,e.y,e.specialCharge,
+                        e.bossPhase,Campaign.world(stage),gameTime);
                 circleStroke(c,e.x,e.y-38,95+e.specialCharge*25,
                         0xffffc18f,5);
                 text(c,BossTactics.warning(stage),e.x,e.y-118,18,
@@ -1849,6 +1851,8 @@ public final class RiftGameView extends View {
             // movement, boss phase and hit clocks as the illustrated sprite.
             EnemyAnimationPolish.draw(c,e.kind,e.x,e.y,e.phase,attack,
                     e.hitReaction,e.boss,e.bossPhase);
+            CombatImpactPolish.statuses(c,e.x,e.y,gameTime,
+                    e.slowTimer,e.burnTimer);
             if(e.hp<e.maxHp) {
                 float w=e.kind==5?52:28;
                 rect(c,e.x-w,e.y-(e.kind==5?110:78),e.x+w,e.y-(e.kind==5?104:72),0xff20313a);
@@ -1922,6 +1926,7 @@ public final class RiftGameView extends View {
     private void drawHero(Canvas c) {
         if(dodgeTime>0){
             float progress=1-dodgeTime/DodgeRules.DURATION;
+            CombatImpactPolish.dodge(c,heroX,heroY,dodgeDirX,dodgeDirY,progress);
             // Actual directional after-image trail, attached to the moving hero.
             for(int k=1;k<=3;k++){
                 float offset=k*25f*progress;
