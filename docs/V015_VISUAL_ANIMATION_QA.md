@@ -6,7 +6,9 @@ This is an incremental production-rendering upgrade for Android, not an unrelate
 - `AnimationBlend`: stable 4-frame transition control for the existing painterly Warden and 7 monster groups. Adjacent frames blend only during the final 22% of a frame, with a maximum 44% overlay. Attacks do not blend from the final frame back to the first.
 - Player arms, weapon grips, projectile muzzle and combat collision stay on the original continuous weapon-specific IK rig, NOT duplicated in the frame blending pass.
 - Species-specific animation curves: breathing displacement and anticipatory creature attack lunge; winged enemy keeps independent wing motion and next-pose blending.
-- `BattlefieldLighting`: keep entrance light, physically located biome effects, soft grounded Warden foot-contact shadow and gait-dependent shape. Rendering remains behind HUD and above terrain, not a screen-space vignette obscuring combat.
+- `BattlefieldLighting`: keep entrance light, physically located biome effects, soft grounded separate left/right Warden foot-contact shadows with gait-dependent weight transfer. Rendering remains behind HUD and above terrain, not a screen-space vignette obscuring combat.
+- Visual review at 1280×720 found the existing Crossbow looked like a four-paddle spinner. `WorldArt` now draws an actual compact recurve silhouette, bowstring, bolt, and smaller Repeater feeder.
+- `MotionArt` now masks and bends **genuine painted armor fragments along both IK arm segments** instead of two untextured flat rods; `WeaponAnimation.torsoShiftX/Y` and `WeaponRig` synchronize the torso lunge, shoulder, elbow, glove and physical muzzle during all six attack profiles.
 - Screen gallery: `43-painted-sprite-transition-qa.png` uses 8 actual hero timestamps and the real rendered enemy classes; older gallery captures remain in CI to catch visual regressions.
 - Automated Robolectric Native Graphics tests cover attack boundary/cycle math, actual pixel differences between hero and enemy frames, biomes across time and moving foot shadows.
 
