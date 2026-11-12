@@ -8,6 +8,9 @@ adb shell wm size 1280x720
 adb shell wm density 240
 adb shell settings put system accelerometer_rotation 0 || true
 adb shell settings put system user_rotation 1 || true
+# Android system immersive-mode first-run tutorial obscures actual game art
+# and intercepts tap inputs. Suppress it for repeatable QA screenshots.
+adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb shell am start -W -n "$PKG/.MainActivity" | tee emulator-qa/launch.txt
 sleep 4
 adb shell screencap -p /sdcard/rg-home.png
@@ -15,6 +18,10 @@ adb pull /sdcard/rg-home.png emulator-qa/01-home.png
 # Test actual upgrade pages and their common four-button footer.
 adb shell input tap 219 535
 sleep 2
+# Some emulator images ignore the secure setting; dismiss system tutorial.
+# "Got it" is at 800,304 in the 1280x720 virtual landscape display.
+adb shell input tap 800 304
+sleep 1
 adb shell screencap -p /sdcard/rg-armory.png
 adb pull /sdcard/rg-armory.png emulator-qa/02-armory-evolved-weapons.png
 adb shell input tap 1060 656
