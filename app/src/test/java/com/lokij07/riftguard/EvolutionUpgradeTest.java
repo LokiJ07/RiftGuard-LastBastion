@@ -177,6 +177,66 @@ public final class EvolutionUpgradeTest {
         assertEquals(5,treasuryImages.size());
         assertEquals(5,movementImages.size());
     }
+    @Test public void boughtFortressBatteryFiresIndependentProjectileIntoRealCombat()
+            throws Exception{
+        Context ctx=RuntimeEnvironment.getApplication();
+        SharedPreferences p=ctx.getSharedPreferences("riftguard_campaign_v1",
+                Context.MODE_PRIVATE);
+        p.edit().clear().putInt("fortress_rank",5)
+                .putInt("supplies",990000).commit();
+        AscensionTree asc=new AscensionTree(p);
+        for(AscensionTree.Node n:AscensionTree.NODES)
+            if(n.category==AscensionTree.TOWER && n.id!=0)
+                buyParents(asc,n.id);
+        assertEquals(4,EvolutionProgress.fortressArsenal(asc,5));
+        RiftGameView game=new RiftGameView(ctx);
+        game.layout(0,0,1280,720);
+        Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
+        start.setAccessible(true);start.invoke(game,0);
+        Method spawn=RiftGameView.class.getDeclaredMethod("spawnEnemy");
+        spawn.setAccessible(true);spawn.invoke(game);
+        Field foesField=RiftGameView.class.getDeclaredField("enemies");
+        foesField.setAccessible(true);
+        java.util.List<?> foes=(java.util.List<?>)foesField.get(game);
+        assertFalse(foes.isEmpty());
+        Object enemy=foes.get(0);
+        Field enemyX=enemy.getClass().getDeclaredField("x");
+        Field enemyY=enemy.getClass().getDeclaredField("y");
+        enemyX.setAccessible(true);enemyY.setAccessible(true);
+        enemyX.setFloat(enemy,1160f);enemyY.setFloat(enemy,510f);
+        Field timer=RiftGameView.class.getDeclaredField("fortressArsenalTimer");
+        timer.setAccessible(true);timer.setFloat(game,0f);
+        Method update=RiftGameView.class.getDeclaredMethod("update",float.class);
+        update.setAccessible(true);update.invoke(game,.035f);
+        Field shotsField=RiftGameView.class.getDeclaredField("shots");
+        shotsField.setAccessible(true);
+        java.util.List<?> shots=(java.util.List<?>)shotsField.get(game);
+        Field fired=RiftGameView.class.getDeclaredField("fortressArsenalShots");
+        fired.setAccessible(true);
+        assertEquals("Purchase must spawn independent physical projectiles",
+                1,fired.getInt(game));
+        assertFalse(shots.isEmpty());
+        boolean launchedFromRealPrism=false;
+        for(Object projectile:shots){
+            Field x=projectile.getClass().getDeclaredField("x");
+            Field y=projectile.getClass().getDeclaredField("y");
+            Field tower=projectile.getClass().getDeclaredField("tower");
+            x.setAccessible(true);y.setAccessible(true);tower.setAccessible(true);
+            if(tower.getBoolean(projectile)&&
+                    Math.abs(x.getFloat(projectile)-
+                            FortressArmamentRules.muzzleX(950,0))<65f&&
+                    Math.abs(y.getFloat(projectile)-
+                            FortressArmamentRules.muzzleY(510,4))<65f){
+                launchedFromRealPrism=true;
+            }
+        }
+        assertTrue("New weapon must fire from visible castle arsenal",
+                launchedFromRealPrism);
+        assertTrue(timer.getFloat(game)>0);
+        assertEquals(0f,FortressArmamentRules.damage(0),.001f);
+        assertTrue(FortressArmamentRules.damage(4)>
+                FortressArmamentRules.damage(1));
+    }
     @Test public void actualGameConsumesPurchasedModelsWithoutChangingSaveSchema()
             throws Exception{
         Context c=RuntimeEnvironment.getApplication();
