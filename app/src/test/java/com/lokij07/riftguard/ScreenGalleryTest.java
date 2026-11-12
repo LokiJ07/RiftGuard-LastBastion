@@ -105,6 +105,18 @@ public class ScreenGalleryTest {
         capture(view,"04-fortress");
         tap(view,890,655); // Fortress -> the upward Ascension Tree
         capture(view,"32-ascension-bottom-origin");
+        // Demonstrate genuinely PURCHASED paths, not just brightened icons.
+        android.content.SharedPreferences ascPrefs=context.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE);
+        ascPrefs.edit().putInt("supplies",1600).commit();
+        AscensionTree exampleTree=new AscensionTree(ascPrefs);
+        for(int node=1;node<=8;node++)
+            assertTrue("The growing example follows real prerequisites",
+                    exampleTree.buy(node,2));
+        java.lang.reflect.Field ascSupply=RiftGameView.class.getDeclaredField("supplies");
+        ascSupply.setAccessible(true);
+        ascSupply.setInt(view,ascPrefs.getInt("supplies",0));
+        capture(view,"35-ascension-purchased-paths");
         // Six upward swipes are enough to reach the true summit of the tree.
         for(int i=0;i<7;i++)swipe(view,445,462,178);
         capture(view,"33-ascension-top-summit");
