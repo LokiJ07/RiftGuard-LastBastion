@@ -144,6 +144,37 @@ public final class EvolutionUpgradeTest {
             save(picture,"93-skill-evolution-"+tier+".png");picture.recycle();
         }
     }
+    @Test public void coreGoldAndSpeedBranchesAlsoChangeActualShapes()
+            throws Exception {
+        Set<Integer> coreImages=new HashSet<>(),treasuryImages=new HashSet<>(),
+                movementImages=new HashSet<>();
+        for(int tier=0;tier<5;tier++){
+            Bitmap core=Bitmap.createBitmap(430,350,Bitmap.Config.ARGB_8888);
+            Canvas coreCanvas=new Canvas(core);coreCanvas.drawColor(0xff1c3141);
+            NativeDeployedMapArt.fort(coreCanvas,215,230,5,0,1f);
+            EvolutionEffects.fortressBranches(coreCanvas,215,230,tier,0);
+            assertTrue("Core plating tier "+tier,coreImages.add(hash(core)));
+            save(core,"95-core-masonry-"+tier+".png");core.recycle();
+
+            Bitmap gold=Bitmap.createBitmap(430,350,Bitmap.Config.ARGB_8888);
+            Canvas goldCanvas=new Canvas(gold);goldCanvas.drawColor(0xff1c3141);
+            NativeDeployedMapArt.fort(goldCanvas,215,230,5,0,1f);
+            EvolutionEffects.fortressBranches(goldCanvas,215,230,0,tier);
+            assertTrue("Treasury architecture tier "+tier,
+                    treasuryImages.add(hash(gold)));
+            save(gold,"96-fortress-treasury-"+tier+".png");gold.recycle();
+
+            Bitmap speed=Bitmap.createBitmap(240,130,Bitmap.Config.ARGB_8888);
+            Canvas speedCanvas=new Canvas(speed);
+            speedCanvas.drawColor(0xff192d39);
+            EvolutionEffects.greaves(speedCanvas,120,86,tier);
+            assertTrue("Speed greaves tier "+tier,movementImages.add(hash(speed)));
+            save(speed,"97-speed-greaves-"+tier+".png");speed.recycle();
+        }
+        assertEquals(5,coreImages.size());
+        assertEquals(5,treasuryImages.size());
+        assertEquals(5,movementImages.size());
+    }
     @Test public void actualGameConsumesPurchasedModelsWithoutChangingSaveSchema()
             throws Exception{
         Context c=RuntimeEnvironment.getApplication();
