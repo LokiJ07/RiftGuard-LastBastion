@@ -72,6 +72,11 @@ public final class LivingBattlefield {
 
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Bitmap[] layers=new Bitmap[5];
+    // Map selection shows three actual stage previews simultaneously.
+    // Cache <=9 tiny thumbnails rather than repeatedly rebuilding a huge
+    // battlefield atlas during 60fps menu navigation.
+    private final java.util.LinkedHashMap<Integer,Bitmap> thumbnails=
+            new java.util.LinkedHashMap<>(12,.75f,true);
     private int renderedStage=-1;
     private int generation=0;
 
@@ -473,6 +478,43 @@ public final class LivingBattlefield {
         }
         c.restore();
     }
+    /**
+     * Matching native thumbnail for a selectable A/B/C map card.
+     * Fully deterministic stage imagery, cached as a small 320x112 bitmap,
+     * so viewing the atlas never allocates five large layers each frame.
+     */
+    public void thumbnail(Canvas c,int stage,float left,float top,
+                          float width,float height){
+        Campaign.checkStage(stage);
+        Bitmap thumb=thumbnails.get(stage);
+        if(thumb==null||thumb.isRecycled()){
+            thumb=Bitmap.createBitmap(320,112,Bitmap.Config.ARGB_8888);
+            Canvas tc=new Canvas(thumb);
+            tc.scale(320f/MAP_W,112f/BACK_H);
+            int world=biome(stage);
+            buildSky(tc,world,stage);
+            ridge(tc,stage,FAR[world],365,210,37);
+            ridge(tc,stage,MID[world],402,161,92);
+            ridge(tc,stage,NEAR[world],435,101,158);
+            drawLake(tc,stage,world,0);
+            drawCastle(tc,stage,world);
+            drawPines(tc,stage,world);
+            thumbnails.put(stage,thumb);
+            if(thumbnails.size()>9){
+                java.util.Iterator<java.util.Map.Entry<Integer,Bitmap>> it=
+                        thumbnails.entrySet().iterator();
+                java.util.Map.Entry<Integer,Bitmap> old=it.next();
+                if(old.getValue()!=null&&!old.getValue().isRecycled())
+                    old.getValue().recycle();
+                it.remove();
+            }
+        }
+        p.setShader(null);p.setColor(Color.WHITE);p.setAlpha(255);
+        p.setStyle(Paint.Style.FILL);
+        c.drawBitmap(thumb,null,new RectF(left,top,left+width,top+height),p);
+    }
+    public int thumbnailCount(){return thumbnails.size();}
+
     /** Actual game scene image for mission/map cards, not a hardcoded world number. */
     public void preview(Canvas c,int stage,float left,float top,float width,float height){
         if(stage!=renderedStage||layers[0]==null)prepare(stage);
