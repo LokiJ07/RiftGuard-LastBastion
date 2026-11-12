@@ -258,6 +258,9 @@ public final class NativeDeployedMapArt {
                 placed++;
             }
         }
+        // Each campaign environment has hand-built, realm-specific landmarks;
+        // its silhouettes sit behind the real construction pads and actors.
+        KingdomLandmarkArt.drawStatic(c,stage);
         // Each drawn construction pad is functional: matches the combat layout.
         for(int i=0;i<activePads;i++)pad(c,padsX[i],padsY[i]);
         // A painted core-footprint shadow holds the existing interactive fort.
@@ -390,6 +393,7 @@ public final class NativeDeployedMapArt {
     public synchronized void draw(Canvas c,int chosen,float time){
         prepare(chosen);
         fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
+        KingdomLandmarkArt.drawMotion(c,chosen,time,false);
         int col=GLOW[world(chosen)];
         // Deliberately sparse ambient motion, below characters and HUD.
         for(int i=0;i<23;i++){
