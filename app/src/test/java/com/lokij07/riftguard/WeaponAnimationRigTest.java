@@ -85,6 +85,28 @@ public final class WeaponAnimationRigTest {
             basic.recycle();mastered.recycle();
         }
     }
+    @Test public void heavyWeaponWholeTorsoLungeAndWristRemainConnected(){
+        for(int w=0;w<6;w++){
+            float a=WeaponAnimation.torsoShiftX(w,.20f);
+            float b=WeaponAnimation.torsoShiftX(w,.60f);
+            assertTrue("Each weapon must have separate visible weight transfer "+w,
+                    Math.abs(a-b)>1f);
+            WeaponRig.Pose idle=WeaponRig.pose(w,-1f,-1f,0f);
+            WeaponRig.Pose strike=WeaponRig.pose(w,.60f,-1f,0f);
+            assertEquals(idle.shoulderX+WeaponAnimation.torsoShiftX(w,.60f),
+                    strike.shoulderX,.001f);
+            assertEquals(idle.shoulderY+WeaponAnimation.torsoShiftY(w,.60f),
+                    strike.shoulderY,.001f);
+            assertTrue("Elbow must still reach weapon glove when torso lunges",
+                    Math.hypot(strike.handX-strike.elbowX,
+                            strike.handY-strike.elbowY)<76f);
+        }
+        assertTrue("Greatsword must wind up then thrust forward",
+                WeaponAnimation.torsoShiftX(1,.20f)<0 &&
+                WeaponAnimation.torsoShiftX(1,.60f)>0);
+        assertTrue("Lance requires a genuine forward commitment",
+                WeaponAnimation.torsoShiftX(5,.60f)>10f);
+    }
     @Test public void projectileTipAndAimStaySynchronizedAtSeveralAngles(){
         for(int weapon:new int[]{0,3,4,5})
             for(float face:new float[]{0f,1.2f,(float)Math.PI,-1.0f}){

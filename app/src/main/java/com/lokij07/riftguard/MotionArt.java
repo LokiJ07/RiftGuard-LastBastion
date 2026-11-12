@@ -17,8 +17,9 @@ import android.graphics.Shader;
  * Production sprite layers for Android Canvas.
  * Hero animation has four independently painted/warped poses per state:
  * idle, running, attack and cast. Monsters have 4 locomotion + 4 attack poses.
- * The new clean vector Warden body is weapon-free; equipped weapons are
- * independently animated and anchored to the hand.
+ * The original painted Warden armor is equipment-masked; independently
+ * rendered weapons stay anchored to the hand. Smooth short transitions preserve
+ * the painterly sprite atlas without introducing fake AI-generated frames.
  */
 public final class MotionArt {
     private static final int HERO_W=164,HERO_H=188;
@@ -315,6 +316,8 @@ public final class MotionArt {
                 (attack<.5f?2.8f:1.2f);
         anticipation+=WeaponAnimation.anticipation(weaponId,attack);
         c.save();
+        c.translate(WeaponAnimation.torsoShiftX(weaponId,attack),
+                WeaponAnimation.torsoShiftY(weaponId,attack));
         c.scale(1f+breath*.4f,1f-breath,0,-53);
         c.rotate(lean+anticipation,0,-39);
         // One feathered painted torso, explicitly excluding the original
@@ -344,18 +347,39 @@ public final class MotionArt {
         c.restore();
     }
 
+    /**
+     * Interpolate adjacent illustrated body poses for the last 22% of a frame.
+     * The outer weapon, muzzle and hitbox are NOT double-drawn: they stay in
+     * the existing continuous IK combat rig, avoiding detached trails.
+     */
+    private void drawTweenedHeroBody(Canvas c,int state,boolean left,boolean hurt,
+                                    boolean running,float phase,float attack,
+                                    float time,float x,float y,int weaponId,
+                                    float eventProgress){
+        AnimationBlend.State pose=state==2||state==3?
+                AnimationBlend.event(eventProgress,4):
+                AnimationBlend.loop(time,running?10f:3f,4);
+        drawHeroRigFrame(c,state,pose.current,x,y,left,hurt,running,
+                phase,attack,weaponId);
+        if(pose.shouldBlend()){
+            int alpha=Math.max(1,Math.min(112,Math.round(255*pose.nextAlpha)));
+            int layer=c.saveLayerAlpha(new RectF(x-100,y-165,x+102,y+22),alpha);
+            drawHeroRigFrame(c,state,pose.next,x,y,left,hurt,running,
+                    phase,attack,weaponId);
+            c.restoreToCount(layer);
+        }
+    }
+
     /** Hero's armor and limbs without any externally equipped weapon. */
     public boolean heroBody(Canvas c,float x,float y,float time,float facing,
                             boolean running,float attackProgress,float castProgress,
                             boolean hurt) {
         if(!heroReady())return false;
         int state=castProgress>=0?3:attackProgress>=0?2:running?1:0;
-        int frame=state==2?eventFrame(attackProgress):state==3?
-                eventFrame(castProgress):frame(time,state==1?10:3,4);
         boolean left=Math.cos(facing)<-.28f;
-        // Animation phase follows motion, not gameTime for stationary steps.
-        drawHeroRigFrame(c,state,frame,x,y,left,hurt,running,
-                running?time*11.7f:time*2.2f,attackProgress);
+        drawTweenedHeroBody(c,state,left,hurt,running,
+                running?time*11.7f:time*2.2f,attackProgress,
+                time,x,y,0,state==2?attackProgress:castProgress);
         return true;
     }
 
@@ -372,13 +396,12 @@ public final class MotionArt {
                         boolean hurt,int weaponId,int masteryNodes) {
         if(!heroReady())return false;
         int state=castProgress>=0?3:attackProgress>=0?2:running?1:0;
-        int frame=state==2?eventFrame(attackProgress):state==3?
-                eventFrame(castProgress):frame(time,state==1?10:3,4);
         boolean left=Math.cos(facing)<-.28f;
-        // Torso anticipation is specific to EACH of the six equipped weapons.
-        // The existing painted armor remains, with no baked-in right-waist sword.
-        drawHeroRigFrame(c,state,frame,x,y,left,hurt,running,
-                running?time*11.7f:time*2.2f,attackProgress,weaponId);
+        // Six different body anticipations, smooth painterly frame transition;
+        // the separately driven hand/weapon is deliberately NOT frame-blended.
+        drawTweenedHeroBody(c,state,left,hurt,running,
+                running?time*11.7f:time*2.2f,attackProgress,
+                time,x,y,weaponId,state==2?attackProgress:castProgress);
         // Keep the transparent combat model visible even if an icon atlas is missing.
         c.save();c.translate(x,y);
         if(left)c.scale(-1,1);
@@ -392,6 +415,48 @@ public final class MotionArt {
      * weapon class and the drawn gauntlet covers the weapon's actual grip.
      * Uses the original art; full separated skeletal sprites remain future work.
      */
+    /**
+     * Paint a real illustrated armor fragment along a shoulder-to-elbow or
+     * elbow-to-gauntlet bone. This replaces the plain stick/rod impression:
+     * the source crop comes from the Warden's metal armor, intentionally
+     * avoiding the original right-waist weapon and background.
+     */
+    private void paintedArmorBone(Canvas c,float ax,float ay,
+                                  float bx,float by,boolean forearm){
+        if(!heroReady())return;
+        float dx=bx-ax,dy=by-ay;
+        float len=(float)Math.hypot(dx,dy);
+        if(len<3)return;
+        float radius=forearm?9:12;
+        c.save();
+        c.translate(ax,ay);
+        c.rotate((float)Math.toDegrees(Math.atan2(dy,dx))-90f);
+        Path contour=new Path();
+        contour.moveTo(-radius+2,-2);
+        contour.quadTo(0,-5,radius-1,-2);
+        contour.lineTo(radius,len*.35f);
+        contour.lineTo(radius*.68f,len*.79f);
+        contour.lineTo(radius*.55f,len+2);
+        contour.quadTo(0,len+4,-radius*.62f,len+1);
+        contour.lineTo(-radius*.82f,len*.59f);
+        contour.close();
+        c.clipPath(contour);
+        p.setColor(Color.WHITE);p.setAlpha(255);p.setStyle(Paint.Style.FILL);
+        Rect texture=forearm?new Rect(109,73,137,111):
+                new Rect(102,49,137,100);
+        c.drawBitmap(heroes,texture,
+                new RectF(-radius-1,-3,radius+1,len+3),p);
+        // Local plate edge follows animated bone orientation.
+        Paint accent=new Paint(Paint.ANTI_ALIAS_FLAG);
+        accent.setStrokeCap(Paint.Cap.ROUND);
+        accent.setColor(0x9984a9bb);
+        accent.setStrokeWidth(1.8f);
+        c.drawLine(-radius+2,3,-radius*.55f,len*.80f,accent);
+        accent.setColor(0x99edcf92);
+        c.drawLine(radius*.47f,len*.12f,radius*.40f,len*.59f,accent);
+        c.restore();
+    }
+
     private void drawHeldWeapon(Canvas c,int weaponId,float time,
                                 float attackProgress,float castProgress,
                                 boolean running,float facing,int masteryNodes) {
@@ -433,6 +498,12 @@ public final class MotionArt {
                 pose.elbowX-1,pose.elbowY-2,arm);
         c.drawLine(pose.elbowX-1,pose.elbowY-2,
                 pose.handX-1,pose.handY-1,arm);
+        // Animated painterly armor fragments hide generic rod-style arms
+        // without painting a second built-in weapon on the character.
+        paintedArmorBone(c,pose.shoulderX,pose.shoulderY,
+                pose.elbowX,pose.elbowY,false);
+        paintedArmorBone(c,pose.elbowX,pose.elbowY,
+                pose.handX,pose.handY,true);
         arm.setStyle(Paint.Style.FILL);
         arm.setColor(0xffc2b078);
         c.drawCircle(pose.elbowX,pose.elbowY,5,arm);
@@ -446,6 +517,7 @@ public final class MotionArt {
             c.drawLine(-20,-86,supportX-5,supportY+2,arm);
             arm.setColor(0xff93b7c1);arm.setStrokeWidth(7);
             c.drawLine(-20,-86,supportX-5,supportY+2,arm);
+            paintedArmorBone(c,-20,-86,supportX-5,supportY+2,false);
             arm.setStyle(Paint.Style.FILL);
             arm.setColor(0xffcfbb98);
             c.drawCircle(supportX,supportY,7,arm);
@@ -564,8 +636,10 @@ public final class MotionArt {
                          boolean moving,float attackProgress,boolean hurt) {
         if(!enemiesReady()||kind<0||kind>6)return false;
         if(kind==3){
-            int frame=attackProgress>=0?4+eventFrame(attackProgress)
-                    :frame(time,moving?12f:4f,4);
+            AnimationBlend.State frames=attackProgress>=0?
+                    AnimationBlend.event(attackProgress,4):
+                    AnimationBlend.loop(time,moving?12f:4f,4);
+            int frame=(attackProgress>=0?4:0)+frames.current;
             Rect src=new Rect(frame*ENEMY_W,3*ENEMY_H,
                     (frame+1)*ENEMY_W,4*ENEMY_H);
             c.save();c.translate(x,y);
@@ -577,6 +651,13 @@ public final class MotionArt {
             p.setColor(Color.WHITE);p.setAlpha(hurt?185:255);
             // Reuse painted armor and face; do not substitute a geometry stick man.
             c.drawBitmap(monsters,src,new RectF(-36,-78,36,4),p);
+            if(frames.shouldBlend()){
+                Rect next=new Rect((frame-frames.current+frames.next)*ENEMY_W,
+                        3*ENEMY_H,(frame-frames.current+frames.next+1)*ENEMY_W,
+                        4*ENEMY_H);
+                p.setAlpha(Math.round((hurt?185:255)*frames.nextAlpha));
+                c.drawBitmap(monsters,next,new RectF(-36,-78,36,4),p);
+            }
             p.setAlpha(255);
             if(attackProgress>=0){
                 Paint magic=new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -588,11 +669,15 @@ public final class MotionArt {
             }
             c.restore();return true;
         }
-        int frame;
-        if(attackProgress>=0)frame=4+eventFrame(attackProgress);
-        else frame=frame(time,moving?11:2.2f,4);
+        AnimationBlend.State frames=attackProgress>=0?
+                AnimationBlend.event(attackProgress,4):
+                AnimationBlend.loop(time,moving?11f:2.2f,4);
+        int frame=(attackProgress>=0?4:0)+frames.current;
         Rect src=new Rect(frame*ENEMY_W,kind*ENEMY_H,
                 (frame+1)*ENEMY_W,(kind+1)*ENEMY_H);
+        Rect nextSrc=new Rect((frame-frames.current+frames.next)*ENEMY_W,
+                kind*ENEMY_H,(frame-frames.current+frames.next+1)*ENEMY_W,
+                (kind+1)*ENEMY_H);
         float width=kind==5?108:kind==2?79:kind==6?76:57;
         float height=kind==5?127:kind==2?91:kind==6?77:68;
         c.save();c.translate(x,y);
@@ -609,15 +694,29 @@ public final class MotionArt {
                     src.top+(int)(ENEMY_H*.74f));
             c.save();
             float bodyLean=ActorGait.torsoLean(time,moving,attackProgress);
-            c.rotate(bodyLean,0,-height*.23f);
+            c.rotate(bodyLean+AnimationBlend.enemyAttackLean(kind,attackProgress),
+                    0,-height*.23f);
+            c.translate(0,AnimationBlend.enemyBreath(kind,time,moving));
             p.setColor(Color.WHITE);p.setAlpha(hurt?188:255);
-            c.drawBitmap(monsters,upper,
-                    new RectF(-width/2,-height,width/2,-height*.22f),p);
+            RectF chest=new RectF(-width/2,-height,width/2,-height*.22f);
+            c.drawBitmap(monsters,upper,chest,p);
+            if(frames.shouldBlend()){
+                Rect nextChest=new Rect(nextSrc.left,nextSrc.top,
+                        nextSrc.right,nextSrc.top+(int)(ENEMY_H*.74f));
+                p.setAlpha(Math.round((hurt?188:255)*frames.nextAlpha));
+                c.drawBitmap(monsters,nextChest,chest,p);
+            }
             c.restore();
         }else{
             // Flying and four-legged creatures keep their own authentic frames.
             p.setColor(Color.WHITE);p.setAlpha(hurt?190:255);
-            c.drawBitmap(monsters,src,new RectF(-width/2,-height,width/2,6),p);
+            float bob=AnimationBlend.enemyBreath(kind,time,moving);
+            RectF target=new RectF(-width/2,-height+bob,width/2,6+bob);
+            c.drawBitmap(monsters,src,target,p);
+            if(frames.shouldBlend()){
+                p.setAlpha(Math.round((hurt?190:255)*frames.nextAlpha));
+                c.drawBitmap(monsters,nextSrc,target,p);
+            }
         }
         p.setAlpha(255);
         c.restore();

@@ -959,6 +959,7 @@ public final class RiftGameView extends View {
         c.translate(W*.5f-camX*BATTLE_ZOOM,H*.5f-camY*BATTLE_ZOOM);
         c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
         drawTerrain(c,biome);
+        BattlefieldLighting.drawGround(c,biome,stage,gameTime,BASE_X,BASE_Y);
         // Multi-depth light shafts and biome weather live in world coordinates,
         // so scenery moves with the level rather than scrolling over the HUD.
         BiomeAtmosphere.drawBack(c,biome,stage,gameTime);
@@ -997,7 +998,11 @@ public final class RiftGameView extends View {
             }
             else if(entry.type==MONSTER)drawEnemy(c,(Enemy)entry.entity);
             else if(entry.type==DROP)drawPickup(c,(Pickup)entry.entity);
-            else if(entry.type==WARDEN)drawHero(c);
+            else if(entry.type==WARDEN){
+                BattlefieldLighting.drawHeroContact(c,heroX,heroY,heroMoving,
+                        walkClock,biome);
+                drawHero(c);
+            }
         }
         // Draw actual class-specific projectile silhouettes instead of identical dots.
         for(Shot s:shots){
