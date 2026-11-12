@@ -85,17 +85,22 @@ public final class WeaponRig {
                 pose.handX,pose.handY,angle);
     }
 
-    /** Top of the weapon bitmap (drawn from y=-77 to y=9 relative to the grip). */
-    public static Point tip(Pose pose) {
+    // Tip coordinates of the transparent, held weapon geometry in WorldArt.
+    // This is the same artwork drawn by MotionArt for each combat class.
+    private static final float[] TIP_LENGTHS={41f,65f,65f,68f,41f,84f};
+    public static Point tip(int weaponId,Pose pose) {
+        if(weaponId<0||weaponId>=TIP_LENGTHS.length)
+            throw new IllegalArgumentException("weapon");
+        float length=TIP_LENGTHS[weaponId];
         double rad=Math.toRadians(pose.angle);
-        return new Point(pose.handX+(float)Math.sin(rad)*76f,
-                pose.handY-(float)Math.cos(rad)*76f);
+        return new Point(pose.handX+(float)Math.sin(rad)*length,
+                pose.handY-(float)Math.cos(rad)*length);
     }
 
     /** Actual world-space muzzle relative to the hero; supports left/right aim. */
     public static Point muzzle(int weaponId,float attack,float cast,
                                float time,boolean moving,float facing) {
-        Point local=tip(aimedPose(weaponId,attack,cast,time,moving,facing));
+        Point local=tip(weaponId,aimedPose(weaponId,attack,cast,time,moving,facing));
         return Math.cos(facing)<-.28f?new Point(-local.x,local.y):local;
     }
 }
