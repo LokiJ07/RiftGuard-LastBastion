@@ -482,13 +482,13 @@ public final class MotionArt {
                 // The final mastered model acquires a pointed colored cutting
                 // extension; energy radiates along its actual local blade axis.
                 Path crest=new Path();
-                crest.moveTo(-8,-40);crest.lineTo(0,-55);
-                crest.lineTo(8,-40);crest.lineTo(0,-46);crest.close();
+                crest.moveTo(-8,-30);crest.lineTo(0,-40);
+                crest.lineTo(8,-30);crest.lineTo(0,-35);crest.close();
                 rune.setColor(tint);rune.setAlpha(200);
                 c.drawPath(crest,rune);
                 rune.setColor(Color.WHITE);rune.setStyle(Paint.Style.STROKE);
                 rune.setStrokeWidth(1.7f);
-                c.drawLine(0,-45,0,-53,rune);
+                c.drawLine(0,-35,0,-39,rune);
             }
         }
         c.restore();
