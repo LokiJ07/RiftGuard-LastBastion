@@ -235,9 +235,13 @@ public final class NativeDeployedMapArt {
             poly(c,shade(DARK[world],.70f),xx-19,yy,xx+4,yy-28,xx+23,yy+1);
             line(c,xx-16,yy,xx+19,yy-13,3,GLOW[world]);
         }
-        // Terrain prop rules and densities come from HTML region mix[];
-        // reject real lane, fortress, hero and all four build pad locations.
-        final float[] padsX={810,1092,811,1093},padsY={370,370,624,624};
+        // Terrain props never cover the stage's ACTUAL 5–8 playable pads.
+        final int activePads=TowerPadLayout.count(stage);
+        final float[] padsX=new float[activePads],padsY=new float[activePads];
+        for(int slot=0;slot<activePads;slot++){
+            padsX[slot]=TowerPadLayout.x(stage,slot);
+            padsY[slot]=TowerPadLayout.y(stage,slot);
+        }
         int[] mix=MIX[world];
         for(int family=0;family<7;family++){
             int amount=mix[family]*(family==3?1:3);
@@ -247,15 +251,15 @@ public final class NativeDeployedMapArt {
                 if(LaneRules.stageCoversPath(stage,x,y)||sq(x-950)+sq(y-510)<sq(230)
                    ||sq(x-1234)+sq(y-614)<sq(100))continue;
                 boolean nearPad=false;
-                for(int k=0;k<4;k++)if(sq(x-padsX[k])+sq(y-padsY[k])<sq(60))
+                for(int k=0;k<activePads;k++)if(sq(x-padsX[k])+sq(y-padsY[k])<sq(74))
                     nearPad=true;
                 if(nearPad)continue;
                 prop(c,family,x,y,randomScale(r),world,r);
                 placed++;
             }
         }
-        // Four real fixed tower slots become native HTML-styled metal pads.
-        for(int i=0;i<4;i++)pad(c,padsX[i],padsY[i]);
+        // Each drawn construction pad is functional: matches the combat layout.
+        for(int i=0;i<activePads;i++)pad(c,padsX[i],padsY[i]);
         // A painted core-footprint shadow holds the existing interactive fort.
         oval(c,950,615,161,26,0x550b291d);
     }
