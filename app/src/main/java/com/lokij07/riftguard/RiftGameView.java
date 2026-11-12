@@ -1981,21 +1981,28 @@ public final class RiftGameView extends View {
             int layer=c.saveLayerAlpha(heroX-140,heroY-185,
                     heroX+140,heroY+65,alpha);
             drawHeroActor(c,true);
+            // Armor, greaves and Warden share the SAME death transform/fade.
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             c.restoreToCount(layer);c.restore();
             return;
         }
         if(dodgeTime>0){
             float t=1-Math.max(0,dodgeTime)/DodgeRules.DURATION;
-            // Lean and squash the *real illustrated Warden*, rather than
-            // animating the glowing afterimages alone.
+            // Armor and greaves lean with the real Warden body rather than
+            // floating upright after the animated dodge transform is restored.
             c.save();
             c.rotate((float)Math.sin(Math.PI*t)*(-24f),heroX,heroY-53);
             c.scale(1.08f,.87f,heroX,heroY-4);
             drawHeroActor(c,false);
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             c.restore();
-        }else drawHeroActor(c,false);
-        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
-        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
+        }else{
+            drawHeroActor(c,false);
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
+        }
     }
     private void drawHeroActor(Canvas c,boolean forcedHurt) {
         // State-machine clocks drive actual poses. Legacy preview callers
