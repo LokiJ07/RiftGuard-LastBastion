@@ -99,6 +99,9 @@ public final class RiftGameView extends View {
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     private String notice="";
     private boolean waiting, paused, active=true, firing, heroMoving;
+    private boolean pendingMelee=false;
+    private int pendingMeleeWeapon=-1;
+    private float pendingMeleeFacing=0;
     private float walkClock;
     private int joyPointer=-1, attackPointer=-1;
     private float axisX=0, axisY=0;
@@ -253,6 +256,7 @@ public final class RiftGameView extends View {
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
+        pendingMelee=false;pendingMeleeWeapon=-1;
         waveNotice=2.6f; noticeTimer=0; gold=150+(fortressRank-1)*20; kills=0;
         enemies.clear();shots.clear();sparks.clear();decor.clear();pickups.clear();
         deaths.clear();impacts.clear();
@@ -305,7 +309,10 @@ public final class RiftGameView extends View {
         if (!hitsBuiltTower(heroX,nextY)) heroY=nextY;
         heroMoving=distance(heroX,heroY,previousHeroX,previousHeroY)>.3f;
         if(heroMoving)walkClock+=dt;
-        if (Math.abs(axisX)+Math.abs(axisY)>.1f) heroDir=(float)Math.atan2(axisY,axisX);
+        if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
+            heroDir=(float)Math.atan2(axisY,axisX);
+        if(pendingMelee && MeleeSwingRules.hitWindow(1f-fireFlash/.23f))
+            resolveMeleeHit();
         if (firing) fire();
         if (!waiting) {
             spawnTimer-=dt;
@@ -578,12 +585,11 @@ public final class RiftGameView extends View {
         shotTimer=weapon.cooldown;
         fireFlash=.23f;
         if("MELEE".equals(weapon.type)) {
-            // Sweeping blade hits every creature within its physical reach.
-            for(Enemy e:enemies) if(e.hp>0
-                    && distance(e.x,e.y,heroX,heroY)<weapon.range) {
-                e.hp-=weapon.damage;
-                puff(e.x,e.y,7,weapon.color);
-            }
+            // Queue contact damage at the MIDPOINT of the animated sword swing.
+            // No 360-degree instant hit the moment the attack button is pressed.
+            pendingMelee=true;
+            pendingMeleeWeapon=equippedWeapon;
+            pendingMeleeFacing=heroDir;
         } else {
             Shot shot=new Shot(muzzleX,muzzleY,weapon.damage,
                     equippedWeapon==4?900:730,target,false);
@@ -594,6 +600,24 @@ public final class RiftGameView extends View {
         // at the cutting edge instead of an unrelated circle around the hero.
         puff(muzzleX,muzzleY,"MELEE".equals(weapon.type)?2:4,weapon.color);
     }
+    private void resolveMeleeHit() {
+        if(!pendingMelee)return;
+        pendingMelee=false; // Exactly once per visible swing.
+        if(pendingMeleeWeapon<0||pendingMeleeWeapon>=Progression.WEAPONS.length)
+            return;
+        Progression.Weapon weapon=Progression.WEAPONS[pendingMeleeWeapon];
+        for(Enemy e:enemies) {
+            if(e.hp<=0)continue;
+            if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,weapon.range,
+                    e.x,e.y))continue;
+            e.hp-=weapon.damage;
+            puff(e.x,e.y-18,7,weapon.color);
+            if(impacts.size()<64)
+                impacts.add(new Impact(e.x,e.y-18,weapon.color,32));
+        }
+        pendingMeleeWeapon=-1;
+    }
+
     private void pulse() {
         if(pulseCooldown>0||scene!=Scene.PLAY)return;
         battlePulses++;
