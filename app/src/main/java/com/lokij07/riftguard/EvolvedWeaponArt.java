@@ -57,6 +57,9 @@ public final class EvolvedWeaponArt {
             case 1:case 2:sword(c,weapon,tier,metal,shade,rune,time);break;
             default:staff(c,weapon,tier,metal,shade,rune,time);break;
         }
+        // Real silhouette details participate in the very same scaled and
+        // rotated in-game weapon layer, not in a disconnected menu graphic.
+        WeaponSilhouettePolish.draw(c,weapon,tier,time);
         c.restore();
     }
     private static void grip(Canvas c,int tier,int shade,int rune){

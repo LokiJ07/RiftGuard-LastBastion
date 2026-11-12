@@ -129,6 +129,10 @@ public final class RiftGameView extends View {
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     private float fortressArsenalTimer;
     private int fortressArsenalShots;
+    // UI-only preview; never modifies purchased ranks or save data.
+    private boolean previewNextFortressLook=false;
+    private float evolutionRevealTimer=0f;
+    private String evolutionRevealTitle="",evolutionRevealDescription="";
     // 120-ms button tap buffer per the animation skill's responsive cancel window.
     private float bufferedAttackTime;
     private float dodgeTime,dodgeCooldown,dodgeDirX,dodgeDirY;
@@ -273,6 +277,7 @@ public final class RiftGameView extends View {
             boolean liveCombat=scene==Scene.PLAY&&!paused&&!briefingOpen;
             animationDelta=liveCombat?combatFeel.frame(dt):dt;
             gameTime+=animationDelta;
+            evolutionRevealTimer=Math.max(0,evolutionRevealTimer-dt);
             if(liveCombat){
                 liveRenderStep=true;
                 update(dt);
@@ -308,6 +313,9 @@ public final class RiftGameView extends View {
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
             else if (paused) drawPause(canvas);
             else if (scene==Scene.PLAY && briefingOpen) drawMissionBriefing(canvas);
+        }
+        if(evolutionRevealTimer>0&&scene!=Scene.PLAY){
+            drawEvolutionReveal(canvas);
         }
         canvas.restore();
         if (active) postInvalidateOnAnimation();
@@ -478,7 +486,7 @@ public final class RiftGameView extends View {
             Enemy siegeTarget=closest(BASE_X,BASE_Y,
                     FortressArmamentRules.range(keepArsenal));
             if(siegeTarget!=null&&shots.size()<110){
-                float spawnX=FortressArmamentRules.muzzleX(BASE_X,fortressArsenalShots);
+                float spawnX=FortressArmamentRules.muzzleX(BASE_X,fortressArsenalShots,keepArsenal);
                 float spawnY=FortressArmamentRules.muzzleY(BASE_Y,keepArsenal);
                 Shot battery=new Shot(spawnX,spawnY,
                         FortressArmamentRules.damage(keepArsenal)*
@@ -1762,8 +1770,10 @@ public final class RiftGameView extends View {
         NativeDeployedMapArt.fort(c,BASE_X,BASE_Y,fortressRank,gameTime,
                 baseHp/Math.max(1f,coreMaxHp()));
         FortressStructures.rankStructures(c,BASE_X,BASE_Y,fortressRank,gameTime);
+        FortressSilhouetteArt.draw(c,BASE_X,BASE_Y,fortressRank,gameTime);
         FortressEvolutionArt.draw(c,BASE_X,BASE_Y,fortressRank,
                 arsenalTier(),gameTime);
+        FortressWeaponShowcaseArt.draw(c,BASE_X,BASE_Y,arsenalTier(),gameTime);
         EvolutionEffects.fortressBranches(c,BASE_X,BASE_Y,
                 coreForm(),treasuryForm());
     }
@@ -2232,6 +2242,47 @@ public final class RiftGameView extends View {
         text(c,"NO ADS  •  OFFLINE PLAY  •  OPTIONAL DOWNLOADS",101,643,15,0xff9eb8bb,false);
     }
 
+    /** Identical layered fortress model in the Workshop and previews. */
+    private void paintFullFortress(Canvas c,float x,float y,int rank,int arsenal){
+        NativeDeployedMapArt.fort(c,x,y,rank,gameTime,1);
+        FortressStructures.rankStructures(c,x,y,rank,gameTime);
+        FortressSilhouetteArt.draw(c,x,y,rank,gameTime);
+        FortressEvolutionArt.draw(c,x,y,rank,arsenal,gameTime);
+        FortressWeaponShowcaseArt.draw(c,x,y,arsenal,gameTime);
+        EvolutionEffects.fortressBranches(c,x,y,coreForm(),treasuryForm());
+    }
+    /** Standalone previews are explicitly labeled; never imply unowned gear. */
+    private void workshopMiniature(Canvas c,float left,float top,int rank,
+                                   int arsenal,String caption,boolean owned){
+        round(c,left,top,left+202,top+142,12,0xff122c36);
+        border(c,left,top,left+202,top+142,12,
+                owned?0xff83cbbc:0xffab9271,1.5f);
+        textFit(c,caption,left+101,top+19,184,16,
+                owned?0xffd7f8e8:0xffffe2a4,true);
+        c.save();
+        c.clipRect(left+5,top+24,left+197,top+137);
+        c.translate(left+102,top+112);
+        c.scale(.31f,.31f);
+        paintFullFortress(c,0,0,rank,arsenal);
+        c.restore();
+    }
+    private void triggerEvolutionReveal(String title,String description){
+        evolutionRevealTitle=title;
+        evolutionRevealDescription=description;
+        evolutionRevealTimer=2.35f;
+        audio.play(GameAudio.EVOLUTION);
+    }
+    private void drawEvolutionReveal(Canvas c){
+        float t=evolutionRevealTimer/2.35f;
+        float spread=(1f-t)*18f;
+        round(c,329-spread,142,951+spread,232,19,0xf118414b);
+        border(c,330-spread,143,950+spread,231,19,0xfff5d18d,3);
+        circle(c,369,188,16+(float)Math.sin(gameTime*7)*3,0xffe3c580);
+        textFit(c,evolutionRevealTitle,659,180,518,28,GOLD,true);
+        textFit(c,evolutionRevealDescription,659,210,520,18,
+                0xffc2e6df,true);
+    }
+
     /** The UI and gameplay props here are independent from all artwork layers. */
     private void drawLiveMenuScene(Canvas c,float left,float top,float width,float height,
                                    boolean workshop) {
@@ -2241,26 +2292,31 @@ public final class RiftGameView extends View {
         rect(c,left,top+height*.77f,left+width,top+height,0x440b2431);
         float centerX=left+width*.44f;
         float bottomY=top+height*.69f;
-        // Same native 5-rank fortress in Home, Workshop and actual battle:
-        // eliminates old-menu-vs-new-map discrepancy.
+        // One actual visual model for battle, Home and interactive Workshop.
+        // The optional NEXT view does not change costs, stats or save data.
+        int paintedRank=workshop&&previewNextFortressLook?
+                Math.min(Progression.MAX_RANK,fortressRank+1):fortressRank;
+        int paintedArsenal=workshop&&previewNextFortressLook&&
+                paintedRank==Progression.MAX_RANK&&fortressRank==Progression.MAX_RANK?
+                Math.min(4,arsenalTier()+1):
+                EvolutionProgress.fortressArsenal(ascension,paintedRank);
         c.save();
-        float sz=workshop?1.11f:.95f;
-        c.translate(centerX,bottomY);c.scale(sz,sz);
-        NativeDeployedMapArt.fort(c,0,0,fortressRank,gameTime,1f);
-        FortressStructures.rankStructures(c,0,0,fortressRank,gameTime);
-        FortressEvolutionArt.draw(c,0,0,fortressRank,arsenalTier(),gameTime);
-        EvolutionEffects.fortressBranches(c,0,0,coreForm(),treasuryForm());
+        float sz=workshop?.94f:.83f;
+        c.translate(centerX,bottomY+15);c.scale(sz,sz);
+        paintFullFortress(c,0,0,paintedRank,paintedArsenal);
         c.restore();
-        // Individually animated hero, creatures, flag and floating ambient lights.
-        float heroX=left+width*.79f,heroY=top+height*.81f;
-        boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
-                -2.2f,false,-1,-1,false,equippedWeapon,
-                weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
-        if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
-                weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
-        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
-        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
-        if(!workshop) {
+        // The Home scene keeps animated characters. In the Workshop the
+        // Warden previously occluded upgraded side bastions and weapon
+        // mounts, so reserve the entire preview for the actual fortress.
+        if(!workshop){
+            float heroX=left+width*.79f,heroY=top+height*.81f;
+            boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
+                    -2.2f,false,-1,-1,false,equippedWeapon,
+                    weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
+            if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
+                    weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             motionArt.enemy(c,0,left+width*.91f,top+height*.86f,gameTime,
                     true,-1,false);
             motionArt.enemy(c,6,left+width*.87f,top+height*.58f,gameTime,
@@ -2730,11 +2786,20 @@ public final class RiftGameView extends View {
                     equipWeapon(selectedMasteryWeapon);
             }else if(action==2)
                 weaponTreeScroll=Math.max(0,weaponTreeScroll-195);
-            else if(action==3&&
-                    weaponMastery.buy(selectedMasteryWeapon,selectedWeaponMasteryNode,
-                            fortressRank)){
-                supplies=prefs.getInt("supplies",supplies);
-                audio.play(GameAudio.BUILD);
+            else if(action==3){
+                int before=weaponForm(selectedMasteryWeapon);
+                if(weaponMastery.buy(selectedMasteryWeapon,
+                        selectedWeaponMasteryNode,fortressRank)){
+                    supplies=prefs.getInt("supplies",supplies);
+                    int after=weaponForm(selectedMasteryWeapon);
+                    if(after>before)
+                        triggerEvolutionReveal("NEW WEAPON FORM UNLOCKED",
+                                EvolutionProgress.formName(selectedMasteryWeapon,after));
+                    else
+                        triggerEvolutionReveal("WEAPON MASTERY UPGRADED",
+                                WeaponMastery.node(selectedMasteryWeapon,
+                                        selectedWeaponMasteryNode).name);
+                }
             }
             return;
         }
@@ -3021,9 +3086,18 @@ public final class RiftGameView extends View {
             else if(action==1)scene=Scene.ARMORY;
             else if(action==2)
                 ascensionScroll=Math.max(0,ascensionScroll-225);
-            else if(action==3&&ascension.buy(selectedAscensionNode,fortressRank)){
-                supplies=prefs.getInt("supplies",supplies);
-                audio.play(GameAudio.BUILD);
+            else if(action==3){
+                int oldArsenal=arsenalTier();
+                if(ascension.buy(selectedAscensionNode,fortressRank)){
+                    supplies=prefs.getInt("supplies",supplies);
+                    int currentArsenal=arsenalTier();
+                    if(currentArsenal>oldArsenal)
+                        triggerEvolutionReveal("NEW FORTRESS WEAPON",
+                                EvolutionProgress.fortressWeapon(currentArsenal));
+                    else
+                        triggerEvolutionReveal("ASCENSION FORM EVOLVED",
+                                AscensionTree.byId(selectedAscensionNode).name);
+                }
             }
             return;
         }
@@ -3043,35 +3117,46 @@ public final class RiftGameView extends View {
         drawBackdrop(c);
         round(c,48,29,1233,694,25,0xf0172e36);
         text(c,"FORTRESS WORKSHOP",85,86,50,GOLD,false);
-        text(c,"Upgrade the base to unlock weapons, towers and extra core health.",
-                88,125,21,INK,false);
+        text(c,"Every rank changes the building. TURRET tree nodes evolve the weapons.",
+                88,125,19,INK,false);
         drawLiveMenuScene(c,75,158,600,390,true);
+        boolean canPreview=fortressRank<Progression.MAX_RANK||arsenalTier()<4;
+        if(canPreview){
+            button(c,439,504,661,544,
+                    previewNextFortressLook?"SHOW CURRENT":"PREVIEW NEXT",
+                    previewNextFortressLook?0xff9a794e:0xff4e8081);
+        }
+        if(previewNextFortressLook&&canPreview){
+            round(c,86,171,339,204,8,0xe62c5053);
+            text(c,"FUTURE FORM  •  PREVIEW",212,193,16,0xffffe1a5,true);
+        }
         round(c,77,553,669,607,13,0xee1c3942);
         textFit(c,"RANK "+fortressRank+" / 5   "+Progression.RANK_NAMES[fortressRank],
                 98,577,536,24,GOLD,false);
         textFit(c,"CORE HP "+(Progression.maxCoreHp(fortressRank)+ascension.coreHp())+
-                "   •   STARTING TOWERS "+(fortressRank>=5?3:fortressRank>=4?2:1),
+                "  •  STARTING TOWERS "+(fortressRank>=5?3:fortressRank>=4?2:1),
                 98,597,536,18,INK,false);
         round(c,718,153,1204,531,22,0xff283e4a);
-        text(c,"KINGDOM SUPPLIES",758,216,25,INK,false);
-        textFit(c,"ARSENAL  "+EvolutionProgress.fortressWeapon(arsenalTier()),
-                759,310,411,17,0xffb0e9e3,false);
-        text(c,""+supplies,758,280,59,GOLD,false);
-        text(c,"CURRENT UPGRADE",758,346,21,0xffb6c9ca,false);
-        if(fortressRank<Progression.MAX_RANK){
-            int next=fortressRank+1;
-            text(c,Progression.RANK_NAMES[next],758,383,30,GOLD,false);
-            text(c,"Unlock: "+Progression.WEAPONS[next].name,758,422,22,INK,false);
-            text(c,"Cost: "+Progression.upgradeCost(fortressRank)+" Supplies",
-                    758,463,25,INK,false);
-            text(c,Progression.canUpgrade(fortressRank,supplies)?
-                    "READY TO CONSTRUCT":"WIN MISSIONS TO EARN MORE",
-                    759,505,18,Progression.canUpgrade(fortressRank,supplies)?
-                            0xff8cdea5:0xffe3af9c,false);
-        }else{
-            text(c,"ARC CITADEL - MAX RANK",759,378,29,GOLD,false);
-            text(c,"All six launch weapons are available.",759,423,21,INK,false);
-        }
+        text(c,"SUPPLIES",752,196,24,INK,false);
+        text(c,""+supplies,752,260,55,GOLD,false);
+        textFit(c,"ACTIVE ARSENAL: "+EvolutionProgress.fortressWeapon(arsenalTier()),
+                752,301,436,18,0xffb0e9e3,false);
+        int nextRank=Math.min(Progression.MAX_RANK,fortressRank+1);
+        int nextArsenal=EvolutionProgress.fortressArsenal(ascension,nextRank);
+        if(nextRank==fortressRank)
+            nextArsenal=Math.min(4,arsenalTier()+1);
+        String nextName=nextRank>fortressRank?
+                Progression.RANK_NAMES[nextRank]:
+                EvolutionProgress.fortressWeapon(nextArsenal);
+        textFit(c,"UP NEXT: "+nextName.toUpperCase(),752,331,430,19,GOLD,false);
+        workshopMiniature(c,750,343,fortressRank,arsenalTier(),"CURRENT • OWNED",true);
+        workshopMiniature(c,973,343,nextRank,nextArsenal,"NEXT • PREVIEW",false);
+        String requirement=fortressRank<Progression.MAX_RANK?
+                "FORTRESS COST  "+Progression.upgradeCost(fortressRank)+" SUPPLIES":
+                (arsenalTier()<4?"UPGRADE TURRET NODES IN ASCENSION":
+                        "ALL FORTRESS FORMS UNLOCKED");
+        textFit(c,requirement,750,518,434,19,
+                fortressRank<Progression.MAX_RANK?INK:0xffaee8dc,false);
         upgradeActions(c,"HOME","ARMORY","ASCENSION",
                 fortressRank==Progression.MAX_RANK?"MAX RANK":"UPGRADE FORT",
                 Progression.canUpgrade(fortressRank,supplies));
@@ -3081,8 +3166,10 @@ public final class RiftGameView extends View {
         if(!Progression.canUpgrade(fortressRank,supplies))return;
         supplies-=Progression.upgradeCost(fortressRank);
         fortressRank++;
-        audio.play(GameAudio.BUILD);
+        previewNextFortressLook=false;
         prefs.edit().putInt("supplies",supplies).putInt("fortress_rank",fortressRank).apply();
+        triggerEvolutionReveal("FORTRESS FORM "+fortressRank+" UNLOCKED",
+                Progression.RANK_NAMES[fortressRank]+" • REAL STRUCTURE EVOLVED");
         announce(Progression.RANK_NAMES[fortressRank]+" CONSTRUCTED");
     }
     private void equipWeapon(int id) {
@@ -3435,6 +3522,11 @@ public final class RiftGameView extends View {
                 }
             }
         }else if(scene==Scene.FORTRESS) {
+            if(x>=439&&x<=661&&y>=504&&y<=546 &&
+                    (fortressRank<Progression.MAX_RANK||arsenalTier()<4)){
+                previewNextFortressLook=!previewNextFortressLook;
+                return;
+            }
             int action=UpgradeActionLayout.hit(x,y);
             if(action==0)scene=Scene.HOME;
             else if(action==1)scene=Scene.ARMORY;

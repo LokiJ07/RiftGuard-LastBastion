@@ -19,9 +19,10 @@ public final class GameAudio {
     public static final int SHOT=0, BLADE=1, SPELL=2, IMPACT=3,
             BUILD=4, VICTORY=5, HURT=6;
     public static final int DODGE=7, BOSS_WARN=8, BOSS_PHASE=9,
-            TOWER_CANNON=10, TOWER_FROST=11, TOWER_ARC=12, AMBIENT=13;
+            TOWER_CANNON=10, TOWER_FROST=11, TOWER_ARC=12, AMBIENT=13,
+            EVOLUTION=14;
     private static final int RATE=22050;
-    public static final int COUNT=14;
+    public static final int COUNT=15;
     private final Context context;
     private final SharedPreferences prefs;
     private final int[] soundIds=new int[COUNT];
@@ -74,6 +75,7 @@ public final class GameAudio {
         if(pool==null)return;
         long now=android.os.SystemClock.uptimeMillis();
         long cooldown=type==AMBIENT?12000:
+                type==EVOLUTION?900:
                 type==BOSS_PHASE?700:type==BOSS_WARN?450:
                 type==TOWER_CANNON?220:type==TOWER_FROST?180:
                 type==TOWER_ARC?190:type==SHOT||type==IMPACT?70:40;
@@ -82,7 +84,8 @@ public final class GameAudio {
             int id=soundIds[type];
             if(id!=0&&ready.contains(id)){
                 float volume=type==VICTORY?.73f:type==HURT?.54f:
-                        type==AMBIENT?.26f:type==BOSS_PHASE?.70f:.47f;
+                        type==AMBIENT?.26f:type==EVOLUTION?.62f:
+                        type==BOSS_PHASE?.70f:.47f;
                 pool.play(id,volume,volume,1,0,1f);
                 lastByType[type]=now;
             }
@@ -99,9 +102,9 @@ public final class GameAudio {
     public static byte[] synthesize(int type) {
         if(type<0||type>=COUNT)throw new IllegalArgumentException("audio type");
         double[] duration={.17,.29,.39,.14,.33,.55,.26,
-                .24,.46,.66,.36,.34,.37,1.15};
+                .24,.46,.66,.36,.34,.37,1.15,.88};
         double[] pitch={440,205,260,120,290,392,155,
-                360,115,185,95,560,340,147};
+                360,115,185,95,560,340,147,330};
         double seconds=duration[type];
         int count=(int)(RATE*seconds);
         byte[] wav=new byte[44+count*2];
@@ -132,6 +135,14 @@ public final class GameAudio {
                 signal+=Math.sin(2*Math.PI*523.25*t)*.23*envelope;
             if(type==BOSS_PHASE||type==BOSS_WARN)
                 signal+=Math.sin(2*Math.PI*(pitch[type]*.5)*t)*.18*envelope;
+            if(type==EVOLUTION){
+                // Distinct original ascending three-tone heraldic confirmation.
+                // Not a copied melody, not dependent on downloaded music.
+                double note=t<seconds/3?330:t<seconds*2/3?440:660;
+                signal=(Math.sin(2*Math.PI*note*t)*.38+
+                        Math.sin(2*Math.PI*note*1.5*t)*.13+
+                        Math.sin(2*Math.PI*note*2*t)*.08)*envelope;
+            }
             if(type==TOWER_ARC)
                 signal+=Math.sin(2*Math.PI*(pitch[type]*3)*t)*.10*envelope;
             if(type==TOWER_FROST)

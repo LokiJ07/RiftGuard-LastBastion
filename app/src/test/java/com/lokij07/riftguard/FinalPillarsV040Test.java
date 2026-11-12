@@ -104,8 +104,8 @@ public final class FinalPillarsV040Test {
         assertNotEquals(phase1,hash(sprite));
         sprite.recycle();
     }
-    @Test public void fourteenOfflineAudioCuesAreValidAndUnique(){
-        assertEquals(14,GameAudio.COUNT);
+    @Test public void allFifteenOfflineAudioCuesAreValidAndUnique(){
+        assertEquals(15,GameAudio.COUNT);
         Set<Integer> sounds=new HashSet<>();
         for(int type=0;type<GameAudio.COUNT;type++){
             byte[] wav=GameAudio.synthesize(type);
