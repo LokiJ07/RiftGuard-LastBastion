@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.17.0 — Warden state-machine attacks, frame events, footfalls and death motion
+## Current version: V0.18.0 — living layered 10-biome environments and 300 stage-specific landscapes
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -99,6 +99,19 @@ The user's uploaded **AI Animation Skills** `SKILL.md` was read directly; its co
 - **Visual QA:** Robolectric captures the REAL painted atlas in all 7 state storyboard examples. Integration tests cover frame-rate independence, attack/cast interruption priority, exact melee HP impact and death pose changes.
 - **New HD artwork quality gate:** `tools/verify_warden_hd_atlas.py` accepts a genuinely painted 8-column × 6-row RGBA source with 256px frames, 2px gutter and fixed feet pivot, and exports a validated transparent WebP plus six GIF previews. It rejects empty/duplicate idle/run frames, cropped art and opaque screenshot backgrounds. No such NEW HD source has passed the gate yet, so the new importer does not replace the in-game atlas.
 - **Important remaining asset gap:** `riftguard_hero_motion.webp` is still the original 4-column × 4-row painted atlas. Generated imagery for this development turn returned a **marketing presentation**, NOT a usable 8-frame transparent Warden/monster sprite atlas, and was rejected. This update improves live animation behavior; it is NOT a claim that professional HD sprite art or the full 300-stage environment overhaul has been created.
+
+## V0.18.0 — the uploaded HTML environment is now native Android scenery
+
+The user supplied `RiftGuard World and Environment.html`, showing layered Verdant Vale, Ember Highlands, Frostpeak Range, and Rift Chasm scenes. Its 8-depth design is adapted into the real **offline Android Java Canvas renderer** (not a WebView or static game menu screenshot).
+
+- New `LivingBattlefield`: sky / far mountains / near mountains / castle cliff / atmospheric mist / species-specific pines & ruins / reflective water / weather-touched foreground.
+- **10 region palettes:** Greenhaven, Whispering Woods, Venom Marsh, Ember Canyon, Frostpeak, Ironfall, Crystal Depths, Stormbound Isles, Shadowfall and Eclipse Citadel. First four HTML themes are visually referenced; the six additional world treatments extend the palette with willow swamps, iron smokestacks, crystals, twilight forests and storm ruins.
+- **All 300 missions:** Each stage receives a repeatable unique environment seed, one of three map archetypes (Scout Outpost, Broken Pass, Last Stand) and its stage-local weather/time-of-day beat. This means 300 distinct **procedural compositions**, NOT 300 individually hand-painted HD pictures.
+- **Gameplay integration:** the new native mountain/castle/water images are rendered behind the Warden, enemies, real fortress, UI and navigable route. The mission briefing now uses the exact corresponding native scene.
+- **Native parallax:** near scenery moves up to 5x faster than distant mountains relative to the moving hero, with fog and reflected ripples animating independently. Parallax is disabled by the existing reduced-motion setting.
+- **Memory:** five downsampled bitmap layers are generated once per stage, reused each frame and released on stage change; no 300 full-size backgrounds loaded at once. All battle physics, touch controls and collision stay unchanged.
+- **QA:** Robotlectric screenshot gallery adds **10 actual in-game biome screenshots + 3 map-type screenshots + final mission preview**. Tests cover all 300 stage keys, palette/variant pixels, scrolling, accessible reduced motion, deterministic caching and combat HUD safety.
+- **Remaining limitation:** native Canvas illustrated/vector layers are derived from the provided HTML style; the source HTML was NOT directly embedded. These are not custom HD pixel-painted 300 maps. Detailed hand-painted assets and physical Android GPU profiling remain future milestones.
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
