@@ -91,7 +91,7 @@ public final class WardenAnimationMachineTest {
         a.die();a.hurt();
         assertEquals(WardenAnimationMachine.State.DEATH,a.state());
         assertFalse(a.cast());assertFalse(a.attack(1));
-        a.advance(1f,false);
+        for(int i=0;i<4;i++)a.advance(.20f,false);
         assertEquals(WardenAnimationMachine.State.DEATH,a.state());
         assertEquals(1f,a.deathProgress(),.001f);
         assertTrue(a.consume(WardenAnimationMachine.Event.CLIP_FINISHED));
