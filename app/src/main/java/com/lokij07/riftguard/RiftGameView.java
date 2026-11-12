@@ -143,7 +143,7 @@ public final class RiftGameView extends View {
                 burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
                 hitReaction;
         boolean moving,boss;
-        int kind;
+        int kind,bossPhase=1;
         Enemy(float x,float y,int kind,float hp,float phase) {
             this.x=x; this.y=y; this.kind=kind; this.hp=hp; this.maxHp=hp; this.phase=phase;
         }
@@ -450,6 +450,9 @@ public final class RiftGameView extends View {
                 }
             }
         }
+        // Boss reinforcements are collected separately so the active enemy
+        // iterator cannot be invalidated by a phase-transition summon.
+        final List<Enemy> reinforcements=new ArrayList<>();
         Iterator<Enemy> it=enemies.iterator();
         while(it.hasNext()) {
             Enemy e=it.next();
@@ -528,29 +531,58 @@ public final class RiftGameView extends View {
                     e.y=BASE_Y+(wallDy<0?-134:134);
             }
             if(e.boss){
-                e.specialTimer-=dt;
-                if(e.specialCharge<=0 && e.specialTimer<=0 &&
-                        distance(e.x,e.y,BASE_X,BASE_Y)<440f){
-                    e.specialCharge=.86f; // visible charge-up before the blast
-                    e.specialTimer=7.3f;
-                }else if(e.specialCharge>0) {
-                    e.specialCharge-=dt;
-                    if(e.specialCharge<=0) {
-                        float strength=DifficultyRules.enemyDamage(difficultyMode);
-                        if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
-                            baseHp-=28f*strength;
-                            puff(BASE_X,BASE_Y,19,0xffffac83);
+                int newPhase=BossTactics.phase(e.hp,e.maxHp);
+                if(newPhase>e.bossPhase){
+                    // Each threshold summons *real* enemies with health,
+                    // pathfinding, collision and combat like a normal wave.
+                    for(int phase=e.bossPhase+1;phase<=newPhase;phase++){
+                        int num=BossTactics.minions(phase);
+                        for(int k=0;k<num&&enemies.size()+reinforcements.size()<35;k++){
+                            int kind=BossTactics.minionKind(stage);
+                            float x=Math.min(LaneRules.ENEMY_SPAWN_X-30,e.x+90+k*46);
+                            float y=LaneRules.stagePathY(stage,x)+(k%2==0?38:-38);
+                            float hp=BattleRules.enemyHealth(stage,kind)*
+                                    DifficultyRules.health(difficultyMode);
+                            Enemy ally=new Enemy(x,y,kind,hp,(k+1)*1.2f);
+                            reinforcements.add(ally);
                         }
-                        if(distance(e.x,e.y,heroX,heroY)<265&&!DodgeRules.invulnerable(dodgeTime)){
-                            heroHp-=21f*strength;
-                            puff(heroX,heroY,18,0xffe5a0fa);
+                    }
+                    e.bossPhase=newPhase;
+                    announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
+                }
+                e.specialTimer-=dt;
+                if(e.specialCharge<=0&&e.specialTimer<=0&&
+                        distance(e.x,e.y,BASE_X,BASE_Y)<440f){
+                    e.specialCharge=BossTactics.chargeTime(stage,e.bossPhase);
+                    e.specialTimer=BossTactics.interval(stage,e.bossPhase);
+                }else if(e.specialCharge>0){
+                    e.specialCharge-=dt;
+                    if(e.specialCharge<=0){
+                        float strength=DifficultyRules.enemyDamage(difficultyMode)*
+                                BossTactics.damageMultiplier(e.bossPhase);
+                        int tactic=BossTactics.tactic(stage);
+                        if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
+                            baseHp-=(tactic==1?20f:28f)*strength;
+                            puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
+                        }
+                        if(distance(e.x,e.y,heroX,heroY)<265&&
+                                !DodgeRules.invulnerable(dodgeTime)){
+                            heroHp-=(tactic==0?24f:18f)*strength;
+                            puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
+                            if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
+                        }
+                        if(tactic==1){
+                            // Sustain bosses can recover health but not exceed
+                            // their original maximum; interrupt by killing fast.
+                            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.05f);
+                            puff(e.x,e.y,14,0xff9fd7c8);
                         }
                         if(baseHp<=0||heroHp<=0){
                             baseHp=Math.max(0,baseHp);
                             heroHp=Math.max(0,heroHp);
                             markDefeat();return;
                         }
-                        announce("BOSS SHOCKWAVE!");
+                        announce(BossTactics.warning(stage)+"!");
                     }
                 }
             }
@@ -588,6 +620,8 @@ public final class RiftGameView extends View {
                 }
             }
         }
+        // Commit the summon queue only after enemy iteration has finished.
+        enemies.addAll(reinforcements);
         updateStageHazards(dt);
         if(scene!=Scene.PLAY)return;
         Iterator<Shot> sit=shots.iterator();
@@ -1763,7 +1797,8 @@ public final class RiftGameView extends View {
             if(e.specialCharge>0) {
                 circleStroke(c,e.x,e.y-38,95+e.specialCharge*25,
                         0xffffc18f,5);
-                text(c,"CHARGING",e.x,e.y-118,19,0xffffcb9c,true);
+                text(c,BossTactics.warning(stage),e.x,e.y-118,18,
+                     0xffffcb9c,true);
             }
         }
         float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
@@ -1997,7 +2032,8 @@ public final class RiftGameView extends View {
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
             if(e.specialCharge>0)
-                text(c,"INCOMING SHOCKWAVE  •  MOVE!",640,190,21,
+                text(c,"PHASE "+e.bossPhase+" / 3 • "+
+                        BossTactics.warning(stage)+" • DODGE!",640,190,21,
                         0xffffc18f,true);
             return true;
         }
