@@ -564,6 +564,42 @@ public final class RiftGameView extends View {
                             distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<65)
                         nearby.hp-=shot.damage*.25f;
                 }
+                // End-tier mastery attacks have weapon-specific real combat
+                // effects, not merely glowing upgrade-tree icons.
+                if(shot.weaponId>=0 && weaponMastery.mastered(shot.weaponId)){
+                    switch(shot.weaponId){
+                        case 0: // Phantom Volley: second spectral bolt hits target.
+                            shot.target.hp-=shot.damage*.40f;
+                            puff(shot.target.x,shot.target.y-32,10,0xffa5f4f3);
+                            break;
+                        case 3: // Tempest Crown: arc jumps to up to two allies.
+                            int chained=0;
+                            for(Enemy chainedEnemy:enemies){
+                                if(chainedEnemy==shot.target||chainedEnemy.hp<=0)continue;
+                                if(distance(chainedEnemy.x,chainedEnemy.y,
+                                        shot.target.x,shot.target.y)<170){
+                                    chainedEnemy.hp-=shot.damage*.48f;
+                                    chainedEnemy.hitReaction=.21f;
+                                    puff(chainedEnemy.x,chainedEnemy.y,8,0xffb9b7ff);
+                                    if(++chained>=2)break;
+                                }
+                            }
+                            break;
+                        case 4: // War Drum: piercing suppressive burst.
+                            for(Enemy nearby:enemies)if(nearby!=shot.target&&
+                                    nearby.hp>0&&distance(nearby.x,nearby.y,
+                                            shot.target.x,shot.target.y)<85){
+                                nearby.hp-=shot.damage*.30f;
+                                nearby.slowTimer=Math.max(nearby.slowTimer,1f);
+                            }
+                            break;
+                        case 5: // Absolute Zero: freeze into brittle condition.
+                            shot.target.slowTimer=Math.max(shot.target.slowTimer,5f);
+                            shot.target.hp-=shot.damage*.32f;
+                            puff(shot.target.x,shot.target.y-30,12,0xffa6f3ff);
+                            break;
+                    }
+                }
                 puff(shot.target.x,shot.target.y,7,impact);
                 if(impacts.size()<64)impacts.add(new Impact(
                         shot.target.x,shot.target.y-15,impact,
