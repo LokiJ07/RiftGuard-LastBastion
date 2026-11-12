@@ -44,7 +44,7 @@ public final class EnvironmentDistrictsTest {
             assertEquals(Campaign.world(i),id/3);
             assertTrue("Names must be descriptive",EnvironmentDistricts.name(i).length()>=8);
             districtIds.add(id);names.add(EnvironmentDistricts.name(i));
-            assertEquals(1,(i%3==0)?1:1); // all three A/B/C share a district for a level
+ // The 3 A/B/C maps share one district within a given level.
             if(i%3==0){
                 assertEquals(id,EnvironmentDistricts.district(i+1));
                 assertEquals(id,EnvironmentDistricts.district(i+2));
@@ -87,7 +87,7 @@ public final class EnvironmentDistrictsTest {
         // New A/B/C stage maps still present all three matching district assets.
         for(int m=0;m<3;m++)
             assertEquals(EnvironmentDistricts.district(current),
-                    EnvironmentDistricts.district(current-2+m));
+                    EnvironmentDistricts.district(current+m));
         scene.recycle();renderer.release();
     }
 }
