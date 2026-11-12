@@ -392,7 +392,8 @@ public final class NativeDeployedMapArt {
         fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
         int col=GLOW[world(chosen)];
         // Deliberately sparse ambient motion, below characters and HUD.
-        KingdomSetPieces.animate(c,chosen,time,false);\n        for(int i=0;i<23;i++){
+        KingdomSetPieces.animate(c,chosen,time,false);
+        for(int i=0;i<23;i++){
             float x=((i*137+Campaign.seed(chosen)%97)+time*11)%W;
             float y=270+(i*113)%530+(float)Math.sin(time*.9f+i)*8;
             oval(c,x,y,2,2,alpha(col,65+i%3*28));
