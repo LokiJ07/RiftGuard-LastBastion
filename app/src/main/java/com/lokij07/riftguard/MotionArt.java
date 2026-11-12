@@ -267,6 +267,11 @@ public final class MotionArt {
     private void drawHeroRigFrame(Canvas c,int state,int frame,float x,float y,
                                   boolean flip,boolean hurt,boolean running,float phase,
                                   float attack) {
+        drawHeroRigFrame(c,state,frame,x,y,flip,hurt,running,phase,attack,0);
+    }
+    private void drawHeroRigFrame(Canvas c,int state,int frame,float x,float y,
+                                  boolean flip,boolean hurt,boolean running,float phase,
+                                  float attack,int weaponId) {
         if(!heroReady())return;
         int row=Math.max(0,Math.min(3,state));
         int column=Math.max(0,Math.min(3,frame));
@@ -308,6 +313,7 @@ public final class MotionArt {
         float anticipation=attack<0?0f:
                 -(float)Math.sin(Math.PI*Math.min(1,attack))*
                 (attack<.5f?2.8f:1.2f);
+        anticipation+=WeaponAnimation.anticipation(weaponId,attack);
         c.save();
         c.scale(1f+breath*.4f,1f-breath,0,-53);
         c.rotate(lean+anticipation,0,-39);
@@ -357,9 +363,15 @@ public final class MotionArt {
     public boolean hero(Canvas c,float x,float y,float time,float facing,
                         boolean running,float attackProgress,float castProgress,
                         boolean hurt,int weaponId) {
-        if(!heroBody(c,x,y,time,facing,running,attackProgress,castProgress,hurt))
-            return false;
+        if(!heroReady())return false;
+        int state=castProgress>=0?3:attackProgress>=0?2:running?1:0;
+        int frame=state==2?eventFrame(attackProgress):state==3?
+                eventFrame(castProgress):frame(time,state==1?10:3,4);
         boolean left=Math.cos(facing)<-.28f;
+        // Torso anticipation is specific to EACH of the six equipped weapons.
+        // The existing painted armor remains, with no baked-in right-waist sword.
+        drawHeroRigFrame(c,state,frame,x,y,left,hurt,running,
+                running?time*11.7f:time*2.2f,attackProgress,weaponId);
         // Keep the transparent combat model visible even if an icon atlas is missing.
         c.save();c.translate(x,y);
         if(left)c.scale(-1,1);
@@ -416,6 +428,20 @@ public final class MotionArt {
         arm.setStyle(Paint.Style.FILL);
         arm.setColor(0xffc2b078);
         c.drawCircle(pose.elbowX,pose.elbowY,5,arm);
+        // Real support-hand grip on the large sword, channel staff and lance.
+        // It moves WITH the animated main hand, not at a fixed screen coordinate.
+        if(id==1||id==3||id==5){
+            float supportX=pose.handX-(id==1?10:12);
+            float supportY=pose.handY+(id==1?12:8);
+            arm.setColor(0xff283a4c);arm.setStrokeWidth(12f);
+            arm.setStyle(Paint.Style.STROKE);
+            c.drawLine(-20,-86,supportX-5,supportY+2,arm);
+            arm.setColor(0xff93b7c1);arm.setStrokeWidth(7);
+            c.drawLine(-20,-86,supportX-5,supportY+2,arm);
+            arm.setStyle(Paint.Style.FILL);
+            arm.setColor(0xffcfbb98);
+            c.drawCircle(supportX,supportY,7,arm);
+        }
         // Weapon image is positioned by the grip socket, not screen-space sticker.
         c.save();
         c.translate(pose.handX,pose.handY);
