@@ -12,6 +12,9 @@ adb shell wm size 1280x720
 adb shell wm density 240
 adb shell settings put system accelerometer_rotation 0 || true
 adb shell settings put system user_rotation 1 || true
+# Confirm Android's first-run immersive-mode tutorial, which previously
+# covered the battlefield and falsely counted system-overlay taps as game QA.
+adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb install -r "$APK"
 adb shell am force-stop "$APP" || true
 adb logcat -c || true
@@ -42,6 +45,10 @@ sleep 2
 take "04-mission-briefing"
 adb shell input tap 890 615
 sleep 2
+# Some emulator images ignore the setting until the full-screen window opens.
+# The dialog's real Android "Got it" button is at (800,304) on 1280x720.
+adb shell input tap 800 304
+sleep 1
 take "05-battle-start"
 # Reset Android's hardware frame timeline, then issue actual movement/touch.
 adb shell dumpsys gfxinfo "$APP" reset >/dev/null || true
