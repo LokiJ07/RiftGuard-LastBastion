@@ -119,11 +119,20 @@ public final class WeaponRig {
 
     // Tip coordinates of the transparent, held weapon geometry in WorldArt.
     // This is the same artwork drawn by MotionArt for each combat class.
+    // In-world weapons are deliberately smaller than Armory inventory cards.
+    // A Warden is ~140 world units tall; the old equipment dwarfed their body.
+    private static final float[] WEAPON_SCALE={.58f,.70f,.68f,.68f,.58f,.67f};
     private static final float[] TIP_LENGTHS={41f,65f,65f,68f,41f,84f};
-    public static Point tip(int weaponId,Pose pose) {
-        if(weaponId<0||weaponId>=TIP_LENGTHS.length)
+    public static float renderScale(int weaponId){
+        if(weaponId<0||weaponId>=WEAPON_SCALE.length)
             throw new IllegalArgumentException("weapon");
-        float length=TIP_LENGTHS[weaponId];
+        return WEAPON_SCALE[weaponId];
+    }
+    public static float tipLength(int weaponId){
+        return TIP_LENGTHS[weaponId]*renderScale(weaponId);
+    }
+    public static Point tip(int weaponId,Pose pose) {
+        float length=tipLength(weaponId);
         double rad=Math.toRadians(pose.angle);
         return new Point(pose.handX+(float)Math.sin(rad)*length,
                 pose.handY-(float)Math.cos(rad)*length);
