@@ -224,7 +224,7 @@ public final class EvolutionUpgradeTest {
             x.setAccessible(true);y.setAccessible(true);tower.setAccessible(true);
             if(tower.getBoolean(projectile)&&
                     Math.abs(x.getFloat(projectile)-
-                            FortressArmamentRules.muzzleX(950,0))<65f&&
+                            FortressArmamentRules.muzzleX(950,0,4))<65f&&
                     Math.abs(y.getFloat(projectile)-
                             FortressArmamentRules.muzzleY(510,4))<65f){
                 launchedFromRealPrism=true;
