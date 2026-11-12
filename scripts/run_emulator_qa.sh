@@ -33,6 +33,12 @@ adb shell input tap 478 656
 sleep 2
 adb shell screencap -p /sdcard/rg-fortress.png
 adb pull /sdcard/rg-fortress.png emulator-qa/04-fortress-arsenal.png
+# Real touch preview: future fortress appearance is shown without purchase.
+adb shell input tap 530 526
+sleep 1
+adb shell screencap -p /sdcard/rg-next-fortress.png
+adb pull /sdcard/rg-next-fortress.png emulator-qa/04b-fortress-next-look.png
+adb shell input tap 530 526
 adb shell input tap 765 656
 sleep 2
 adb shell screencap -p /sdcard/rg-ascension.png
