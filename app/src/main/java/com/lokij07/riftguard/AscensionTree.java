@@ -69,7 +69,7 @@ public final class AscensionTree {
                 // Ensure ascending high-rank paths contain combat specialization.
                 if(tier==9)category=ATTACK;
                 int rank=tier<=1?1:tier<=3?2:tier<=5?3:tier<=7?4:5;
-                float gain=category==ATTACK?.075f+tier*.008f:
+                float gain=tier==0?0f:category==ATTACK?.075f+tier*.008f:
                         category==TOWER?.08f+tier*.010f:
                         category==CORE?45+tier*25:
                         category==HERO?11+tier*6:
