@@ -431,7 +431,7 @@ public final class RiftGameView extends View {
                     towerTimers[i]=Math.max(.25f,(TowerPadLayout.family(i)==1?1.35f:
                              TowerPadLayout.family(i)==2?1.02f:.92f)
                             -towers[i]*.11f);
-                    puff(towerX[i],towerY[i]-38,6,towerColor(i));
+                    puff(towerX[i],towerY[i]-38,6,towerColor(TowerPadLayout.family(i)));
                 }
             }
         }
