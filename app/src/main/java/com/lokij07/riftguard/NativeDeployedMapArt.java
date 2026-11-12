@@ -198,7 +198,9 @@ public final class NativeDeployedMapArt {
             int col=i%3==0?0x227affbb:0x3371aa80;
             line(c,x,y,x+2+(i%3),y-4-r.nextFloat()*5,.8f,col);
         }
-        // Kingdom-specific architecture is physically seeded in the live terrain.\n        KingdomSetPieces.paint(c,stage);\n        // Mission B: river + an actual road bridge, following HTML.
+        // Kingdom-specific architecture is physically seeded in the live terrain.
+        KingdomSetPieces.paint(c,stage);
+        // Mission B: river + an actual road bridge, following HTML.
         if(variant==1){
             Path river=new Path();river.moveTo(1160,-55);
             river.cubicTo(1060,255,1265,475,1155,1080);
