@@ -151,13 +151,20 @@ public final class WardenAnimationMachineTest {
         call(game,"markDefeat",new Class[0]);
         WardenAnimationMachine a=(WardenAnimationMachine)field(game,"heroAnimation");
         assertEquals(WardenAnimationMachine.State.DEATH,a.state());
-        Bitmap before=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
-        game.draw(new Canvas(before));
-        a.advance(.40f,false);
-        Bitmap after=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
-        game.draw(new Canvas(after));
+        // The LOSE screen overlays a result panel over the Warden. Draw the
+        // ACTUAL in-game actor itself into a local viewport for pixel QA.
+        float hx=(float)field(game,"heroX"),hy=(float)field(game,"heroY");
+        Bitmap before=Bitmap.createBitmap(440,290,Bitmap.Config.ARGB_8888);
+        Canvas initial=new Canvas(before);
+        initial.translate(220-hx,240-hy);
+        call(game,"drawHero",new Class[]{Canvas.class},initial);
+        a.advance(.20f,false);
+        Bitmap after=Bitmap.createBitmap(440,290,Bitmap.Config.ARGB_8888);
+        Canvas later=new Canvas(after);
+        later.translate(220-hx,240-hy);
+        call(game,"drawHero",new Class[]{Canvas.class},later);
         int changes=0;
-        for(int y=170;y<540;y+=3)for(int x=120;x<650;x+=3)
+        for(int y=15;y<270;y+=2)for(int x=95;x<345;x+=2)
             if(before.getPixel(x,y)!=after.getPixel(x,y))changes++;
         assertTrue("Defeat must visibly change the Warden pose, not just UI",
                 changes>10);
