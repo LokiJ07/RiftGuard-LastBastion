@@ -1839,6 +1839,8 @@ public final class RiftGameView extends View {
                 attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
                 ||characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,
                         e.hitReaction>0||e.hp<e.maxHp*.20f);
+        CombatAnimationLayers.enemy(c,e.kind,e.x,e.y,gameTime,
+                attack,e.hitReaction,e.bossPhase,e.boss);
         c.restore();
         if(painted) {
             if(e.hp<e.maxHp) {
@@ -1951,7 +1953,11 @@ public final class RiftGameView extends View {
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
-                weaponMastery.count(equippedWeapon)))return;
+                weaponMastery.count(equippedWeapon))){
+            CombatAnimationLayers.warden(c,heroX,heroY,heroDir,attackProgress,
+                    castProgress,dodgeTime>0?1-dodgeTime/DodgeRules.DURATION:-1f);
+            return;
+        }
         if(characterArt.available()) {
             boolean moving=Math.abs(axisX)+Math.abs(axisY)>.1f;
             characterArt.hero(c,heroX,heroY,gameTime,moving,fireFlash>0,hurtCooldown>.1f);
@@ -1960,6 +1966,8 @@ public final class RiftGameView extends View {
             c.rotate(fireFlash>0?28:0);
             WorldArt.drawWeapon(c,equippedWeapon,0,0,.38f,gameTime);
             c.restore();
+            CombatAnimationLayers.warden(c,heroX,heroY,heroDir,attackProgress,
+                    castProgress,dodgeTime>0?1-dodgeTime/DodgeRules.DURATION:-1f);
             return;
         }
         float bob=(Math.abs(axisX)+Math.abs(axisY)>.1f)?
