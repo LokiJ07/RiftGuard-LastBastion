@@ -2,7 +2,18 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.30.0 — LokiJ Identity and Consistent Upgrade UI
+## v0.40.0-rc1 — Kingdoms at War gameplay candidate (under test)
+
+This release candidate moves the v0.40 plan forward with **real playable code**, not a completed v0.40 claim:
+
+- **5–8 stage-specific functional turret pads:** shared `TowerPadLayout` geometry is used by terrain artwork, construction selection, enemy targeting, tower collision, projectile graphics and save-safe stage reset. Mission A offers 5 (6 in later realms), B 6 (7 later) and C 7 (8 later) build sites. The original four castle-mounted gun positions remain. The additional pads are real ground turrets with four distinct attack families and five upgrade tiers.
+- **Responsive new DODGE action** beside BUILD/ARC/ATTACK: directional 210 ms roll, 2.25 s cooldown, short invulnerable windows against elite, melee, spell bolts and terrain hazards, real movement against existing walls, animation state cancellation, visible afterimages and phone-aware HUD hitbox.
+- **Boss combat has three real HP phases:** phase changes at 66%/33%; true enemy reinforcements join the existing live combat simulation; ten kingdom bosses have realm-specific seismic, renewal or rooting attacks, with varying charge durations, cooldowns and warning text.
+- **Mission A/B/C side objectives:** build defenses / keep the fortress healthy / defeat an elite while protecting the hero. These are real optional extra-supply rewards and on-screen progress, never mandatory blockers for saved stage progression.
+- Regression coverage: new `KingdomsAtWarTest` checks all 300 pad configurations, collision clearance, real turret purchases, dash physics, boss reinforcements, exact phase boundaries, animation cancellation and mission bonus requirements. Original saves remain in `riftguard_campaign_v1`.
+- **Not yet complete** for the v0.40 target: full hand-illustrated environment packs, high-quality hero/enemy sprite overhaul, original boss animations, sound/music overhaul and physical-device performance certification. The build MUST pass GitHub CI and screenshot inspection before merging.
+
+## Current stable version: V0.30.0 — LokiJ Identity and Consistent Upgrade UI
 
 - **Real Android startup branding:** `LokiSplashView` presents the RIFTGUARD crest, `THE LAST BASTION`, and the creator credit **LokiJ** during actual game initialization. Indeterminate visual ornament is never a fake download percent, and no network is required.
 - **New launcher artwork:** `res/drawable/ic_launcher.xml` is a genuinely bundled, scalable high-contrast shield with a rune blade, battlements, gilded trim and contrast-safe colors.
