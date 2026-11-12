@@ -127,6 +127,9 @@ public final class KingdomsAtWarTest {
         assertTrue((Boolean)read(boss,"boss"));
         float hp=(Float)read(boss,"maxHp");
         set(boss,"hp",hp*.26f);
+        // Force the documented initial cooldown to expire so this test
+        // verifies the *actual* telegraph rather than asserting an early cast.
+        set(boss,"specialTimer",0f);
         set(boss,"x",1150f);set(boss,"y",510f);
         call(g,"update",new Class<?>[]{float.class},.04f);
         assertEquals(3,read(boss,"bossPhase"));
