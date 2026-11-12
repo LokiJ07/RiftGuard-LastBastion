@@ -2429,9 +2429,8 @@ public final class RiftGameView extends View {
         button(c,72,621,330,681,"BACK TO FORTRESS",0xff496b71);
         button(c,351,621,613,681,"ARMORY",0xff65727f);
         button(c,632,621,895,681,"GO UP  /  ▲",0xff637b70);
-        text(c,"▲ Higher tiers demand stronger forts and more supplies",
-                942,652,17,0xffabc8ca,false);
-        text(c,"Swipe down to return to the origin",942,679,16,0xff9cb5b7,false);
+        text(c,"HIGHER TIERS NEED RANK + SUPPLIES",942,650,14,0xffabc8ca,false);
+        text(c,"SWIPE UP TO CLIMB / DOWN TO RETURN",942,678,13,0xff9cb5b7,false);
     }
 
     private void drawAscensionNode(Canvas c,AscensionTree.Node node,float x,float y){
