@@ -122,10 +122,11 @@ public final class BiomeAtmosphere {
                 // Forest pollen and hollow-fireflies hover instead of raining.
                 y+=(float)Math.sin(time*1.7f+i)*9;
                 float glow=size*(id==HOLLOW?3.2f:1.8f);
-                P.setShader(new RadialGradient(x,y,glow,
-                        tint(color,id==HOLLOW?91:50),0x00000000,
-                        Shader.TileMode.CLAMP));
-                c.drawCircle(x,y,glow,P);P.setShader(null);
+                // Concentric translucent ovals replace a new GPU radial
+                // shader for EVERY firefly EVERY frame (44 allocations).
+                oval(c,x,y,glow,glow*.86f,
+                        tint(color,id==HOLLOW?52:31));
+                oval(c,x,y,glow*.53f,glow*.49f,tint(color,65));
                 oval(c,x,y,size*.4f,size*.4f,tint(color,175));
             }
         }
