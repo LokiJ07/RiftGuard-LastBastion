@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.12.0 — bottom-to-top ascension tree and true four-mode difficulty
+## Current version: V0.13.0 — painted hero motion refinement and living biome atmosphere (visual phase 1)
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -49,6 +49,15 @@ The current initial downloadable pack contains the same art that ships with the 
 - The campaign difficulty UI now shows the selected HP/damage and wave/reward differences.
 - **Regression-tested:** tree graph connectivity, unlocking, persistent benefits, swipe navigation, strong mode separation and real gameplay changes. See [v0.12 audit and table](docs/V012_ASCENSION_DIFFICULTY_QA.md).
 - **Remaining:** fully authored HD sprite animations, sophisticated unique map art, physical phone FPS evaluation, and human-playtested balance. Android CI cannot guarantee the new Expert mode is fair across all 300 stages.
+
+## V0.13.0 — actual animation and visual improvements (Phase 1)
+
+- **Preserved original detailed actor artwork:** The first replacement prototype looked flat and the attempted hybrid had visible pasted rectangles in CI screenshots. Both were rejected during QA rather than shipping a visual downgrade.
+- **Improved painted hero motion:** The existing sidearm-masked upper torso now has additional breathing weight, combat anticipation and cape follow-through, while existing planted feet, independently hinged leg crops and dynamically attached weapon arm remain intact. All six weapons still use the real WeaponRig with matching shot origins; no new fixed weapon introduced.
+- **Enemy hit reactions:** Real projectile and melee damage triggers a timed, physical recoil/rotation on the painted enemy actor, not just a disconnected impact ring.
+- **Ten world atmospheres:** `BiomeAtmosphere` adds layered background lighting, fog and front-facing snow, rain, ash, fireflies, crystal dust and shadow particles in world coordinates. Effects remain behind the HUD and do not affect combat collision.
+- **Verified with native pixels:** Robolectric visual tests compare actual idle/run/attack/cast/hurt frames, independent weapon attachment, all 10 biome signatures and motion, and live enemy impacts. CI screenshots include real weaponless-body preview and weather compositions.
+- **Not completed yet:** these are meaningful animation and environmental improvements but do not provide a completely new HD multi-directional hero/enemy sprite library or photo-realistic landscape overhaul. The exact “AI animation skills” isn't available here; Higgsfield has no available generation credits. Physical phone playtest still required. See [v0.13 Visual QA notes](docs/V013_WEAPONFREE_ANIMATION_VISUAL_QA.md).
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
