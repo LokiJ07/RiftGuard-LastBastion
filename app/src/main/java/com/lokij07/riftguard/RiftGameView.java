@@ -2027,9 +2027,14 @@ public final class RiftGameView extends View {
             text(c,DifficultyRules.NAMES[mode],x+37,620,mode==3?13:14,
                     mode==difficultyMode?0xffffffff:0xffd0dee0,true);
         }
-        text(c,"REWARD +" +(int)(100f*new float[]{0f,0f,.22f,.55f}[difficultyMode])+
-                "%",906,666,15,GOLD,false);
-        text(c,"CLEARED: "+unlocked+" / 300",1087,686,17,GOLD,true);
+        int baseReward=100;
+        text(c,"HP x"+String.format(java.util.Locale.US,"%.2f",DifficultyRules.health(difficultyMode))+
+                        "   HIT x"+String.format(java.util.Locale.US,"%.2f",DifficultyRules.enemyDamage(difficultyMode)),
+                905,658,15,difficultyMode==3?0xffffa78e:GOLD,false);
+        text(c,"+"+DifficultyRules.bonusWaves(difficultyMode)+" WAVES    BONUS +"+
+                        DifficultyRules.supplyBonus(difficultyMode,baseReward)+"%",
+                905,679,15,INK,false);
+        text(c,"CLEARED: "+unlocked+" / 300",1110,701,15,GOLD,true);
     }
 
     private static final String[] KINGDOM_TABS={
@@ -2695,7 +2700,7 @@ public final class RiftGameView extends View {
                 float delta=y-treeLastY;
                 if(Math.abs(y-treeDownY)>9)treeDragging=true;
                 if(treeDragging)
-                    ascensionScroll=BattleRules.clamp(ascensionScroll-delta,0,
+                    ascensionScroll=BattleRules.clamp(ascensionScroll+delta,0,
                             AscensionTree.worldHeight()-(TREE_BOTTOM-TREE_TOP));
                 treeLastY=y;
             }else if(action==MotionEvent.ACTION_UP){
