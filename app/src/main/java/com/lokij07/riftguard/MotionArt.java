@@ -34,6 +34,9 @@ public final class MotionArt {
     };
     private Bitmap cachedTerrain;
     private int cachedStage=-1;
+    // Pre-feathered torso crops preserve painted realism, avoid rectangular
+    // clipping seams and NEVER include the original weapon-at-waist region.
+    private final Bitmap[] cleanTorsoCache=new Bitmap[16];
 
     public MotionArt(Resources resources) {
         this(resources,null);
@@ -207,6 +210,49 @@ public final class MotionArt {
         p.setAlpha(255);
         c.restore();
     }
+    /**
+     * Build a single painterly upper-body layer from the original source frame.
+     * Right-waist equipment (right of x=112 below y=76) is NEVER sampled.
+     * Soft transparency along the crop edge prevents a pasted rectangle.
+     * Cached per pose: no per-frame pixel processing in the game loop.
+     */
+    private Bitmap cleanUpperBody(int row,int col) {
+        int index=row*4+col;
+        if(cleanTorsoCache[index]!=null)return cleanTorsoCache[index];
+        Bitmap result=Bitmap.createBitmap(141,122,Bitmap.Config.ARGB_8888);
+        Canvas stage=new Canvas(result);
+        Paint copied=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+        copied.setColor(Color.WHITE);
+        int left=col*HERO_W,top=row*HERO_H;
+        stage.drawBitmap(heroes,new Rect(left,top,left+141,top+76),
+                new Rect(0,0,141,76),copied);
+        stage.drawBitmap(heroes,new Rect(left,top+76,left+112,top+122),
+                new Rect(0,76,112,122),copied);
+        stage.drawBitmap(heroes,new Rect(left+101,top+34,left+139,top+72),
+                new Rect(101,34,139,72),copied);
+        int[] pixels=new int[141*122];
+        result.getPixels(pixels,0,141,0,0,141,122);
+        for(int y=0;y<122;y++){
+            int end=y<76?141:112;
+            float bottom=y<=112?1f:Math.max(0,(122-y)/10f);
+            for(int x=0;x<141;x++){
+                int idx=y*141+x;
+                int pixel=pixels[idx];
+                if((pixel>>>24)==0)continue;
+                if(x>=end){pixels[idx]=0;continue;}
+                // Smooth only the artificial crop boundaries, not details.
+                float right=Math.min(1f,Math.max(0f,(end-x)/9f));
+                float leftFade=Math.min(1f,Math.max(0f,(x+2)/7f));
+                float edge=Math.min(Math.min(right,leftFade),bottom);
+                int alpha=Math.round((pixel>>>24)*edge);
+                pixels[idx]=(pixel&0x00ffffff)|(alpha<<24);
+            }
+        }
+        result.setPixels(pixels,0,141,0,0,141,122);
+        cleanTorsoCache[index]=result;
+        return result;
+    }
+
     private void drawHeroRigFrame(Canvas c,int state,int frame,float x,float y,
                                   boolean flip,boolean hurt,boolean running,float phase,
                                   float attack) {
@@ -241,20 +287,11 @@ public final class MotionArt {
         c.save();
         c.scale(1f+breath*.4f,1f-breath,0,-53);
         c.rotate(lean+anticipation,0,-39);
-        // The source sprite has a painted sidearm on its lower-right side.
-        // Keep the painted face and breastplate but exclude that original
-        // equipment and glove: a separate arm/weapon rig owns the right hand.
-        // Preserve exact original bitmap scale to avoid stretching armor.
+        // One feathered painted torso, explicitly excluding the original
+        // right-waist weapon. Prevents hard rectangular torso cut seams.
         p.setColor(Color.WHITE);p.setAlpha(hurt?195:255);
-        int srcX=column*HERO_W,srcY=row*HERO_H;
-        c.drawBitmap(heroes,new Rect(srcX,srcY,srcX+141,srcY+76),
-                new RectF(-57,-132,41,-66.6f),p);
-        c.drawBitmap(heroes,new Rect(srcX,srcY+76,srcX+112,srcY+122),
-                new RectF(-57,-66.6f,21,-27),p);
-        // Restore only the upper right steel pauldron as a separate layer.
-        // The articulated foreground arm and hand overlap its cut seam.
-        c.drawBitmap(heroes,new Rect(srcX+101,srcY+34,srcX+139,srcY+72),
-                new RectF(9,-104,41,-73),p);
+        c.drawBitmap(cleanUpperBody(row,column),null,
+                new RectF(-57,-132,41,-27),p);
         // Painted central tabard overlaps the hip/greave seam, with its own
         // much smaller cloth motion than the legs. Avoid rectangular cut-lines.
         float cloth=(float)Math.sin(phase*.77f)*(running?4.4f:1.1f);
