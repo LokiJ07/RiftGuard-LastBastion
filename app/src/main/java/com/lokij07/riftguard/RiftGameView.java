@@ -2305,16 +2305,18 @@ public final class RiftGameView extends View {
         c.translate(centerX,bottomY+15);c.scale(sz,sz);
         paintFullFortress(c,0,0,paintedRank,paintedArsenal);
         c.restore();
-        // Individually animated hero, creatures, flag and floating ambient lights.
-        float heroX=left+width*.79f,heroY=top+height*.81f;
-        boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
-                -2.2f,false,-1,-1,false,equippedWeapon,
-                weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
-        if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
-                weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
-        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
-        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
-        if(!workshop) {
+        // The Home scene keeps animated characters. In the Workshop the
+        // Warden previously occluded upgraded side bastions and weapon
+        // mounts, so reserve the entire preview for the actual fortress.
+        if(!workshop){
+            float heroX=left+width*.79f,heroY=top+height*.81f;
+            boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
+                    -2.2f,false,-1,-1,false,equippedWeapon,
+                    weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
+            if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
+                    weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
+            EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+            EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             motionArt.enemy(c,0,left+width*.91f,top+height*.86f,gameTime,
                     true,-1,false);
             motionArt.enemy(c,6,left+width*.87f,top+height*.58f,gameTime,
