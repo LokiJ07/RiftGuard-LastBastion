@@ -164,11 +164,17 @@ public class ScreenGalleryTest {
         // Capture three actual fortress upgrade ranks, with all four weapons mounted.
         java.lang.reflect.Field rankField=RiftGameView.class.getDeclaredField("fortressRank");
         rankField.setAccessible(true);
+        java.lang.reflect.Field coreHealth=RiftGameView.class.getDeclaredField("baseHp");
+        coreHealth.setAccessible(true);
         for(int rank=3;rank<=5;rank++){
             rankField.setInt(view,rank);
+            coreHealth.setFloat(view,Progression.maxCoreHp(rank));
             capture(view,"24-fortress-rank-"+rank);
         }
         rankField.setInt(view,5);
+        coreHealth.setFloat(view,Progression.maxCoreHp(5)*.13f);
+        capture(view,"31-fortress-real-damage");
+        coreHealth.setFloat(view,Progression.maxCoreHp(5));
         java.lang.reflect.Field weaponField=RiftGameView.class.getDeclaredField("equippedWeapon");
         weaponField.setAccessible(true);
         for(int weapon=0;weapon<6;weapon++){
