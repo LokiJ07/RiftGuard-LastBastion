@@ -84,6 +84,9 @@ public class ScreenGalleryTest {
         tap(view,100,639);
         tap(view,215,544); // armory
         capture(view,"03-armory");
+        tap(view,842,651); // NEW: equipable skill armory
+        capture(view,"29-ability-loadout");
+        tap(view,450,651); // skill screen -> weapons
         tap(view,450,656); // fortress
         capture(view,"04-fortress");
         tap(view,120,654); // home
@@ -171,6 +174,20 @@ public class ScreenGalleryTest {
         for(int weapon=0;weapon<6;weapon++){
             weaponField.setInt(view,weapon);
             capture(view,"25-equipped-weapon-"+weapon);
+        }
+        // Record genuinely different in-battle skill VFX from live animation.
+        java.lang.reflect.Field rankForSkills=RiftGameView.class.getDeclaredField("fortressRank");
+        rankForSkills.setAccessible(true);rankForSkills.setInt(view,5);
+        java.lang.reflect.Field skillField=RiftGameView.class.getDeclaredField("equippedSkill");
+        skillField.setAccessible(true);
+        java.lang.reflect.Field cdField=RiftGameView.class.getDeclaredField("pulseCooldown");
+        cdField.setAccessible(true);
+        java.lang.reflect.Method castSkill=RiftGameView.class.getDeclaredMethod("castSkill");
+        castSkill.setAccessible(true);
+        for(int skill=0;skill<WardenSkills.SKILLS.length;skill++){
+            skillField.setInt(view,skill);cdField.setFloat(view,0f);
+            castSkill.invoke(view);
+            capture(view,"30-cast-skill-"+skill);
         }
         for(int turretTier:new int[]{1,3,5}){
             for(int slot=0;slot<4;slot++)battlements[slot]=turretTier;
