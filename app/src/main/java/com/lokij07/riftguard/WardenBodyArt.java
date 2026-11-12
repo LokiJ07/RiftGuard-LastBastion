@@ -86,10 +86,10 @@ public final class WardenBodyArt {
         cloth.cubicTo(-39+wind*.75f,-7,-23+wind*.33f,-18,-13,-39);
         cloth.close();
         P.setColor(0xff472d48);P.setShader(new LinearGradient(-65,-105,10,14,
-                new int[]{0xff1b273d,0xff77536e,0xff2c3145},
+                new int[]{0xff14283d,0xff35619b,0xff172a43},
                 new float[]{0,.52f,1},Shader.TileMode.CLAMP));
         c.drawPath(cloth,P);P.setShader(null);
-        line(c,0xffac7e7e,2,-29,-94,-37+wind*.3f,-41);
+        line(c,0xff8bb7db,2,-29,-94,-37+wind*.3f,-41);
         poly(c,0xffac8a69,-27,-98,-16,-98,-8,-84,-20,-88);
     }
     private static void torso(Canvas c,float phase,boolean running,
