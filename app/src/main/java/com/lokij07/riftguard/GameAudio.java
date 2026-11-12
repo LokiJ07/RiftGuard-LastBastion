@@ -154,7 +154,7 @@ public final class GameAudio {
             // Original ambience uses matched fade-in/out for seamless loops.
             // Event sounds keep crisp attack/decay without sharp digital clicks.
             boolean ambient=type>=AMBIENT_FOREST;
-            double envelope=ambient?(.68-.32*Math.cos(Math.PI*2*t/seconds)):
+            double envelope=ambient?(.5-.5*Math.cos(Math.PI*2*t/seconds)):
                     Math.min(1,t*120)*life*life;
             seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;
             double noise=((seed&0xffff)/32767.5)-1;
