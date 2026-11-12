@@ -16,6 +16,7 @@ import static org.junit.Assert.*;
 @Config(sdk=28)
 public final class WeaponMuzzleAlignmentTest {
     @Test public void fourRangedClassesAimTheirBitmapTipsAtTheirTargets() {
+        float[] tipLengths={41f,65f,65f,68f,41f,84f};
         float[] facings={0f,(float)Math.PI,(float)Math.PI/2f,
                 -(float)Math.PI/3f,2.1f};
         for(int id:new int[]{0,3,4,5})for(float facing:facings){
@@ -25,8 +26,8 @@ public final class WeaponMuzzleAlignmentTest {
             float localHandX=left?-pose.handX:pose.handX;
             float dx=muzzle.x-localHandX,dy=muzzle.y-pose.handY;
             float projection=(float)(dx*Math.cos(facing)+dy*Math.sin(facing));
-            assertEquals("Weapon "+id+" must point downrange",76f,projection,.08f);
-            assertEquals("Weapon tip is the rotated sprite top",76f,
+            assertEquals("Weapon "+id+" must point downrange",tipLengths[id],projection,.08f);
+            assertEquals("Weapon tip is the actual combat model tip",tipLengths[id],
                     (float)Math.hypot(dx,dy),.08f);
         }
     }
