@@ -58,7 +58,7 @@ public final class WeaponMastery {
         float speed=id==0?0:lane==CADENCE?.042f+tier*.030f:0;
         float range=id==0?0:lane==SPECIAL?18f+tier*12f:0;
         if(id==10){damage=.24f;speed=.07f;range=26f;}
-        return new Node(weapon,id,tier,lane,parent,COST[id]+weapon*15,
+        return new Node(weapon,id,tier,lane,parent,id==0?0:COST[id]+weapon*15,
                 TITLES[weapon][id],damage,speed,range);
     }
     public static int at(int tier,int lane){
@@ -128,7 +128,7 @@ public final class WeaponMastery {
     public static float x(int id){return 176+node(0,id).lane*182;}
     public static String benefit(Node n){
         if(n.id==0)return "Every weapon begins here";
-        if(n.id==10)return "MASTERY +24% damage, speed, range and signature strike";
+        if(n.id==10)return "MASTERY +24% damage, -7% cooldown, +26 reach + special";
         if(n.lane==POWER)return "+"+Math.round(n.damageBonus*100)+"% DAMAGE";
         if(n.lane==CADENCE)return "-"+Math.round(n.speedBonus*100)+"% COOLDOWN";
         return "+"+Math.round(n.rangeBonus)+" ATTACK REACH";
