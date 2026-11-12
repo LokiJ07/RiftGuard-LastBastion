@@ -51,8 +51,10 @@ public final class WardenAnimationMachineTest {
         }
         assertTrue(WardenAnimationMachine.contactProgress(5)>
                 WardenAnimationMachine.contactProgress(4));
-        assertTrue(WardenAnimationMachine.contactProgress(1)>
-                WardenAnimationMachine.contactProgress(2));
+        // Heavy sword's contact happens LATER in absolute seconds because
+        // its weighted windup clip is longer, even with an earlier fraction.
+        assertTrue(WeaponAnimation.duration(1)*WardenAnimationMachine.contactProgress(1)>
+                WeaponAnimation.duration(2)*WardenAnimationMachine.contactProgress(2));
     }
     @Test public void movingFeetRemainStableAcrossAttackAndCast(){
         WardenAnimationMachine a=new WardenAnimationMachine();
