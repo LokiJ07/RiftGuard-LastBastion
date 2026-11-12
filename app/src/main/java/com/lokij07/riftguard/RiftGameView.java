@@ -105,14 +105,15 @@ public final class RiftGameView extends View {
     private final List<Impact> impacts=new ArrayList<>();
     private final List<Decor> decor=new ArrayList<>();
     private final List<Pickup> pickups=new ArrayList<>();
-    private final int[] towers=new int[4];
-    private final float[] towerTimers=new float[4];
-    private final float[] towerRecoil=new float[4];
-    private final float[] towerAim=new float[4];
+    private final int[] towers=new int[TowerPadLayout.MAX];
+    private final float[] towerTimers=new float[TowerPadLayout.MAX];
+    private final float[] towerRecoil=new float[TowerPadLayout.MAX];
+    private final float[] towerAim=new float[TowerPadLayout.MAX];
+    private int activeTowerCount=4;
     private final float[] hazardTimers=new float[4];
     private float hazardSlowTimer=0;
-    private final float[] towerX={810,1092,811,1093};
-    private final float[] towerY={370,370,624,624};
+    private final float[] towerX=new float[TowerPadLayout.MAX];
+    private final float[] towerY=new float[TowerPadLayout.MAX];
     private int unlocked;
     private int supplies, fortressRank, equippedWeapon, equippedSkill, difficultyMode;
     private int lastCastSkill=WardenSkills.PULSE;
@@ -312,6 +313,11 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
+        activeTowerCount=TowerPadLayout.count(stage);
+        for(int pad=0;pad<activeTowerCount;pad++){
+            towerX[pad]=TowerPadLayout.x(stage,pad);
+            towerY[pad]=TowerPadLayout.y(stage,pad);
+        }
         battleRecorded=false; battlePulses=0;
         hazardSlowTimer=0;
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
@@ -406,7 +412,7 @@ public final class RiftGameView extends View {
                 spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
             }
         }
-        for (int i=0;i<towers.length;i++) {
+        for (int i=0;i<activeTowerCount;i++) {
             towerTimers[i]-=dt;
             towerRecoil[i]=Math.max(0,towerRecoil[i]-dt);
             if (towers[i]>0 && towerTimers[i]<=0) {
@@ -414,15 +420,16 @@ public final class RiftGameView extends View {
                 if (target!=null) {
                     float[] modifiers={1f,1.50f,.77f,1.13f};
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*modifiers[i]*
+                            BattleRules.towerDamage(towers[i])*modifiers[TowerPadLayout.family(i)]*
                                     kingdom.towerDamageMultiplier()*ascension.towerMultiplier(),
-                            i==1?550:750,target,true);
+                            TowerPadLayout.family(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
                     audio.play(GameAudio.SHOT);
                     towerAim[i]=(float)Math.atan2(target.y-towerY[i],target.x-towerX[i]);
                     towerRecoil[i]=.20f;
-                    towerTimers[i]=Math.max(.25f,(i==1?1.35f:i==2?1.02f:.92f)
+                    towerTimers[i]=Math.max(.25f,(TowerPadLayout.family(i)==1?1.35f:
+                             TowerPadLayout.family(i)==2?1.02f:.92f)
                             -towers[i]*.11f);
                     puff(towerX[i],towerY[i]-38,6,towerColor(i));
                 }
@@ -579,16 +586,16 @@ public final class RiftGameView extends View {
                             Progression.WEAPONS[shot.weaponId].color,false,
                             shot.damage);
                 int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
-                if(shot.tower && shot.towerSlot==1) {
+                if(shot.tower && TowerPadLayout.family(shot.towerSlot)==1) {
                     // Cannon shells hit clustered enemies around the impact point.
                     for(Enemy nearby:enemies)
                         if(nearby!=shot.target && nearby.hp>0 &&
                            distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<95)
                             nearby.hp-=shot.damage*.44f;
-                } else if(shot.tower && shot.towerSlot==2) {
+                } else if(shot.tower && TowerPadLayout.family(shot.towerSlot)==2) {
                     // Frost turrets meaningfully reduce enemy movement for 2.6 seconds.
                     shot.target.slowTimer=2.6f;
-                } else if(shot.tower && shot.towerSlot==3) {
+                } else if(shot.tower && TowerPadLayout.family(shot.towerSlot)==3) {
                     // Arc turrets chain to a secondary target.
                     for(Enemy nearby:enemies)
                         if(nearby!=shot.target && nearby.hp>0 &&
@@ -652,7 +659,7 @@ public final class RiftGameView extends View {
                 puff(shot.target.x,shot.target.y,7,impact);
                 if(impacts.size()<64)impacts.add(new Impact(
                         shot.target.x,shot.target.y-15,impact,
-                        shot.tower&&shot.towerSlot==1?85:39));
+                        shot.tower&&TowerPadLayout.family(shot.towerSlot)==1?85:39));
                 audio.play(GameAudio.IMPACT);
                 sit.remove();
             } else {
@@ -947,13 +954,13 @@ public final class RiftGameView extends View {
         }
     }
     private boolean hitsBuiltTower(float x,float y) {
-        for (int i=0;i<towers.length;i++)
+        for (int i=0;i<activeTowerCount;i++)
             if (towers[i]>0 && distance(x,y,towerX[i],towerY[i])<29) return true;
         return false;
     }
     private void build() {
         int choice=-1;
-        for(int i=0;i<towers.length;i++) {
+        for(int i=0;i<activeTowerCount;i++) {
             if(choice==-1 || towers[i]<towers[choice]) choice=i;
         }
         if(choice<0 || towers[choice]>=BattleRules.MAX_TOWER_TIER) {
@@ -1031,7 +1038,7 @@ public final class RiftGameView extends View {
         // The castle walls and masonry mounts render before the working guns.
         // Previously upper turret weapons were depth-sorted behind the castle art.
         layer(KEEP,BASE_Y-305,null,0);
-        for(int i=0;i<towers.length;i++)layer(TOWER,towerY[i]+31,null,i);
+        for(int i=0;i<activeTowerCount;i++)layer(TOWER,towerY[i]+31,null,i);
         for(Enemy e:enemies)layer(MONSTER,e.y+8,e,0);
         for(Pickup drop:pickups)layer(DROP,drop.y+12,drop,0);
         layer(WARDEN,heroY+9,null,0);
@@ -1619,7 +1626,7 @@ public final class RiftGameView extends View {
     }
     /** Four distinctive functional fortress-mounted weapons. No generic sticks. */
     private void drawTower(Canvas c,float x,float y,int tier,int slot,int biome) {
-        final int accent=towerColor(slot);
+        final int accent=towerColor(TowerPadLayout.family(slot));
         float recoil=towerRecoil[slot]/.20f;
         oval(c,x-43,y+17,x+43,y+41,0x99091218);
         // Load-bearing parapet joins the tower to the castle structure.
@@ -1645,14 +1652,14 @@ public final class RiftGameView extends View {
         c.translate(x,top-12);
         c.rotate((float)Math.toDegrees(towerAim[slot]));
         float back=recoil*13;
-        if(slot==0) { // Mounted ballista: twin limbs and visible bow string.
+        if(TowerPadLayout.family(slot)==0) { // Mounted ballista: twin limbs and visible bow string.
             rect(c,-20-back,-8,30-back,8,0xff9a7858);
             polygon(c,new float[]{-14,0,-36,-30,-47,-22,-32,4},0xffcda877);
             polygon(c,new float[]{-14,0,-36,30,-47,22,-32,-4},0xffcda877);
             line(c,-44,-23,30,0,0xfff6d6a0,2);
             line(c,-44,23,30,0,0xfff6d6a0,2);
             polygon(c,new float[]{47-back,0,27-back,-7,27-back,7},0xffdbe9ec);
-        } else if(slot==1) { // Siege cannon: blackened iron barrel and orange vent.
+        } else if(TowerPadLayout.family(slot)==1) { // Siege cannon: blackened iron barrel and orange vent.
             round(c,-25-back,-15,38-back,15,5,0xff414852);
             round(c,-11-back,-19,27-back,19,4,0xff6f747a);
             rect(c,29-back,-20,43-back,20,0xffa8a9a4);
@@ -1660,7 +1667,7 @@ public final class RiftGameView extends View {
             circle(c,43-back,0,6,0xffce6d48);
             for(int bolt=-1;bolt<=1;bolt++)
                 circle(c,bolt*14-back,-14,3,0xffecc27c);
-        } else if(slot==2) { // Frost launcher: icy prongs and rotating crystal.
+        } else if(TowerPadLayout.family(slot)==2) { // Frost launcher: icy prongs and rotating crystal.
             polygon(c,new float[]{-22,-18,8,-18,37-back,0,8,18,-22,18},
                     0xff8cb8ca);
             polygon(c,new float[]{48-back,0,18-back,-18,-1,-2,18-back,18},
@@ -1966,7 +1973,7 @@ public final class RiftGameView extends View {
 
     private int nextTowerTier() {
         int tier=BattleRules.MAX_TOWER_TIER;
-        for(int t:towers) tier=Math.min(tier,t);
+        for(int pad=0;pad<activeTowerCount;pad++)tier=Math.min(tier,towers[pad]);
         return tier;
     }
     private void drawHudTop(Canvas c,int biome) {
