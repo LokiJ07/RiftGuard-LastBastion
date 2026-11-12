@@ -267,12 +267,11 @@ public final class MotionArt {
         boolean left=Math.cos(facing)<-.28f;
         drawHeroRigFrame(c,state,frame,x,y,left,hurt,running,time*11.7f,
                 attackProgress);
-        if(weaponsReady()){
-            c.save();c.translate(x,y);
-            if(left)c.scale(-1,1);
-            drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running,facing);
-            c.restore();
-        }
+        // Keep the transparent combat model visible even if an icon atlas is missing.
+        c.save();c.translate(x,y);
+        if(left)c.scale(-1,1);
+        drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running,facing);
+        c.restore();
         return true;
     }
     /**
@@ -293,7 +292,7 @@ public final class MotionArt {
             float t=clamp01(attackProgress);
             WeaponRig.Pose previous=WeaponRig.aimedPose(id,Math.max(0,t-.13f),
                     castProgress,time,running,facing);
-            WeaponRig.Point a=WeaponRig.tip(previous),b=WeaponRig.tip(pose);
+            WeaponRig.Point a=WeaponRig.tip(id,previous),b=WeaponRig.tip(id,pose);
             Path slash=new Path();
             slash.moveTo(a.x,a.y);
             slash.quadTo((a.x+b.x)*.5f,(a.y+b.y)*.5f-7,b.x,b.y);
@@ -328,10 +327,9 @@ public final class MotionArt {
         c.save();
         c.translate(pose.handX,pose.handY);
         c.rotate(pose.angle);
-        Rect source=new Rect(id*WEAPON_W,0,(id+1)*WEAPON_W,WEAPON_H);
-        p.setColor(Color.WHITE);p.setAlpha(255);
-        // Lower portion of the atlas sprite is the handle/grip.
-        c.drawBitmap(weapons,source,new RectF(-19,-77,19,9),p);
+        // Unlike the inventory bitmap, these in-hand weapon models have
+        // transparent backgrounds. Never paint a solid equipment-card tile.
+        WorldArt.drawHeldWeapon(c,id,0,0,1f,time);
         c.restore();
         // The hand is drawn over the handle, so visibly gripping the weapon.
         arm.setColor(0xff293d4e);
@@ -345,7 +343,7 @@ public final class MotionArt {
             int color=id==5?0xffaafaff:id==3?0xffaca5ff:0xffffce8c;
             glow.setColor(color);
             glow.setAlpha((int)(170*(1-clamp01(attackProgress))));
-            WeaponRig.Point muzzle=WeaponRig.tip(pose);
+            WeaponRig.Point muzzle=WeaponRig.tip(id,pose);
             c.drawCircle(muzzle.x,muzzle.y,11,glow);
             glow.setAlpha(240);
             c.drawCircle(muzzle.x,muzzle.y,3,glow);
