@@ -316,6 +316,8 @@ public final class MotionArt {
                 (attack<.5f?2.8f:1.2f);
         anticipation+=WeaponAnimation.anticipation(weaponId,attack);
         c.save();
+        c.translate(WeaponAnimation.torsoShiftX(weaponId,attack),
+                WeaponAnimation.torsoShiftY(weaponId,attack));
         c.scale(1f+breath*.4f,1f-breath,0,-53);
         c.rotate(lean+anticipation,0,-39);
         // One feathered painted torso, explicitly excluding the original
