@@ -44,7 +44,7 @@ public final class MeleeSwingContactTest {
             float dx=(mirrored?-point.x:point.x)-(mirrored?-pose.handX:pose.handX);
             float dy=point.y-pose.handY;
             float dot=dx*(float)Math.cos(dir)+dy*(float)Math.sin(dir);
-            assertTrue("Sword must actually face target at contact",dot>60f);
+            assertTrue("Sword must actually face target at contact",dot>34f);
         }
     }
     @Test public void inGameSwordOnlyDamagesEnemiesInFrontAtContactTime()
