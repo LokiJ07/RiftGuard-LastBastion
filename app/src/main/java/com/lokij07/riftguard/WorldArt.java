@@ -275,7 +275,7 @@ public final class WorldArt {
             // instead of making it appear disconnected from the weapon.
             for(int ring=0;ring<4;ring++){
                 float y=-20+ring*14;
-                line(c,-7,y,9,y+1,2.3f,idx==3?0xffddba82:0xffe8fcff);
+                line(c,-7,y,9,y+1,idx==3?0xffddba82:0xffe8fcff,2.3f);
             }
             poly(c,0xff5f7385,-8,-41,-4,-49,13,-49,18,-40,8,-35);
             circle(c,4,-42,5,gem);
