@@ -1,0 +1,58 @@
+name: RiftGuard Evolution - Android Emulator QA
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  emulator-qa:
+    name: Android emulator upgrade UI, combat and frame measurements
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Enable Android Emulator hardware acceleration
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+          else
+            echo "::warning::No /dev/kvm; emulator may run slowly. Hardware FPS estimates are not valid."
+          fi
+      - name: Android SDK 35 and build tools
+        shell: bash
+        run: |
+          set -e
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build real debug APK for emulator
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Boot real Android virtual device and run smoke + gfxinfo QA
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: google_apis
+          arch: x86_64
+          profile: pixel_3a
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash scripts/run_emulator_qa.sh
+      - name: Upload emulator screenshots and measured frame/memory logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RiftGuard-v050-Android-Emulator-QA
+          path: emulator-qa/
+          if-no-files-found: warn
