@@ -213,6 +213,18 @@ public class ScreenGalleryTest {
             tap(view,77+w*189+87,144);
             capture(view,"40-weapon-tree-"+w);
         }
+        // A real purchased Crossbow branch lights up the path.
+        android.content.SharedPreferences masteryPrefs=context.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE);
+        masteryPrefs.edit().putInt("supplies",2400).commit();
+        WeaponMastery purchasedTree=new WeaponMastery(masteryPrefs);
+        for(int id:new int[]{1,2,3,4,5,6})
+            assertTrue("Purchase path "+id,purchasedTree.buy(0,id,2));
+        java.lang.reflect.Field wallet=RiftGameView.class.getDeclaredField("supplies");
+        wallet.setAccessible(true);
+        wallet.setInt(view,masteryPrefs.getInt("supplies",0));
+        tap(view,164,144);
+        capture(view,"42-weapon-tree-purchased-branches");
         swipe(view,430,472,205);
         capture(view,"41-weapon-tree-summit");
         tap(view,189,650); // Tree -> Armory
