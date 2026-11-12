@@ -181,8 +181,27 @@ public final class WorldArt {
     public static void drawWeapon(Canvas c,int id,float x,float y,float scale,float time) {
         int idx=Math.max(0,Math.min(5,id));
         c.save();c.translate(x,y);c.scale(scale,scale);
-        float sway=(float)Math.sin(time*3+idx)*2f;
         oval(c,-27,35,28,43,0x55000000);
+        drawWeaponGeometry(c,idx,time);
+        c.restore();
+    }
+
+    /**
+     * Held weapons need TRANSPARENT silhouettes. Inventory-card bitmaps have
+     * opaque colored badge backgrounds and cannot be used as hand attachments.
+     * This draws distinct no-background combat geometry until clean painted
+     * transparent weapon layers are available.
+     */
+    public static void drawHeldWeapon(Canvas c,int id,float x,float y,
+                                      float scale,float time) {
+        int idx=Math.max(0,Math.min(5,id));
+        c.save();c.translate(x,y);c.scale(scale,scale);
+        drawWeaponGeometry(c,idx,time);
+        c.restore();
+    }
+
+    private static void drawWeaponGeometry(Canvas c,int idx,float time) {
+        float sway=(float)Math.sin(time*3+idx)*2f;
         if(idx==0 || idx==4) { // Mechanical crossbows, siege repeater has paired arms
             int brass=idx==4?0xffffce72:0xffb9ccd2;
             rounded(c,-9,-32,9,30,5,0xff6e483a);
@@ -224,6 +243,5 @@ public final class WorldArt {
                 circle(c,25,-36,7,0x66b2d6ff);
             }
         }
-        c.restore();
     }
 }

@@ -88,21 +88,36 @@ public final class CombatVfx {
         }
         c.restore();
     }
-    /** A real timed impact animation with concentric expanding shock contours. */
+    /** Directional impact sparks, not a detached expanding circle animation. */
     public static void hit(Canvas c,float x,float y,float fraction,int color,float radius){
         float t=Math.max(0,Math.min(1,fraction));
         float fade=1-t;
+        int alpha=Math.max(0,Math.min(255,(int)(215*fade)));
+        int tint=(color&0x00ffffff)|(alpha<<24);
         p.setStyle(Paint.Style.STROKE);
-        p.setColor((color&0x00ffffff)|(((int)(185*fade))<<24));
-        p.setStrokeWidth(3+3*fade);
-        float r=radius*(.15f+.85f*t);
-        c.drawOval(new RectF(x-r,y-r*.55f,x+r,y+r*.55f),p);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setColor(tint);
+        p.setStrokeWidth(2.5f+3*fade);
+        for(int i=0;i<9;i++){
+            // Each strike produces separated fragments with uneven travel paths.
+            float a=(float)(i*Math.PI*2/9+.22*Math.sin(i*2.9));
+            float spread=radius*(.25f+.68f*t)*(i%3==0?1f:.70f);
+            float sx=x+(float)Math.cos(a)*spread*.33f;
+            float sy=y+(float)Math.sin(a)*spread*.20f;
+            float ex=x+(float)Math.cos(a)*spread;
+            float ey=y+(float)Math.sin(a)*spread*.55f;
+            c.drawLine(sx,sy,ex,ey,p);
+        }
         p.setStyle(Paint.Style.FILL);
-        for(int i=0;i<7;i++){
-            float a=(float)(i*Math.PI*2/7+t*.4);
-            float rr=r*(.65f+.3f*(i%3));
-            circle(c,x+(float)Math.cos(a)*rr,y+(float)Math.sin(a)*rr*.6f,
-                    1+3*fade,(color&0x00ffffff)|(((int)(190*fade))<<24));
+        // Tiny fragment shards travel with the hit rather than orbiting the enemy.
+        for(int i=0;i<4;i++){
+            float a=(float)(i*1.64+.3);
+            float r=radius*(.18f+.65f*t);
+            float px=x+(float)Math.cos(a)*r;
+            float py=y+(float)Math.sin(a)*r*.58f;
+            float s=2.1f+2.3f*fade;
+            poly(c,tint,px,py-s,px+s*.55f,py,px,py+s,px-s*.55f,py);
         }
     }
+
 }

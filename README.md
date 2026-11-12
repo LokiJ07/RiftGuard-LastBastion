@@ -2,11 +2,11 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.9.3 — corrected planted-step gait and painted joint covers
+## Current version: V0.9.4 — weapon-anchored shots and transparent held equipment
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
-- **Separate raster weapon attachment**: six generated-asset-derived weapon images anchored at the hero's hand, with frame-synchronized swinging, spell glows, projectile muzzle effects and slash trails. No permanently attached second weapon.
+- **Weapon and projectile synchronization**: six transparent in-hand Canvas weapon models anchored to animated wrist grips, with target-dependent aim, true muzzle spawning, weapon-tip slash trails and directional hit fragments. The original painted inventory icon atlas remains for Armory; the source hero sprite still has baked-in painted equipment that requires a clean future atlas.
 - **Textured living battleground**: ten biome palettes and four illustrated texture variations per biome replace the plain solid-color floor. Atlas is assembled into one cached scene texture per mission for Android performance.
 - **Living world map**: ten clickable region nodes and three A/B/C mission previews over the illustrated world. Progression remains controlled in code, not baked into painting.
 - **New permanent fortress upgrade**: five ranks, supplies earned on mission wins, castle appearance/core HP/starting towers progress, saved after reopening the app.
@@ -117,3 +117,11 @@ In-game screenshot inspection found that the first procedural legs used flat col
 
 ## V0.9.3 screenshot-driven cleanup
 Full-size screenshot inspection found the new cutout greaves swinging too wide and exposing a hard waist seam. This release reduces step spread and foot lift, limits boot rotation, and adds a moving painted central tabard over the hip joins. Original boss art remains intact. These changes are validated through actual run-frame captures and stride bounds, but the game still needs proper authored skeletal sprite sheets before its animations can be called production-quality.
+
+## V0.9.4 — physically connected combat presentation
+- Ranged weapon aim now rotates its actual held silhouette toward the target in the same coordinate transform used to spawn damage projectiles; left-facing characters mirror correctly.
+- Weapon-specific tips determine bolt/energy launch positions and muzzle spark origins. No projectiles spawning from the hero's abdomen.
+- Sword and sabre swipes follow the moving blade tip; impact VFX use directional fragments instead of a generic expanding ring.
+- Opaque/colored inventory-card art is no longer mounted in the hero's hand. Separate transparent Canvas equipment silhouettes are used until production-grade transparent weapon sprites are available.
+- Added real in-game projectile-origin tests for four weapon classes on both facing directions, target-angle tests, and a pixel-based no-badge visual regression test.
+- **Still not done:** the original hero sprite includes some painted equipment; production-quality weapon-free hero and enemy atlases, advanced 2.5D maps, audio, and physical phone playtests remain outstanding. See [requirements audit](docs/REQUIREMENTS_AUDIT_2026-11-12.md).

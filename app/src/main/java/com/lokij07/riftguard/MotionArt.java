@@ -267,12 +267,11 @@ public final class MotionArt {
         boolean left=Math.cos(facing)<-.28f;
         drawHeroRigFrame(c,state,frame,x,y,left,hurt,running,time*11.7f,
                 attackProgress);
-        if(weaponsReady()){
-            c.save();c.translate(x,y);
-            if(left)c.scale(-1,1);
-            drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running);
-            c.restore();
-        }
+        // Keep the transparent combat model visible even if an icon atlas is missing.
+        c.save();c.translate(x,y);
+        if(left)c.scale(-1,1);
+        drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running,facing);
+        c.restore();
         return true;
     }
     /**
@@ -282,24 +281,31 @@ public final class MotionArt {
      */
     private void drawHeldWeapon(Canvas c,int weaponId,float time,
                                 float attackProgress,float castProgress,
-                                boolean running) {
+                                boolean running,float facing) {
         int id=Math.max(0,Math.min(5,weaponId));
-        WeaponRig.Pose pose=WeaponRig.pose(id,attackProgress,castProgress,time,running);
+        WeaponRig.Pose pose=WeaponRig.aimedPose(id,attackProgress,castProgress,
+                time,running,facing);
         boolean blade=id==1||id==2;
         if(blade && attackProgress>=.07f && attackProgress<.92f){
+            // The slash follows the blade's actual moving TIP, not a ring
+            // rotating around the body or an unconnected on-screen effect.
             float t=clamp01(attackProgress);
+            WeaponRig.Pose previous=WeaponRig.aimedPose(id,Math.max(0,t-.13f),
+                    castProgress,time,running,facing);
+            WeaponRig.Point a=WeaponRig.tip(id,previous),b=WeaponRig.tip(id,pose);
+            Path slash=new Path();
+            slash.moveTo(a.x,a.y);
+            slash.quadTo((a.x+b.x)*.5f,(a.y+b.y)*.5f-7,b.x,b.y);
             Paint arc=new Paint(Paint.ANTI_ALIAS_FLAG);
             arc.setStyle(Paint.Style.STROKE);
             arc.setStrokeCap(Paint.Cap.ROUND);
             int tint=id==2?0xffff9d55:0xffb2edff;
-            arc.setStrokeWidth(10f*(1-t*.35f));
-            arc.setColor(tint);
-            arc.setAlpha((int)(180*Math.sin(Math.PI*t)));
-            c.drawArc(-76,-143,89,25,-192+171*t,100,false,arc);
-            arc.setStrokeWidth(3);
-            arc.setColor(Color.WHITE);
-            arc.setAlpha((int)(180*Math.sin(Math.PI*t)));
-            c.drawArc(-80,-145,91,27,-192+171*t,94,false,arc);
+            arc.setColor(tint);arc.setStrokeWidth(15f*(1-t*.4f));
+            arc.setAlpha((int)(185*Math.sin(Math.PI*t)));
+            c.drawPath(slash,arc);
+            arc.setColor(Color.WHITE);arc.setStrokeWidth(3);
+            arc.setAlpha((int)(210*Math.sin(Math.PI*t)));
+            c.drawPath(slash,arc);
         }
         // Shoulder joint and segmented pauldron/forearm, with articulated elbow.
         Paint arm=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
@@ -321,10 +327,9 @@ public final class MotionArt {
         c.save();
         c.translate(pose.handX,pose.handY);
         c.rotate(pose.angle);
-        Rect source=new Rect(id*WEAPON_W,0,(id+1)*WEAPON_W,WEAPON_H);
-        p.setColor(Color.WHITE);p.setAlpha(255);
-        // Lower portion of the atlas sprite is the handle/grip.
-        c.drawBitmap(weapons,source,new RectF(-19,-77,19,9),p);
+        // Unlike the inventory bitmap, these in-hand weapon models have
+        // transparent backgrounds. Never paint a solid equipment-card tile.
+        WorldArt.drawHeldWeapon(c,id,0,0,1f,time);
         c.restore();
         // The hand is drawn over the handle, so visibly gripping the weapon.
         arm.setColor(0xff293d4e);
@@ -338,9 +343,14 @@ public final class MotionArt {
             int color=id==5?0xffaafaff:id==3?0xffaca5ff:0xffffce8c;
             glow.setColor(color);
             glow.setAlpha((int)(170*(1-clamp01(attackProgress))));
-            c.drawCircle(pose.handX+17,pose.handY-54,14,glow);
+            WeaponRig.Point muzzle=WeaponRig.tip(id,pose);
+            c.drawCircle(muzzle.x,muzzle.y,11,glow);
             glow.setAlpha(240);
-            c.drawCircle(pose.handX+17,pose.handY-54,4,glow);
+            c.drawCircle(muzzle.x,muzzle.y,3,glow);
+            glow.setStyle(Paint.Style.STROKE);
+            glow.setStrokeWidth(2);
+            c.drawLine(muzzle.x-10,muzzle.y,muzzle.x+10,muzzle.y,glow);
+            glow.setStyle(Paint.Style.FILL);
         }
     }
 
