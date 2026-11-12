@@ -374,10 +374,67 @@ public final class MotionArt {
         return kind==0||kind==1||kind==2||kind==4;
     }
 
-    /** Returns false for the winged monster, which still has its own flapping rig. */
+    /**
+     * A flying imp uses the existing illustrated source actor as its body,
+     * with separately animated painted membrane wings. This replaces the old
+     * generic purple cylinder fallback with a recognisable living creature.
+     */
+    private void wing(Canvas c,int side,float time) {
+        float flap=(float)Math.sin(time*10f)*23f;
+        float tipX=side*(72+flap*.31f);
+        float tipY=-92+flap;
+        float rootX=side*19;
+        Path membrane=new Path();
+        membrane.moveTo(rootX,-58);
+        membrane.quadTo(side*47,-88,tipX,tipY);
+        membrane.lineTo(side*(63+flap*.18f),-42+flap*.43f);
+        membrane.lineTo(side*47,-22);
+        membrane.quadTo(side*23,-35,rootX,-34);
+        membrane.close();
+        Paint wing=new Paint(Paint.ANTI_ALIAS_FLAG);
+        wing.setShader(new LinearGradient(rootX,-45,tipX,tipY,
+                0xff292447,0xff7059a8,Shader.TileMode.CLAMP));
+        c.drawPath(membrane,wing);
+        wing.setShader(null);
+        wing.setStrokeCap(Paint.Cap.ROUND);
+        wing.setStrokeWidth(4);
+        wing.setColor(0xffb39cd2);
+        wing.setStyle(Paint.Style.STROKE);
+        c.drawPath(membrane,wing);
+        wing.setColor(0xff675585);wing.setStrokeWidth(3);
+        c.drawLine(rootX,-56,tipX,tipY,wing);
+        c.drawLine(rootX,-53,side*(63+flap*.18f),-42+flap*.43f,wing);
+        wing.setStyle(Paint.Style.FILL);
+    }
+
     public boolean enemy(Canvas c,int kind,float x,float y,float time,
                          boolean moving,float attackProgress,boolean hurt) {
-        if(!enemiesReady()||kind==3||kind<0||kind>6)return false;
+        if(!enemiesReady()||kind<0||kind>6)return false;
+        if(kind==3){
+            int frame=attackProgress>=0?4+eventFrame(attackProgress)
+                    :frame(time,moving?12f:4f,4);
+            Rect src=new Rect(frame*ENEMY_W,3*ENEMY_H,
+                    (frame+1)*ENEMY_W,4*ENEMY_H);
+            c.save();c.translate(x,y);
+            Paint shadow=new Paint(Paint.ANTI_ALIAS_FLAG);
+            shadow.setColor(0x66091824);
+            c.drawOval(-24,-2,25,10,shadow);
+            c.translate(0,-9+(float)Math.sin(time*5)*5);
+            wing(c,-1,time);wing(c,1,time+0.03f);
+            p.setColor(Color.WHITE);p.setAlpha(hurt?185:255);
+            // Reuse painted armor and face; do not substitute a geometry stick man.
+            c.drawBitmap(monsters,src,new RectF(-36,-78,36,4),p);
+            p.setAlpha(255);
+            if(attackProgress>=0){
+                Paint magic=new Paint(Paint.ANTI_ALIAS_FLAG);
+                magic.setColor(0x88c6a4ff);
+                float size=10+7*(float)Math.sin(Math.PI*attackProgress);
+                c.drawCircle(25,-42,size,magic);
+                magic.setColor(0xffefe3ff);
+                c.drawCircle(25,-42,4,magic);
+            }
+            c.restore();return true;
+        }
         int frame;
         if(attackProgress>=0)frame=4+eventFrame(attackProgress);
         else frame=frame(time,moving?11:2.2f,4);

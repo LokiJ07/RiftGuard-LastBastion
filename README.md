@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.10.0 — mission-story encounters and weapon-aware melee contact
+## Current version: V0.11.0 — six real Warden abilities, living enemies and battle damage
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -31,11 +31,21 @@ The current initial downloadable pack contains the same art that ships with the 
 - Full offline story logic and actual Robolectric View/touch tests, weapon/body render tests, melee-hit tests and screen-gallery captures are part of Android CI.
 - Roadmap and limitations: [V0.10 QA notes](docs/V010_MISSION_STORY_COMBAT_QA.md).
 
+## V0.11.0 — abilities, offline audio and more reactive battles
+- **Six meaningful and equipable combat skills** with permanent unlock requirements: Arc Pulse (rank 1), Ember Cleave (rank 2), Frost Nova and Healing Banner (rank 3), Spike Trap (rank 4), Meteor Strike (rank 5). Every one has real simulation effects such as damage, burn damage-over-time, enemy slow, hero/core heal, persistent trap detonation and delayed area impact.
+- **Skill loadouts:** Home → Armory → EQUIP COMBAT ABILITIES. Tap an unlocked ability to equip it, then use the existing battle skill button. Equipped skills save offline. Cooldowns and the capacitor upgrade apply to all skills.
+- **Original offline sound effects:** real waveforms generated inside the app for shots, swords, spellcasting, impacts, buildings, victory and damage. Switch SOUND ON/OFF in Home; no sound asset downloads, advertisements or permissions.
+- **New enemy behavior:** boars warn before charging at higher speed; shaman magic projectiles travel through the world to a targetable position and are dodgeable. The flying imp now uses actual illustrated actor atlas frames with physically flapping membrane wings instead of the old purple placeholder enemy.
+- **Fortress responds to damage:** wood/stone structures progressively gain cracks, planks, smoke and embers as core health falls; repairs through healing remove damage visuals.
+- **Better visual verification:** automated screenshots of all six skill attacks, equipped-skill menu and damaged fortress. Android tests cover real gameplay state and generated WAV data.
+- **Not claimed yet:** all-new weapon-free high-definition hero art, full 300 artist-authored scenes, production soundtrack, additional original boss sprite families, device performance/final polish. See [v0.11 QA notes](docs/V011_ABILITY_AUDIO_ENEMY_QA.md).
+
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
 2. Move using left thumb, hold ATTACK to use equipped weapon, use PULSE and BUILD to defend.
-3. Win to earn permanent supplies. Home → FORTRESS → upgrade rank to unlock a new weapon.
-4. Home → ARMORY → tap an unlocked weapon to equip it; return to campaign and see it in hero's hand.
+3. Win to earn permanent supplies. Home → FORTRESS → upgrade rank to unlock weapons and abilities.
+4. Home → ARMORY → tap an unlocked weapon to equip it; choose EQUIP COMBAT ABILITIES to set a distinct skill.
+5. On the Home screen tap SOUND ON/OFF to control the locally generated game sounds.
 
 ## Build
 Android Gradle Plugin 8.7.3, Gradle 8.10.2, JDK 17, Android SDK 35. On GitHub see Actions → Android CI → successful run → Artifacts → `RiftGuard-debug-apk`.
