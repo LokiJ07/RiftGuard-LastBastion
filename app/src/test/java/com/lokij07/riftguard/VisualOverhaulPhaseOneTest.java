@@ -100,6 +100,44 @@ public final class VisualOverhaulPhaseOneTest {
                 movingPixels+" pixels)",movingPixels>150);
         original.recycle();first.recycle();
     }
+    @Test public void realProjectileTriggersTimedEnemyStaggerAnimation()
+            throws Exception {
+        android.content.Context context=RuntimeEnvironment.getApplication();
+        context.getSharedPreferences("riftguard_campaign_v1",
+                android.content.Context.MODE_PRIVATE).edit().clear().commit();
+        RiftGameView live=new RiftGameView(context);
+        java.lang.reflect.Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
+        java.lang.reflect.Method spawn=RiftGameView.class.getDeclaredMethod("spawnEnemy");
+        java.lang.reflect.Method fire=RiftGameView.class.getDeclaredMethod("fire");
+        java.lang.reflect.Method update=RiftGameView.class.getDeclaredMethod("update",float.class);
+        start.setAccessible(true);spawn.setAccessible(true);
+        fire.setAccessible(true);update.setAccessible(true);
+        start.invoke(live,0);spawn.invoke(live);
+        java.lang.reflect.Field heroX=RiftGameView.class.getDeclaredField("heroX");
+        java.lang.reflect.Field heroY=RiftGameView.class.getDeclaredField("heroY");
+        java.lang.reflect.Field enemies=RiftGameView.class.getDeclaredField("enemies");
+        heroX.setAccessible(true);heroY.setAccessible(true);enemies.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        java.util.List<Object> group=(java.util.List<Object>)enemies.get(live);
+        Object enemy=group.get(0);
+        java.lang.reflect.Field x=enemy.getClass().getDeclaredField("x"),
+                y=enemy.getClass().getDeclaredField("y"),
+                hp=enemy.getClass().getDeclaredField("hp"),
+                reaction=enemy.getClass().getDeclaredField("hitReaction");
+        x.setAccessible(true);y.setAccessible(true);hp.setAccessible(true);
+        reaction.setAccessible(true);
+        float xx=heroX.getFloat(live),yy=heroY.getFloat(live);
+        x.setFloat(enemy,xx+142);y.setFloat(enemy,yy);
+        hp.setFloat(enemy,1800f);
+        fire.invoke(live);
+        update.invoke(live,.18f);
+        assertTrue("An ACTUAL projectile impact must animate the enemy",
+                reaction.getFloat(enemy)>0);
+        update.invoke(live,.28f);
+        assertEquals("Hit-stagger must end instead of staying stuck",
+                0f,reaction.getFloat(enemy),.0001f);
+    }
+
     @Test public void originalBodyAndSeparateActualEquippedWeaponBothRender(){
         MotionArt motion=new MotionArt(RuntimeEnvironment.getApplication());
         Bitmap bare=Bitmap.createBitmap(330,330,Bitmap.Config.ARGB_8888);
