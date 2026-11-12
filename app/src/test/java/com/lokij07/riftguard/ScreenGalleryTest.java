@@ -135,14 +135,22 @@ public class ScreenGalleryTest {
             py.setFloat(enemy,LaneRules.stagePathY(0,ex)+(kind%3-1)*40f);
         }
         capture(view,"05-battle");
-        // Difficulty-mode visual comparisons on the SAME battlefield.
+        // Every mode snapshot starts a REAL new battle so the hero HP,
+        // initial towers and initial gold actually reflect its mode.
         java.lang.reflect.Field modeField=RiftGameView.class.getDeclaredField("difficultyMode");
         modeField.setAccessible(true);
+        java.lang.reflect.Method restart=RiftGameView.class.getDeclaredMethod(
+                "start",int.class);
+        restart.setAccessible(true);
         for(int mode=0;mode<4;mode++){
             modeField.setInt(view,mode);
+            restart.invoke(view,0);
+            for(int k=0;k<7;k++)spawn.invoke(view);
             capture(view,"34-difficulty-"+DifficultyRules.NAMES[mode].toLowerCase());
         }
         modeField.setInt(view,DifficultyRules.NORMAL);
+        restart.invoke(view,0);
+        for(int k=0;k<7;k++)spawn.invoke(view);
         // Exercise actual movement and weapon attack state and capture the renderer.
         java.lang.reflect.Field axis=RiftGameView.class.getDeclaredField("axisX");
         axis.setAccessible(true);axis.setFloat(view,.9f);
