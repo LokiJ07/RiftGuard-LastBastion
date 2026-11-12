@@ -110,6 +110,7 @@ public final class RiftGameView extends View {
     private final float[] towerRecoil=new float[TowerPadLayout.MAX];
     private final float[] towerAim=new float[TowerPadLayout.MAX];
     private int activeTowerCount=4;
+    private int selectedTowerPad=-1;
     private final float[] hazardTimers=new float[4];
     private float hazardSlowTimer=0;
     private final float[] towerX=new float[TowerPadLayout.MAX];
@@ -317,6 +318,7 @@ public final class RiftGameView extends View {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
         activeTowerCount=TowerPadLayout.count(stage);
+        selectedTowerPad=-1;
         for(int pad=0;pad<activeTowerCount;pad++){
             towerX[pad]=TowerPadLayout.x(stage,pad);
             towerY[pad]=TowerPadLayout.y(stage,pad);
@@ -1013,12 +1015,17 @@ public final class RiftGameView extends View {
         return false;
     }
     private void build() {
-        int choice=-1;
-        for(int i=0;i<activeTowerCount;i++) {
-            if(choice==-1 || towers[i]<towers[choice]) choice=i;
+        int choice=selectedTowerPad;
+        if(choice<0||choice>=activeTowerCount){
+            // Auto-build still works when no pad has been selected.
+            choice=-1;
+            for(int i=0;i<activeTowerCount;i++)
+                if(choice==-1||towers[i]<towers[choice])choice=i;
         }
         if(choice<0 || towers[choice]>=BattleRules.MAX_TOWER_TIER) {
-            announce("ALL TOWERS MAXED");return;
+            announce(selectedTowerPad>=0?"SELECTED TOWER IS MAXED":
+                    "ALL TOWERS MAXED");
+            return;
         }
         int cost=BattleRules.towerCost(towers[choice]);
         if(gold<cost){announce("NEED "+(cost-gold)+" MORE GOLD");return;}
@@ -1089,6 +1096,14 @@ public final class RiftGameView extends View {
         // NativeDeployedMapArt from the same seed as real enemy AI.
         drawStageHazards(c);
         drawPlacedSkills(c);
+        if(selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
+            float sx=towerX[selectedTowerPad],sy=towerY[selectedTowerPad];
+            float pulse=(float)Math.sin(gameTime*3.4f)*4;
+            circleStroke(c,sx,sy,58+pulse,0xfff2d68e,5);
+            circleStroke(c,sx,sy,44,0x99b8fff0,2);
+            text(c,"SELECTED PAD "+(selectedTowerPad+1),sx,sy-81,19,
+                    0xffffe8ac,true);
+        }
         // Stable depth sorting by world-space foot position. Trees can pass in
         // front of the hero while structures and monsters retain proper layering.
         drawQueue.clear();
@@ -2025,7 +2040,9 @@ public final class RiftGameView extends View {
             textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
         }
         text(c,"MOVE",stickX,688,17,0xffb5cfc5,true);
-        text(c,"PADS "+activeTowerCount,buildHudX(),680,15,0xffb9ddd2,true);
+        text(c,selectedTowerPad<0?"PADS "+activeTowerCount:
+                "PAD "+(selectedTowerPad+1)+"/"+activeTowerCount,
+                buildHudX(),680,15,0xffb9ddd2,true);
         if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
             WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
@@ -3146,6 +3163,7 @@ public final class RiftGameView extends View {
             else if(distance(x,y,pulseHudX(),593)<62) pulse();
             else if(distance(x,y,buildHudX(),589)<65) build();
             else if(distance(x,y,dodgeHudX(),590)<54) triggerDodge();
+            else selectTowerPadAt(x,y);
         }else if(action==MotionEvent.ACTION_MOVE) {
             if(joyPointer!=-1){
                 int at=ev.findPointerIndex(joyPointer);
@@ -3160,6 +3178,22 @@ public final class RiftGameView extends View {
         }
         invalidate();
         return true;
+    }
+    /**
+     * Convert physical battle screen taps back to the same world camera used
+     * by drawBattle. Only *actual* active build sites are selectable.
+     * Tapping one only selects it; the visible BUILD button confirms spending.
+     */
+    private void selectTowerPadAt(float screenX,float screenY){
+        float worldX=(screenX-W*.5f)/BATTLE_ZOOM+LaneRules.VIEW_CENTER_X;
+        float worldY=(screenY-H*.5f)/BATTLE_ZOOM+LaneRules.VIEW_CENTER_Y;
+        for(int slot=0;slot<activeTowerCount;slot++){
+            if(distance(worldX,worldY,towerX[slot],towerY[slot])<59f){
+                selectedTowerPad=slot;
+                announce("PAD "+(slot+1)+" SELECTED • TAP BUILD");
+                return;
+            }
+        }
     }
     /** Dash input is responsive but cannot be chained or used while paused. */
     private void triggerDodge(){
