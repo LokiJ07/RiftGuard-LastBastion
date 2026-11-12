@@ -2,6 +2,14 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
+## v0.40.0-rc2 — Environment / Animation / Audio / Emulator QA
+
+- Environment: ten distinct **real kingdom landmark structures** are now rendered natively into the actual 300-stage cached maps, with stage A/B/C siege variants, moving world-attached visual highlights and a reduced-motion still setting. All real build pads and gameplay routes remain separate and functional.
+- Animation: `CombatAnimationLayers` adds attack-state-specific species contact silhouettes, HP-phase-linked boss symbols, timed injury fragments, Warden weapon contact and casting/dodge cues. These are procedural VFX applied to the existing articulated sprite-sheet characters; they do NOT claim new hand-drawn or motion-captured skeletal frame sets.
+- Audio: tenable offline effects now include real dodge, boss charging and phase-change cues, and three original ambient loops selected by kingdom; mute and activity lifecycle stop looping streams safely without permissions.
+- Android graphics QA: Robolectric captures ten realm scenes, animation phase images and measured Canvas render samples. A separate **Android Emulator QA** GitHub Actions workflow attempts to install the actual APK on a virtual Android device, navigate the screens and combat, and collect `dumpsys gfxinfo framestats`, memory and crash logs with screenshot artifacts. Virtualized FPS is reported with measured percentiles; it is *not* a physical-phone performance certificate.
+- Further device-specific validation is still required on a real phone for manufacturer GPU, touchscreen feel, battery/thermal throttling and packaging update behavior. No genuine physical phone was connected to this chat.
+
 ## v0.40.0-rc1 — Kingdoms at War gameplay candidate (under test)
 
 This release candidate moves the v0.40 plan forward with **real playable code**, not a completed v0.40 claim:
