@@ -208,31 +208,64 @@ public final class MotionArt {
         c.restore();
     }
     private void drawHeroRigFrame(Canvas c,int state,int frame,float x,float y,
-                                   boolean flip,boolean hurt,boolean running,float phase,
-                                   float attack) {
-        // A clean, original high-detail scalable body replaces the legacy
-        // sheet with the permanent painted sword. The body NEVER draws a
-        // weapon: selected equipment exists exclusively in WeaponRig.
-        float cast=state==3?frame/3f:-1f;
-        WardenBodyArt.draw(c,x,y,phase,running,attack,cast,hurt,flip);
-        // Restore ONLY the hand-painted central armor and helmet texture
-        // from the original high-detail sheet. Both right-waist and arms
-        // (where the old fixed sidearm lived) remain entirely excluded.
-        // This is a rigged PAINTED hybrid, not a flat vector replacement.
-        if(heroReady()){
-            int col=Math.max(0,Math.min(3,frame));
-            int row=Math.max(0,Math.min(3,state));
-            int sx=col*HERO_W,sy=row*HERO_H;
-            c.save();c.translate(x,y);
-            if(flip)c.scale(-1,1);
-            p.setColor(Color.WHITE);p.setAlpha(hurt?184:246);
-            c.drawBitmap(heroes,new Rect(sx+28,sy+2,sx+131,sy+79),
-                    new RectF(-37,-135,36,-72),p);
-            c.drawBitmap(heroes,new Rect(sx+47,sy+77,sx+108,sy+115),
-                    new RectF(-23,-75,23,-41),p);
-            p.setAlpha(255);
-            c.restore();
-        }
+                                  boolean flip,boolean hurt,boolean running,float phase,
+                                  float attack) {
+        if(!heroReady())return;
+        int row=Math.max(0,Math.min(3,state));
+        int column=Math.max(0,Math.min(3,frame));
+        c.save();c.translate(x,y);
+        if(flip)c.scale(-1,1);
+        p.setStyle(Paint.Style.FILL);p.setColor(0x9908131e);p.setAlpha(120);
+        c.drawOval(new RectF(-36,-3,35,11),p);
+        // The cape is a separately swaying crop of the SAME painted armor set.
+        float wind=running?(float)Math.sin(phase)*11:((float)Math.sin(phase*.3f))*2;
+        p.setColor(Color.WHITE);p.setAlpha(hurt?190:245);
+        c.drawBitmap(heroes,
+                new Rect(column*HERO_W+17,row*HERO_H+82,
+                         column*HERO_W+71,row*HERO_H+184),
+                new RectF(-63+wind*.55f,-69,-13+wind*.22f,10),p);
+        p.setAlpha(255);
+        // Individually anchored original boots and greaves rotate around their hip.
+        paintedLeg(c,heroes,column*HERO_W,row*HERO_H,
+                55,112,96,187,ActorGait.leg(phase,running,-1,140),31,hurt);
+        paintedLeg(c,heroes,column*HERO_W,row*HERO_H,
+                96,111,139,187,ActorGait.leg(phase,running,1,140),34,hurt);
+        float lean=ActorGait.torsoLean(phase,running,attack);
+        // Keep the ORIGINAL detailed painted armor sheet, but animate the
+        // upper torso's breathing weight and anticipatory lean separately
+        // from the planted boots. No rectangular pasted portrait layer.
+        float breath=running?0f:(float)Math.sin(phase*.72f)*.017f;
+        float anticipation=attack<0?0f:
+                -(float)Math.sin(Math.PI*Math.min(1,attack))*
+                (attack<.5f?2.8f:1.2f);
+        c.save();
+        c.scale(1f+breath*.4f,1f-breath,0,-53);
+        c.rotate(lean+anticipation,0,-39);
+        // The source sprite has a painted sidearm on its lower-right side.
+        // Keep the painted face and breastplate but exclude that original
+        // equipment and glove: a separate arm/weapon rig owns the right hand.
+        // Preserve exact original bitmap scale to avoid stretching armor.
+        p.setColor(Color.WHITE);p.setAlpha(hurt?195:255);
+        int srcX=column*HERO_W,srcY=row*HERO_H;
+        c.drawBitmap(heroes,new Rect(srcX,srcY,srcX+141,srcY+76),
+                new RectF(-57,-132,41,-66.6f),p);
+        c.drawBitmap(heroes,new Rect(srcX,srcY+76,srcX+112,srcY+122),
+                new RectF(-57,-66.6f,21,-27),p);
+        // Restore only the upper right steel pauldron as a separate layer.
+        // The articulated foreground arm and hand overlap its cut seam.
+        c.drawBitmap(heroes,new Rect(srcX+101,srcY+34,srcX+139,srcY+72),
+                new RectF(9,-104,41,-73),p);
+        // Painted central tabard overlaps the hip/greave seam, with its own
+        // much smaller cloth motion than the legs. Avoid rectangular cut-lines.
+        float cloth=(float)Math.sin(phase*.77f)*(running?4.4f:1.1f);
+        if(attack>=0)cloth+=(float)Math.sin(Math.PI*Math.min(1,attack))*6f;
+        Rect tabard=new Rect(column*HERO_W+73,row*HERO_H+97,
+                column*HERO_W+113,row*HERO_H+176);
+        p.setAlpha(hurt?185:255);
+        c.drawBitmap(heroes,tabard,
+                new RectF(-17+cloth*.55f,-57,22+cloth*.18f,4),p);
+        p.setAlpha(255);c.restore();
+        c.restore();
     }
 
     /** Hero's armor and limbs without any externally equipped weapon. */
