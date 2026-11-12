@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.12.0 — bottom-to-top ascension tree and true four-mode difficulty
+## Current version: V0.13.0 — weapon-free hero rig and living biome atmosphere (visual phase 1)
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -49,6 +49,14 @@ The current initial downloadable pack contains the same art that ships with the 
 - The campaign difficulty UI now shows the selected HP/damage and wave/reward differences.
 - **Regression-tested:** tree graph connectivity, unlocking, persistent benefits, swipe navigation, strong mode separation and real gameplay changes. See [v0.12 audit and table](docs/V012_ASCENSION_DIFFICULTY_QA.md).
 - **Remaining:** fully authored HD sprite animations, sophisticated unique map art, physical phone FPS evaluation, and human-playtested balance. Android CI cannot guarantee the new Expert mode is fair across all 300 stages.
+
+## V0.13.0 — actual animation and visual improvements (Phase 1)
+
+- **Completely weapon-free base character rendering:** A new original `WardenBodyArt` renderer replaces the previous cropped torso sprite with separate metal torso, masked helmet, animated hair-free cape, articulated back arm, independently planted/run legs, knee armor and detailed boots. The six unlockable weapons remain separate attachments, anchored to the animated wrist; changing weapon does not leave a pre-painted second item.
+- **Run, attack, casting, injury:** Real per-frame changes in the Warden's silhouette with alternating foot contact, cape follow-through, torso anticipation and independent head/back-arm poses. Native Android Canvas vector geometry renders sharply across device resolutions.
+- **Ten distinct living world atmospheres:** `BiomeAtmosphere` adds background light shafts/haze, weather and front-layer snow, rain, drifting ash, fireflies, swamp spores, glowing crystal dust and shadow fog in world coordinates. No game UI elements are blocked.
+- **Visual QA:** Robolectric pixel tests verify real independent animation poses, absence of legacy baked equipment, ten biome signatures and moving particles; new Android-rendered gallery pages show the actual clean Warden rig and all biomes.
+- **NOT complete:** Native vector art and weather are a real upgrade but do not yet equal hand-painted HD direction-specific sprite atlases or fully realistic enemy/boss/castle animations. This release does not claim to have used the specific 'AI animation skills' app; that exact installed skill is not available and the connected Higgsfield has no generation credits. More original high-resolution art and physical-device playtesting still required. See [Visual QA Phase 1](docs/V013_WEAPONFREE_ANIMATION_VISUAL_QA.md).
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
