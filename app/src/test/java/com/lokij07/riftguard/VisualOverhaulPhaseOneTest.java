@@ -131,6 +131,9 @@ public final class VisualOverhaulPhaseOneTest {
         hp.setFloat(enemy,1800f);
         fire.invoke(live);
         update.invoke(live,.18f);
+        // The projectile integrator advances to its target on frame one and
+        // resolves collision at the start of the following simulation frame.
+        update.invoke(live,.016f);
         assertTrue("An ACTUAL projectile impact must animate the enemy",
                 reaction.getFloat(enemy)>0);
         update.invoke(live,.28f);
