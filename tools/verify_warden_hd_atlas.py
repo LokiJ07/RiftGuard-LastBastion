@@ -58,7 +58,7 @@ def inspect(source: Path, output: Path, make_gifs: bool = True) -> dict:
                 errors.append(f"{name}[{index}]: painted body too small")
             if min(bbox[0], bbox[1], CELL - bbox[2], CELL - bbox[3]) < 2:
                 errors.append(f"{name}[{index}]: subject clipped at edge")
-            if not 20 <= bbox[3] - PIVOT[1] <= 20:
+            if abs(bbox[3] - PIVOT[1]) > 20:
                 # Log a warning rather than failing pose bounce. The user
                 # should review planted-foot alignment on real artwork.
                 warnings.append(f"{name}[{index}]: check feet pivot y={bbox[3]}")
