@@ -317,6 +317,37 @@ public class ScreenGalleryTest {
         atlas.recycle();
     }
 
+    /** Thirty distinct district silhouettes, not just ten color-palette swaps. */
+    @Test public void captureThirtyNamedEnvironmentDistricts()throws Exception{
+        Bitmap atlas=Bitmap.createBitmap(1280,1140,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(atlas);
+        c.drawColor(0xff0f202c);
+        android.graphics.Paint label=new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        label.setColor(0xffe6d2a5);
+        label.setTextSize(24);
+        label.setFakeBoldText(true);
+        c.drawText("RIFTGUARD — 30 DISTINCT LANDSCAPE DISTRICTS / 300 MISSIONS",
+                22,35,label);
+        label.setFakeBoldText(false);
+        LivingBattlefield renderer=new LivingBattlefield();
+        for(int world=0;world<10;world++)for(int part=0;part<3;part++){
+            int item=world*3+part;
+            int level=world*10+(part==0?1:part==1?5:8);
+            int stage=Campaign.stage(level,0);
+            float x=10+(item%5)*253,y=57+(item/5)*177;
+            renderer.thumbnail(c,stage,x,y,243,125);
+            label.setColor(0xffe7dfcb);label.setTextSize(16);
+            c.drawText(EnvironmentDistricts.name(stage),x+4,y+146,label);
+            label.setColor(0xff9eb7c3);label.setTextSize(13);
+            c.drawText("Realm "+(world+1)+"  •  "+LivingBattlefield.stageMood(stage),
+                    x+4,y+163,label);
+        }
+        renderer.release();
+        saveCustom(atlas,"54-thirty-named-landscape-districts");
+        atlas.recycle();
+    }
+
     @Test public void captureTenActualParallaxWorlds() throws Exception {
         RiftGameView game=new RiftGameView(context);
         game.layout(0,0,1280,720);
