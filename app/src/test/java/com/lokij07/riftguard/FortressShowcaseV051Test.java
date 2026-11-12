@@ -127,8 +127,7 @@ public final class FortressShowcaseV051Test {
         RiftGameView game=new RiftGameView(context);
         game.layout(0,0,1280,720);game.setActive(false);
         tap(game,464,541); // same HOME -> FORTRESS button as actual UI
-        assertEquals("FORTRESS",game.getClass().getDeclaredField("scene")
-                .getName().equals("scene")?sceneName(game):"");
+        assertEquals("FORTRESS",sceneName(game));
         Bitmap current=frame(game);
         save(current,"103-v051-workshop-current.png");
         int original=hash(current);
@@ -164,6 +163,9 @@ public final class FortressShowcaseV051Test {
         assertEquals('R',(char)wav[0]);assertEquals('W',(char)wav[8]);
         assertEquals('A',(char)wav[9]);assertEquals('V',(char)wav[10]);
         assertEquals('E',(char)wav[11]);
-        assertNotEquals(0,wav[wav.length/2]);
+        boolean nonZero=false;
+        for(int i=44;i<wav.length;i++)
+            if(wav[i]!=0){nonZero=true;break;}
+        assertTrue("Actual synthesized unlock sound cannot be silent",nonZero);
     }
 }
