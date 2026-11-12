@@ -16,8 +16,9 @@ import android.graphics.Shader;
  * sky, far ridge, near ridge, castle cliff, drifting mist, pines/props,
  * lake/reflections and the safe foreground particle veil.
  *
- * 10 authored palette/landmark families x 3 map types x 10 local level seeds
- * produce 300 deterministic stage compositions. They are procedural
+ * 10 authored palette/landmark families x 3 distinct landscape districts
+ * x 3 map types x 10 local level seeds produce 300 deterministic stage
+ * compositions. They are procedural
  * variations, NOT 300 individually illustrated HD background bitmaps.
  *
  * Keep one stage's five 960x260 ARGB bitmap layers in memory (~5 MB),
@@ -378,7 +379,10 @@ public final class LivingBattlefield {
                 case 0:buildSky(c,world,stage);break;
                 case 1:ridge(c,stage,FAR[world],365,210,37);
                        ridge(c,stage,MID[world],402,161,92);break;
-                case 2:ridge(c,stage,NEAR[world],435,101,158);break;
+                case 2:ridge(c,stage,NEAR[world],435,101,158);
+                       // Draw DISTRICT landmarks behind the working keep,
+                       // not on the battle road or over enemy health bars.
+                       EnvironmentDistricts.draw(c,stage);break;
                 case 3:drawLake(c,stage,world,0);drawCastle(c,stage,world);break;
                 default:drawPines(c,stage,world);break;
             }
@@ -496,6 +500,7 @@ public final class LivingBattlefield {
             ridge(tc,stage,FAR[world],365,210,37);
             ridge(tc,stage,MID[world],402,161,92);
             ridge(tc,stage,NEAR[world],435,101,158);
+            EnvironmentDistricts.draw(tc,stage);
             drawLake(tc,stage,world,0);
             drawCastle(tc,stage,world);
             drawPines(tc,stage,world);

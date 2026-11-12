@@ -2168,6 +2168,11 @@ public final class RiftGameView extends View {
             c.clipRect(905,top,1204,top+68);
             livingWorld.thumbnail(c,mission,905,top,299,68);
             drawStagePreview(c,mission,905,top);
+            // Name the actual stage's landscape directly on the illustrated
+            // A/B/C mission preview, instead of another anonymous map number.
+            rect(c,905,top+43,1204,top+67,0xd0182b35);
+            text(c,EnvironmentDistricts.name(mission).toUpperCase(),
+                    912,top+61,13,0xffe2f2dc,false);
             c.restore();
             rect(c,905,top+67,1204,top+99,0xee182e37);
             text(c,(char)('A'+m)+"  "+Campaign.MAPS[m],914,top+90,19,INK,false);

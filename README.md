@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.18.0 — living layered 10-biome environments and 300 stage-specific landscapes
+## Current version: V0.19.0 — 30 named landscape districts across all 300 campaign stages
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -13,6 +13,18 @@ Mobile-first, fully offline Android fortress-defense action game.
 - **New Armory**: six visible weapon designs with unlock rules, equip selection, persistent loadout and distinct attack stats/effects (crossbow, greatsword, fire sabre, arc staff, siege repeater, frost lance).
 - Upgradable turrets, touch joystick, hold-to-attack, Arc Pulse, monster classes, win/lose, pause/resume, responsive HUD.
 - Android CI builds, JVM rules tests and Robolectric screen/gameplay tests, debug APK uploaded as Actions artifact.
+
+## v0.19.0 — more than a palette swap
+
+The user's uploaded `RiftGuard World and Environment.html` provided four animated examples (Verdant Vale, Ember Highlands, Frostpeak Range and Rift Chasm): independently shifting sky, mountains, castle cliffs, mist, pines, lake reflections and foreground atmosphere. v0.18 ported that composition into native Android Canvas without embedding a WebView; v0.19 expands the result:
+
+- **30 distinct named landscape districts** across the existing ten realms: three evolving subregions per realm. Each district uses real extra silhouettes, not merely another flat background color.
+- Forest groves/ancient spires, bridge ruins/aqueducts, and biome-specific ritual gateways are built as cached landscape geometry. Every world has a distinct color, vegetation/rock treatment, architectural accents, and weather.
+- **300 seeded compositions remain supported**, across 100 campaign levels × A/B/C map variants. Every map has real images in the selectable Mission Atlas, now labeled with its district name.
+- Districts are rendered BEHIND the playable keep/enemies and above the textured world in the 8-layer depth composition. The mission road, physics, enemy AI, collision, and HUD are unchanged.
+- Stage changes rebuild the five cached bitmap layers. Live animation only pans cached scenery with subtle foreground FX for performance and supports the existing reduced-motion preference.
+- Automated pixel tests verify **all 30** district silhouettes, map/index boundaries, 300-to-30 mapping, cache reuse, and no drawing over the live battle lane. Screenshot gallery includes all 30 map preview renderings.
+- **Scope disclaimer:** these are 30 distinct procedural district motifs in ten biome families with stage-specific seeded configurations, not 300 hand-painted high-resolution backgrounds or a new character atlas.
 
 ## Important visual scope
 This build combines **original generative painting assets** in interactive screens with original procedural vector gameplay artwork. The game does **not** yet include hand-painted high-resolution sprite atlases, animated skeleton rigs, 1,000+ imported art assets, or 300 artist-authored unique map scenes. Those are planned V3–V5 improvements. See [production pack](docs/CONTENT_INTEGRATION_V1.md).
