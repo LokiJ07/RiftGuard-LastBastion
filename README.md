@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.13.0 — weapon-free hero rig and living biome atmosphere (visual phase 1)
+## Current version: V0.13.0 — painted hero motion refinement and living biome atmosphere (visual phase 1)
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -52,11 +52,12 @@ The current initial downloadable pack contains the same art that ships with the 
 
 ## V0.13.0 — actual animation and visual improvements (Phase 1)
 
-- **Completely weapon-free base character rendering:** A new original `WardenBodyArt` articulated unarmed base adds detailed boots, planted/run legs, knee joints, back arm, and flowing cape. Carefully cropped original painted HELMET and central CHEST textures remain on top for higher-fidelity material than flat procedural armor, excluding the original right waist/weapon areas. The six unlockable weapons remain separate attachments on the animated wrist, without any intentionally painted fixed second weapon.
-- **Run, attack, casting, injury:** Real per-frame changes in the Warden's silhouette with alternating foot contact, cape follow-through, torso anticipation and independent head/back-arm poses. Native Android Canvas vector geometry renders sharply across device resolutions.
-- **Ten distinct living world atmospheres:** `BiomeAtmosphere` adds background light shafts/haze, weather and front-layer snow, rain, drifting ash, fireflies, swamp spores, glowing crystal dust and shadow fog in world coordinates. No game UI elements are blocked.
-- **Visual QA:** Robolectric pixel tests verify real independent animation poses, absence of legacy baked equipment, ten biome signatures and moving particles; new Android-rendered gallery pages show the actual clean Warden rig and all biomes.
-- **NOT complete:** The native articulated body + masked painted armor and weather are real improvements, but do not yet equal complete new HD direction-specific sprite atlases or fully realistic enemy/boss/castle animations. This release does not claim to have used the specific 'AI animation skills' app; that exact installed skill is not available and the connected Higgsfield has no generation credits. More original high-resolution art and physical-device playtesting still required. See [Visual QA Phase 1](docs/V013_WEAPONFREE_ANIMATION_VISUAL_QA.md).
+- **Preserved original detailed actor artwork:** The first replacement prototype looked flat and the attempted hybrid had visible pasted rectangles in CI screenshots. Both were rejected during QA rather than shipping a visual downgrade.
+- **Improved painted hero motion:** The existing sidearm-masked upper torso now has additional breathing weight, combat anticipation and cape follow-through, while existing planted feet, independently hinged leg crops and dynamically attached weapon arm remain intact. All six weapons still use the real WeaponRig with matching shot origins; no new fixed weapon introduced.
+- **Enemy hit reactions:** Real projectile and melee damage triggers a timed, physical recoil/rotation on the painted enemy actor, not just a disconnected impact ring.
+- **Ten world atmospheres:** `BiomeAtmosphere` adds layered background lighting, fog and front-facing snow, rain, ash, fireflies, crystal dust and shadow particles in world coordinates. Effects remain behind the HUD and do not affect combat collision.
+- **Verified with native pixels:** Robolectric visual tests compare actual idle/run/attack/cast/hurt frames, independent weapon attachment, all 10 biome signatures and motion, and live enemy impacts. CI screenshots include real weaponless-body preview and weather compositions.
+- **Not completed yet:** these are meaningful animation and environmental improvements but do not provide a completely new HD multi-directional hero/enemy sprite library or photo-realistic landscape overhaul. The exact “AI animation skills” isn't available here; Higgsfield has no available generation credits. Physical phone playtest still required. See [v0.13 Visual QA notes](docs/V013_WEAPONFREE_ANIMATION_VISUAL_QA.md).
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
