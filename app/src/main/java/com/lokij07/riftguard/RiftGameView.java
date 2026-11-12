@@ -801,6 +801,7 @@ public final class RiftGameView extends View {
         drawStageLandmarks(c,Campaign.map(stage),biome);
         drawStageIdentity(c,biome);
         drawStageHazards(c);
+        drawPlacedSkills(c);
         // Stable depth sorting by world-space foot position. Trees can pass in
         // front of the hero while structures and monsters retain proper layering.
         drawQueue.clear();
@@ -858,17 +859,111 @@ public final class RiftGameView extends View {
             p.setColor(s.color);p.setAlpha((int)(255*Math.max(0,s.life/s.maxLife)));
             c.drawCircle(s.x,s.y,2.5f+3*s.life/s.maxLife,p);p.setAlpha(255);
         }
-        if(pulseFlash>0) {
-            p.setColor(0xffb3f7ff);p.setAlpha((int)(150*pulseFlash/.55f));
-            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(12);
-            c.drawCircle(heroX,heroY,235*(1-pulseFlash/.55f),p);
-            p.setStyle(Paint.Style.FILL);p.setAlpha(255);
-        }
+        if(pulseFlash>0)drawActiveSkillVfx(c);
         c.restore();
         if(scene==Scene.PLAY)drawHud(c,biome);
         else drawHudTop(c,biome);
     }
 
+
+    /** Persistent rune, trap and delayed meteor visuals are tied to real world positions. */
+    private void drawPlacedSkills(Canvas c){
+        if(bannerTime>0){
+            float sway=(float)Math.sin(gameTime*3f)*4f;
+            oval(c,bannerX-21,bannerY-7,bannerX+22,bannerY+7,0x6632a572);
+            line(c,bannerX,bannerY-8,bannerX,bannerY-109,0xffe3ca94,7);
+            polygon(c,new float[]{bannerX,bannerY-105,bannerX+51+sway,bannerY-93,
+                    bannerX+31+sway,bannerY-56,bannerX,bannerY-66},0xff67bc8d);
+            polygon(c,new float[]{bannerX+7,bannerY-98,bannerX+27+sway,bannerY-88,
+                    bannerX+16,bannerY-75},0xffe7f9bf);
+            for(int n=0;n<6;n++){
+                float angle=(float)(n*Math.PI/3+gameTime*.5);
+                float rad=34+(float)Math.sin(gameTime*2+n)*3;
+                circle(c,bannerX+(float)Math.cos(angle)*rad,
+                        bannerY-10+(float)Math.sin(angle)*rad*.35f,2.8f,0xffb9fbd0);
+            }
+        }
+        if(trapTime>0){
+            oval(c,trapX-29,trapY-12,trapX+29,trapY+12,0xb1373532);
+            for(int n=0;n<8;n++){
+                float a=(float)(n*Math.PI/4);
+                float px=trapX+(float)Math.cos(a)*20,py=trapY+(float)Math.sin(a)*8;
+                polygon(c,new float[]{px-6,py+4,px,py-15,px+6,py+4},
+                        0xffd6ba84);
+            }
+            circle(c,trapX,trapY-10,4,0xffff9666);
+        }
+        if(meteorTime>0) {
+            float t=1f-meteorTime/1.1f;
+            // Ground-targeted warning telegraph, not a free-floating cast ring.
+            oval(c,meteorX-122,meteorY-48,meteorX+122,meteorY+48,0x88cf4732);
+            for(int n=0;n<12;n++){
+                float a=(float)(n*Math.PI/6);
+                float inner=104,outer=122;
+                line(c,meteorX+(float)Math.cos(a)*inner,
+                        meteorY+(float)Math.sin(a)*inner*.4f,
+                        meteorX+(float)Math.cos(a)*outer,
+                        meteorY+(float)Math.sin(a)*outer*.4f,0xffffc78d,4);
+            }
+            float drop=210*(1-t);
+            polygon(c,new float[]{meteorX-23,meteorY-14-drop,meteorX+3,
+                    meteorY-72-drop,meteorX+33,meteorY-10-drop,
+                    meteorX+8,meteorY+9-drop},0xffff925c);
+            circle(c,meteorX+3,meteorY-25-drop,13,0xffffdab0);
+        }
+    }
+
+    /** Six skill families use different geometric effects, never one generic ring. */
+    private void drawActiveSkillVfx(Canvas c){
+        float t=1f-pulseFlash/.55f;
+        int color=WardenSkills.SKILLS[lastCastSkill].color;
+        float intensity=(float)Math.sin(Math.PI*Math.max(0,Math.min(1,t)));
+        if(lastCastSkill==WardenSkills.PULSE){
+            for(int n=0;n<9;n++){
+                float a=(float)(n*Math.PI*2/9+heroDir);
+                float r=225*Math.max(.15f,t);
+                float mx=heroX+(float)Math.cos(a)*r*.55f;
+                float my=heroY+(float)Math.sin(a)*r*.55f;
+                line(c,heroX,heroY-26,mx+10,my-17,color,3+intensity*3);
+                line(c,mx+10,my-17,heroX+(float)Math.cos(a)*r,
+                        heroY+(float)Math.sin(a)*r-10,0xffe3fbff,2);
+            }
+        }else if(lastCastSkill==WardenSkills.EMBER){
+            for(int n=-3;n<=3;n++){
+                float angle=heroDir+n*.16f;
+                float r=(80+Math.max(0,t)*160);
+                float px=heroX+(float)Math.cos(angle)*r;
+                float py=heroY+(float)Math.sin(angle)*r;
+                line(c,heroX,heroY-53,px,py-35,color,5+intensity*7);
+                circle(c,px,py-35,4+4*intensity,0xffffdc9e);
+            }
+        }else if(lastCastSkill==WardenSkills.FROST){
+            for(int n=0;n<18;n++){
+                float a=(float)(n*Math.PI/9);
+                float r=195*Math.max(.12f,t);
+                float x=heroX+(float)Math.cos(a)*r,y=heroY+(float)Math.sin(a)*r;
+                polygon(c,new float[]{x-7,y,x,y-25-intensity*11,x+7,y,x,y+5},color);
+            }
+        }else if(lastCastSkill==WardenSkills.BANNER){
+            for(int n=0;n<10;n++){
+                float x=heroX+(n-4.5f)*15;
+                float y=heroY-60-t*65+(float)Math.sin(n*1.3f)*9;
+                circle(c,x,y,4*intensity+1,color);
+            }
+        }else if(lastCastSkill==WardenSkills.TRAP){
+            float cx=trapX,cy=trapY;
+            for(int n=0;n<12;n++){
+                float a=(float)(n*Math.PI/6);
+                line(c,heroX,heroY-54,
+                        cx+(float)Math.cos(a)*20,cy-12,color,1.5f);
+            }
+        }else if(lastCastSkill==WardenSkills.METEOR){
+            line(c,heroX,heroY-75,heroX+(float)Math.cos(heroDir)*65,
+                    heroY-126,0xffffc58c,6);
+            circle(c,heroX+(float)Math.cos(heroDir)*65,heroY-126,
+                    8*intensity+2,0xffffeeae);
+        }
+    }
 
     private void updateStageHazards(float dt) {
         for(int i=0;i<StageHazards.count(stage);i++) {
@@ -1622,7 +1717,8 @@ public final class RiftGameView extends View {
         int nextTier=nextTowerTier();
         action(c,buildHudX(),589,50,0xff4c837d,"BUILD",
                 nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":""+BattleRules.towerCost(nextTier));
-        action(c,pulseHudX(),593,49,0xff6476a6,"PULSE",
+        action(c,pulseHudX(),593,49,WardenSkills.SKILLS[equippedSkill].color,
+                WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
         action(c,attackHudX(),560,70,0xffb3684c,"ATTACK","FIRE");
         if(waveNotice>0 && !bossActive) {
@@ -2043,7 +2139,74 @@ public final class RiftGameView extends View {
         }
         button(c,80,625,317,679,"BACK TO HOME",0xff3d6067);
         button(c,351,625,648,679,"UPGRADE FORTRESS",0xff9d6b4e);
-        text(c,"Weapon choices are saved permanently.",871,659,18,0xffaec5c9,false);
+        button(c,696,625,1118,679,"EQUIP COMBAT ABILITIES",0xff53699a);
+    }
+
+    /** Interactive six-skill loadout; one ability active during each defense. */
+    private void drawSkills(Canvas c){
+        drawBackdrop(c);
+        round(c,43,28,1237,695,25,0xf0172d35);
+        text(c,"WARDEN'S ABILITIES",80,87,49,GOLD,false);
+        text(c,"Equip a spell unlocked by fortress upgrades. Effects change real combat.",
+                83,123,21,INK,false);
+        text(c,"FORT "+fortressRank+"  /  SKILL EQUIPPED",1042,86,20,GOLD,true);
+        for(int i=0;i<WardenSkills.SKILLS.length;i++){
+            WardenSkills.Skill skill=WardenSkills.SKILLS[i];
+            boolean unlockedSkill=WardenSkills.unlocked(fortressRank,i);
+            float x=79+(i%3)*375,y=155+(i/3)*218;
+            round(c,x-5,y-4,x+345,y+198,18,
+                    i==equippedSkill?GOLD:0xff49616b);
+            round(c,x,y,x+340,y+192,14,
+                    unlockedSkill?0xff294955:0xff293640);
+            round(c,x+10,y+15,x+129,y+167,12,0xff172e3a);
+            drawSkillSymbol(c,i,x+69,y+98,44);
+            text(c,skill.name,x+146,y+51,24,unlockedSkill?INK:0xffa2a6aa,false);
+            text(c,"CD "+(int)skill.cooldown+"s  /  RANK "+skill.requiredRank,
+                    x+145,y+87,18,skill.color,false);
+            text(c,skill.detail,x+146,y+114,16,INK,false);
+            text(c,unlockedSkill?(i==equippedSkill?"EQUIPPED  ✓":"TAP TO EQUIP"):
+                    "LOCKED UNTIL RANK "+skill.requiredRank,
+                    x+145,y+160,17,unlockedSkill?GOLD:0xffffaa9c,false);
+        }
+        button(c,80,625,317,679,"BACK TO HOME",0xff3d6067);
+        button(c,351,625,648,679,"WEAPONS",0xff9d6b4e);
+        button(c,696,625,1118,679,"UPGRADE FORTRESS",0xff53699a);
+    }
+
+    private void drawSkillSymbol(Canvas c,int id,float x,float y,float size) {
+        int color=WardenSkills.SKILLS[id].color;
+        circle(c,x,y,37,0x66334c66);
+        if(id==WardenSkills.PULSE){
+            polygon(c,new float[]{x-12,y-37,x+6,y-10,x-3,y+1,x+16,y+11,
+                    x-11,y+39,x-4,y+10,x-18,y},color);
+        }else if(id==WardenSkills.EMBER) {
+            polygon(c,new float[]{x,y-43,x+20,y-6,x+8,y+3,x+25,y+25,
+                    x,y+40,x-25,y+17,x-5,y-6},color);
+        }else if(id==WardenSkills.FROST) {
+            for(int n=0;n<6;n++){
+                float a=(float)(n*Math.PI/3);
+                line(c,x,y,x+(float)Math.cos(a)*38,y+(float)Math.sin(a)*38,color,6);
+            }
+        }else if(id==WardenSkills.BANNER){
+            line(c,x-13,y+37,x-13,y-40,0xffffe5b3,7);
+            polygon(c,new float[]{x-11,y-37,x+32,y-29,x+13,y+2,x-11,y-5},color);
+        }else if(id==WardenSkills.TRAP) {
+            for(int n=0;n<5;n++){
+                float px=x+(n-2)*15;
+                polygon(c,new float[]{px-9,y+22,px,y-35+Math.abs(n-2)*6,
+                        px+9,y+22},color);
+            }
+        }else{
+            polygon(c,new float[]{x+8,y-46,x+32,y-13,x+16,y+28,x-18,y+33,
+                    x-30,y+7},color);
+            line(c,x-36,y+36,x+35,y-38,0xffffdd9a,5);
+        }
+    }
+
+    private void equipSkill(int skillId){
+        if(!WardenSkills.unlocked(fortressRank,skillId))return;
+        equippedSkill=skillId;
+        prefs.edit().putInt("skill",skillId).apply();
     }
 
     private void drawFortress(Canvas c) {
@@ -2291,12 +2454,25 @@ public final class RiftGameView extends View {
         }else if(scene==Scene.ARMORY) {
             if(x>80 && x<329 && y>619)scene=Scene.HOME;
             else if(x>342 && x<655 && y>619)scene=Scene.FORTRESS;
+            else if(x>687 && x<1125 && y>619)scene=Scene.SKILLS;
             else if(y>=151 && y<570) {
                 int col=(int)((x-79)/375),row=(int)((y-155)/218);
                 if(col>=0 && col<3 && row>=0 && row<2) {
                     float localX=(x-79)%375,localY=(y-155)%218;
                     if(localX>=0 && localX<343 && localY>=0 && localY<197)
                         equipWeapon(row*3+col);
+                }
+            }
+        }else if(scene==Scene.SKILLS) {
+            if(x>79 && x<327 && y>619)scene=Scene.HOME;
+            else if(x>345 && x<654 && y>619)scene=Scene.ARMORY;
+            else if(x>687 && x<1126 && y>619)scene=Scene.FORTRESS;
+            else if(y>=151 && y<570){
+                int col=(int)((x-79)/375),row=(int)((y-155)/218);
+                if(col>=0 && col<3 && row>=0 && row<2) {
+                    float localX=(x-79)%375,localY=(y-155)%218;
+                    if(localX>=0 && localX<343 && localY>=0 && localY<197)
+                        equipSkill(row*3+col);
                 }
             }
         }else if(scene==Scene.FORTRESS) {
