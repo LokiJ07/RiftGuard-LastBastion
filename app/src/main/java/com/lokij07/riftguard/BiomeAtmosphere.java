@@ -35,11 +35,15 @@ public final class BiomeAtmosphere {
     }
     /** Semi-transparent environmental light interacts with the real road. */
     public static void drawBack(Canvas c,int biome,int stage,float time) {
+        drawBack(c,biome,stage,time,false);
+    }
+    public static void drawBack(Canvas c,int biome,int stage,float time,
+                                boolean lowEffects) {
         int id=Math.max(0,Math.min(9,biome));
         if(!Float.isFinite(time))return;
         float shift=(float)Math.sin(time*.12f+stage*.4f)*30f;
         // Subtle luminous beam volumes behind monsters and buildings.
-        for(int i=0;i<5;i++){
+        for(int i=0;i<(lowEffects?2:5);i++){
             float x=180+i*380+shift;
             int light=tint(LIGHT[id],id==3||id==9?22:13);
             Path beam=new Path();
@@ -56,7 +60,7 @@ public final class BiomeAtmosphere {
         }
         // Spatially stable pools of volumetric fog and lighting, ten different
         // atmospheres instead of generic white dots on all worlds.
-        for(int i=0;i<12;i++){
+        for(int i=0;i<(lowEffects?5:12);i++){
             float x=hash(i+stage*.03f,3)*1900;
             float y=hash(i*.7f,5+stage*.011f)*1020;
             float motion=(float)Math.sin(time*.21f+i)*22f;
@@ -78,10 +82,15 @@ public final class BiomeAtmosphere {
     }
     /** World space particles are always drawn ahead of actors but below HUD. */
     public static void drawFront(Canvas c,int biome,int stage,float time) {
+        drawFront(c,biome,stage,time,false);
+    }
+    public static void drawFront(Canvas c,int biome,int stage,float time,
+                                 boolean lowEffects) {
         int id=Math.max(0,Math.min(9,biome));
         if(!Float.isFinite(time))return;
         int color=LIGHT[id];
-        int particles=id==SNOW||id==TEMPEST?64:44;
+        int particles=lowEffects?(id==SNOW||id==TEMPEST?28:20):
+                (id==SNOW||id==TEMPEST?64:44);
         for(int i=0;i<particles;i++){
             float seed=hash(i+13,stage*.73f+17f);
             float x=hash(i+33f,stage*.17f+9f)*1900;
