@@ -115,6 +115,27 @@ public final class LivingBattlefieldTest {
         center.recycle();right.recycle();a.recycle();b.recycle();
         renderer.release();
     }
+    @Test public void atlasThumbnailsMatchMissionsAndNeverLeakMemory(){
+        LivingBattlefield renderer=new LivingBattlefield();
+        Bitmap canvasBitmap=Bitmap.createBitmap(310,85,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(canvasBitmap);
+        Set<Integer> colors=new HashSet<>();
+        for(int i=0;i<30;i++){
+            int stage=i*10;
+            c.drawColor(0xff15262d);
+            renderer.thumbnail(c,stage,0,0,310,85);
+            assertTrue("Only nine tiny atlas cards may stay resident",
+                    renderer.thumbnailCount()<=9);
+            int hash=1;
+            for(int y=5;y<80;y+=5)for(int x=30;x<280;x+=9)
+                hash=31*hash+canvasBitmap.getPixel(x,y);
+            assertTrue("Distinct mission previews should look distinct "+stage,
+                    colors.add(hash));
+        }
+        assertEquals(9,renderer.thumbnailCount());
+        canvasBitmap.recycle();renderer.release();
+    }
+
     @Test public void transparentBattleLaneAndViewRenderKeepEnemiesAndHUDReadable()
             throws Exception {
         LivingBattlefield renderer=new LivingBattlefield();
