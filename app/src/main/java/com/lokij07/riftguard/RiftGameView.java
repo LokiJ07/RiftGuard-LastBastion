@@ -1319,6 +1319,8 @@ public final class RiftGameView extends View {
             circle(c,heroX+(float)Math.cos(heroDir)*65,heroY-126,
                     8*intensity+2,0xffffeeae);
         }
+        EvolutionEffects.cast(c,lastCastSkill,skillForm(),
+                heroX,heroY,gameTime,t);
     }
 
     private void updateStageHazards(float dt) {
@@ -1987,6 +1989,7 @@ public final class RiftGameView extends View {
             drawHeroActor(c,false);
             c.restore();
         }else drawHeroActor(c,false);
+        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
     }
     private void drawHeroActor(Canvas c,boolean forcedHurt) {
         // State-machine clocks drive actual poses. Legacy preview callers
@@ -2213,6 +2216,7 @@ public final class RiftGameView extends View {
                 weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
         if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
                 weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
+        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
         if(!workshop) {
             motionArt.enemy(c,0,left+width*.91f,top+height*.86f,gameTime,
                     true,-1,false);
@@ -2770,6 +2774,7 @@ public final class RiftGameView extends View {
                     x-30,y+7},color);
             line(c,x-36,y+36,x+35,y-38,0xffffdd9a,5);
         }
+        EvolutionEffects.badge(c,x,y,skillForm(),id);
     }
 
     private void equipSkill(int skillId){
