@@ -56,6 +56,13 @@ public final class CombatVfx {
             poly(c,0xff78c7ef,30,0,2,10,0,-1);
             for(int i=-1;i<=1;i++)
                 poly(c,0xffabeafa,-8-i*14,-2,-16-i*14,-9,-20-i*14,3);
+            if(slot==2){
+                // Heavy Frost Battery bolt has rotating cryo vanes unlike the lance.
+                float oscillation=(float)Math.sin(seconds*9)*5;
+                line(c,-20,-16,6,-20+oscillation,0xff74dff4,4);
+                line(c,-20,16,6,20-oscillation,0xffb0ffff,4);
+                circle(c,-12,0,5,0xffffffff);
+            }
         }else if(slot==3 || (!turret&&w==3)){ // Stepped lightning.
             float jitter=(float)Math.sin(seconds*45)*6;
             Path bolt=new Path();bolt.moveTo(-39,-3);
@@ -68,6 +75,13 @@ public final class CombatVfx {
             c.drawPath(bolt,p);p.setStyle(Paint.Style.FILL);
             circle(c,33,0,8,0x7795dffe);
             circle(c,33,0,4,0xffffffff);
+            if(slot==3) {
+                // Arc turret releases a wide three-pronged discharge.
+                float flicker=(float)Math.sin(seconds*43)*3;
+                line(c,-27,-17,4,-24+flicker,0xffbb9bff,3);
+                line(c,-27,17,4,24-flicker,0xffddcbff,3);
+                circle(c,-12,0,17,0x447e72e4);
+            }
         }else{ // Melee shockwave projectile fallback.
             line(c,-19,0,20,0,0xffc6e9ee,5);
             circle(c,20,0,8,0xffb8f3fc);
