@@ -336,6 +336,15 @@ public final class MotionArt {
         }
     }
 
+    /**
+     * Only sprites with clean separated boot regions can use hinged cutouts.
+     * Giant bosses have painted fire plinths, flyers have wings and boars have
+     * four legs: these models need dedicated rigs instead of generic boot cuts.
+     */
+    public static boolean segmentedEnemyLegs(int kind) {
+        return kind==0||kind==1||kind==2||kind==4;
+    }
+
     /** Returns false for the winged monster, which still has its own flapping rig. */
     public boolean enemy(Canvas c,int kind,float x,float y,float time,
                          boolean moving,float attackProgress,boolean hurt) {
@@ -350,7 +359,7 @@ public final class MotionArt {
         c.save();c.translate(x,y);
         p.setColor(0xbb000000);p.setAlpha(100);
         c.drawOval(new RectF(-width*.35f,-4,width*.35f,10),p);
-        if(kind!=3 && kind!=6) {
+        if(segmentedEnemyLegs(kind)) {
             // The original species armor/boots move as independent limb crops.
             float step=height*.93f;
             paintedLeg(c,monsters,src.left,src.top,21,82,60,126,
