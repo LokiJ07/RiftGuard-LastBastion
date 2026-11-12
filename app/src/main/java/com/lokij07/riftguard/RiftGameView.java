@@ -838,11 +838,13 @@ public final class RiftGameView extends View {
     }
     private void markDefeat() {
         recordBattleResult(false);
+        audio.play(GameAudio.HURT);
         scene=Scene.LOSE;paused=false;
         clearTouchControls();
     }
     private void complete() {
         recordBattleResult(true);
+        audio.play(GameAudio.VICTORY);
         scene=Scene.WIN;paused=false;
         boolean firstClear=stage>=unlocked;
         int reward=Progression.stageReward(stage,firstClear);
