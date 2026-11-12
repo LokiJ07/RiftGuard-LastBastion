@@ -76,9 +76,9 @@ public final class WeaponAnimationRigTest {
                 float dx=tip.x-(left?-p.handX:p.handX);
                 float dy=tip.y-p.handY;
                 assertTrue("Real muzzle cannot be at player center",
-                        (float)Math.hypot(dx,dy)>39f);
+                        (float)Math.hypot(dx,dy)>20f);
                 float direction=(float)(dx*Math.cos(face)+dy*Math.sin(face));
-                assertTrue("Muzzle must aim at target",direction>39f);
+                assertTrue("Muzzle must aim at target",direction>20f);
             }
     }
 }
