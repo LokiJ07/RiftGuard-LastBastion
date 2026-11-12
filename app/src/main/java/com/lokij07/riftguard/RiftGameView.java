@@ -893,6 +893,9 @@ public final class RiftGameView extends View {
         c.translate(W*.5f-camX*BATTLE_ZOOM,H*.5f-camY*BATTLE_ZOOM);
         c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
         drawTerrain(c,biome);
+        // Multi-depth light shafts and biome weather live in world coordinates,
+        // so scenery moves with the level rather than scrolling over the HUD.
+        BiomeAtmosphere.drawBack(c,biome,stage,gameTime);
         drawStageLandmarks(c,Campaign.map(stage),biome);
         drawStageIdentity(c,biome);
         drawStageHazards(c);
@@ -968,6 +971,7 @@ public final class RiftGameView extends View {
             c.drawCircle(s.x,s.y,2.5f+3*s.life/s.maxLife,p);p.setAlpha(255);
         }
         if(pulseFlash>0)drawActiveSkillVfx(c);
+        BiomeAtmosphere.drawFront(c,biome,stage,gameTime);
         c.restore();
         if(scene==Scene.PLAY)drawHud(c,biome);
         else drawHudTop(c,biome);
@@ -1169,14 +1173,8 @@ public final class RiftGameView extends View {
             float px=120+i*187,py=75+(i*143)%860;
             circle(c,px,py,80,0x0cffffff);
         }
-        // Lightweight biome-specific animated atmosphere, fully offline.
-        for(int i=0;i<34;i++){
-            float drift=(biome==7?75f:biome==4?28f:9f)*gameTime;
-            float px=(i*227.7f+drift)%WORLD_W;
-            float py=(i*149.3f+(biome==4?gameTime*40:gameTime*6))%WORLD_H;
-            int tint=biome==4?0x99f2faff:biome==7?0x66b7bbff:0x55c9e8c4;
-            circle(c,px,py,biome==4?3.5f:2.2f,tint);
-        }
+        // BiomeAtmosphere owns animated weather and depth, keeping the terrain
+        // pass focused on roads and landforms without doubled random dots.
     }
     /** Region and mission specific terrain: swamps, canyons, ice, factories and siege scars. */
     private void drawEnvironmentFeatures(Canvas c,int biome) {
