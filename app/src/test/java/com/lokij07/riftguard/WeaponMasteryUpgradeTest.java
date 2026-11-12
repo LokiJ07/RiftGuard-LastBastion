@@ -72,7 +72,8 @@ public final class WeaponMasteryUpgradeTest {
                 }
                 assertEquals(id,WeaponMastery.at(node.tier,node.lane));
             }
-            assertEquals(0,WeaponMastery.at(0,0));
+            assertEquals(0,WeaponMastery.at(0,1));
+        assertEquals(-1,WeaponMastery.at(0,0));
         }
         assertTrue(WeaponMastery.worldY(0)>WeaponMastery.worldY(10));
     }
