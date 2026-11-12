@@ -34,6 +34,12 @@ public final class ActorAnimationVfxTest {
         ActorGait.Leg idle=ActorGait.leg(0,false,-1,h);
         assertEquals(0,idle.footY,.0001f);
         assertTrue(idle.planted);
+        // Strides must move feet without making huge disconnected boot swings.
+        for(int n=0;n<36;n++){
+            ActorGait.Leg pose=ActorGait.leg(n*.18f,true,-1,h);
+            assertTrue(Math.abs(pose.footX-pose.hipX)<h*.14f);
+            assertTrue(pose.footY>=-h*.055f);
+        }
         assertThrows(IllegalArgumentException.class,()->ActorGait.leg(0,true,0,h));
     }
     @Test public void illustratedBossesAndFourLeggedAnimalsKeepIntactSourceArt(){
