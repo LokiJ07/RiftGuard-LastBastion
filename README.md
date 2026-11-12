@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.14.0 — six independent Weapon Mastery trees and individual combat animations
+## Current version: V0.15.0 — painterly sprite transition and battlefield depth refinements (visual phase 2)
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -68,6 +68,14 @@ The current initial downloadable pack contains the same art that ships with the 
 - **Regression checks:** six trees/66-node graph, purchase/save/gates, real shot damage and cooldown, UI navigation/swipes, six actual animated painted hero rigs, and rendered Android gallery of weapon attacks plus mastery tree screens.
 
 **Not yet complete:** The single illustrative generated design image is NOT an in-game sprite sheet and is not bundled as completed character animation. Existing character art is still painterly cutout animation and weapon silhouettes are Canvas drawings; professional frame-by-frame illustrated HD art, mobile GPU testing and balance playtests remain required.
+
+## V0.15.0 — 2D painted animation and world-depth quality pass
+
+- **Actual production animation work:** `AnimationBlend` interpolates adjacent painted hero/monster pose frames only near transitions, avoids long ghosting, and never wraps the end of an attack into an incorrect first-frame windup. The Warden's six independently timed weapon animations and wrist-attached VFX continue using the real equipped weapon.
+- **Living enemy motion:** seven painted enemy groups use sub-frame pose transitions, breathing/body displacement, and anticipatory lunges while retaining their original armor textures. Flying fiend wings remain separately animated.
+- **Battlefield depth:** `BattlefieldLighting` adds grounded keep light, biome-specific animated illumination and physically attached hero foot shadows, below the HUD and consistent with existing depth sorting.
+- **Visual QA:** real Android Robolectric screenshots include eight sequential Warden pose timestamps and seven moving/attacking monsters; pixel tests measure transitions and lighting. No generated advertising screenshot is counted as a game asset.
+- **Honest art limitation:** the user-named 'AI Animations' skill was not available in the installed skill catalog; Higgsfield generation credits were zero. A generated image was a marketing mockup, not a usable transparent sprite sheet, so it was rejected and was NOT bundled into the APK. Thus v0.15.0 is a real native-renderer animation improvement but not a new high-resolution frame-by-frame AI atlas or complete realistic world overhaul. See [v0.15 QA](docs/V015_VISUAL_ANIMATION_QA.md).
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
