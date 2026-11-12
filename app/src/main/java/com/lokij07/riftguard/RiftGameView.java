@@ -122,6 +122,8 @@ public final class RiftGameView extends View {
     private int wave, remaining, gold, kills;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
+    // 120-ms button tap buffer per the animation skill's responsive cancel window.
+    private float bufferedAttackTime;
     private String notice="";
     private boolean waiting, paused, active=true, firing, heroMoving;
     private boolean pendingMelee=false;
@@ -223,6 +225,7 @@ public final class RiftGameView extends View {
         attackPointer=-1;
         axisX=axisY=0;
         firing=false;
+        bufferedAttackTime=0;
     }
     public void setActive(boolean value) {
         active=value;
@@ -318,6 +321,7 @@ public final class RiftGameView extends View {
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
+        bufferedAttackTime=0;
         pendingMelee=false;pendingMeleeWeapon=-1;
         bannerTime=0;bannerTick=0;trapTime=0;meteorTime=0;
         waveNotice=2.6f; noticeTimer=0;
@@ -388,7 +392,8 @@ public final class RiftGameView extends View {
         boolean contact=heroAnimation.consume(
                 WardenAnimationMachine.Event.ATTACK_CONTACT);
         if(pendingMelee&&contact)resolveMeleeHit();
-        if (firing) fire();
+        bufferedAttackTime=Math.max(0,bufferedAttackTime-dt);
+        if(firing||bufferedAttackTime>0)fire();
         updateSkillObjects(dt);
         if (!waiting) {
             spawnTimer-=dt;
@@ -765,6 +770,7 @@ public final class RiftGameView extends View {
         if(target==null) {shotTimer=Math.min(.2f,weapon.cooldown);return;}
         heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
         if(!heroAnimation.attack(equippedWeapon))return;
+        bufferedAttackTime=0;
         // Spawn the projectile precisely at the displayed weapon's rotating tip,
         // not at the center of the player sprite. This must use the same animation
         // time, attack fraction, and facing transform as MotionArt.hero().
@@ -831,7 +837,8 @@ public final class RiftGameView extends View {
 
     /** Every equipable skill has a distinct actual combat effect and world state. */
     private void castSkill() {
-        if(pulseCooldown>0||scene!=Scene.PLAY||paused||briefingOpen)return;
+        if(pulseCooldown>0||scene!=Scene.PLAY||paused||briefingOpen||
+                heroAnimation.locked())return;
         if(!WardenSkills.unlocked(fortressRank,equippedSkill))return;
         int skill=equippedSkill;
         WardenSkills.Skill info=WardenSkills.SKILLS[skill];
@@ -3080,7 +3087,9 @@ public final class RiftGameView extends View {
                 else if(x>450 && x<830 && y>435 && y<525) {scene=Scene.MAP;paused=false;clearTouchControls();}
             }else if(x>1138 && y<112) {paused=true;clearTouchControls();}
             else if(distance(x,y,stickHudX(),568)<150) {joyPointer=id;updateStick(x,y);}
-            else if(distance(x,y,attackHudX(),560)<82) {attackPointer=id;firing=true;fire();}
+            else if(distance(x,y,attackHudX(),560)<82) {
+                attackPointer=id;firing=true;bufferedAttackTime=.12f;fire();
+            }
             else if(distance(x,y,pulseHudX(),593)<62) pulse();
             else if(distance(x,y,buildHudX(),589)<65) build();
         }else if(action==MotionEvent.ACTION_MOVE) {
