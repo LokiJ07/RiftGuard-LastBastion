@@ -129,6 +129,10 @@ public final class RiftGameView extends View {
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     private float fortressArsenalTimer;
     private int fortressArsenalShots;
+    // UI-only preview; never modifies purchased ranks or save data.
+    private boolean previewNextFortressLook=false;
+    private float evolutionRevealTimer=0f;
+    private String evolutionRevealTitle="",evolutionRevealDescription="";
     // 120-ms button tap buffer per the animation skill's responsive cancel window.
     private float bufferedAttackTime;
     private float dodgeTime,dodgeCooldown,dodgeDirX,dodgeDirY;
@@ -273,6 +277,7 @@ public final class RiftGameView extends View {
             boolean liveCombat=scene==Scene.PLAY&&!paused&&!briefingOpen;
             animationDelta=liveCombat?combatFeel.frame(dt):dt;
             gameTime+=animationDelta;
+            evolutionRevealTimer=Math.max(0,evolutionRevealTimer-dt);
             if(liveCombat){
                 liveRenderStep=true;
                 update(dt);
@@ -308,6 +313,9 @@ public final class RiftGameView extends View {
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
             else if (paused) drawPause(canvas);
             else if (scene==Scene.PLAY && briefingOpen) drawMissionBriefing(canvas);
+        }
+        if(evolutionRevealTimer>0&&scene!=Scene.PLAY){
+            drawEvolutionReveal(canvas);
         }
         canvas.restore();
         if (active) postInvalidateOnAnimation();
@@ -1762,8 +1770,10 @@ public final class RiftGameView extends View {
         NativeDeployedMapArt.fort(c,BASE_X,BASE_Y,fortressRank,gameTime,
                 baseHp/Math.max(1f,coreMaxHp()));
         FortressStructures.rankStructures(c,BASE_X,BASE_Y,fortressRank,gameTime);
+        FortressSilhouetteArt.draw(c,BASE_X,BASE_Y,fortressRank,gameTime);
         FortressEvolutionArt.draw(c,BASE_X,BASE_Y,fortressRank,
                 arsenalTier(),gameTime);
+        FortressWeaponShowcaseArt.draw(c,BASE_X,BASE_Y,arsenalTier(),gameTime);
         EvolutionEffects.fortressBranches(c,BASE_X,BASE_Y,
                 coreForm(),treasuryForm());
     }
@@ -2232,6 +2242,47 @@ public final class RiftGameView extends View {
         text(c,"NO ADS  •  OFFLINE PLAY  •  OPTIONAL DOWNLOADS",101,643,15,0xff9eb8bb,false);
     }
 
+    /** Identical layered fortress model in the Workshop and previews. */
+    private void paintFullFortress(Canvas c,float x,float y,int rank,int arsenal){
+        NativeDeployedMapArt.fort(c,x,y,rank,gameTime,1);
+        FortressStructures.rankStructures(c,x,y,rank,gameTime);
+        FortressSilhouetteArt.draw(c,x,y,rank,gameTime);
+        FortressEvolutionArt.draw(c,x,y,rank,arsenal,gameTime);
+        FortressWeaponShowcaseArt.draw(c,x,y,arsenal,gameTime);
+        EvolutionEffects.fortressBranches(c,x,y,coreForm(),treasuryForm());
+    }
+    /** Standalone previews are explicitly labeled; never imply unowned gear. */
+    private void workshopMiniature(Canvas c,float left,float top,int rank,
+                                   int arsenal,String caption,boolean owned){
+        round(c,left,top,left+202,top+142,12,0xff122c36);
+        border(c,left,top,left+202,top+142,12,
+                owned?0xff83cbbc:0xffab9271,1.5f);
+        textFit(c,caption,left+101,top+19,184,16,
+                owned?0xffd7f8e8:0xffffe2a4,true);
+        c.save();
+        c.clipRect(left+5,top+24,left+197,top+137);
+        c.translate(left+102,top+112);
+        c.scale(.31f,.31f);
+        paintFullFortress(c,0,0,rank,arsenal);
+        c.restore();
+    }
+    private void triggerEvolutionReveal(String title,String description){
+        evolutionRevealTitle=title;
+        evolutionRevealDescription=description;
+        evolutionRevealTimer=2.35f;
+        audio.play(GameAudio.EVOLUTION);
+    }
+    private void drawEvolutionReveal(Canvas c){
+        float t=evolutionRevealTimer/2.35f;
+        float spread=(1f-t)*18f;
+        round(c,329-spread,142,951+spread,232,19,0xf118414b);
+        border(c,330-spread,143,950+spread,231,19,0xfff5d18d,3);
+        circle(c,369,188,16+(float)Math.sin(gameTime*7)*3,0xffe3c580);
+        textFit(c,evolutionRevealTitle,659,180,518,28,GOLD,true);
+        textFit(c,evolutionRevealDescription,659,210,520,18,
+                0xffc2e6df,true);
+    }
+
     /** The UI and gameplay props here are independent from all artwork layers. */
     private void drawLiveMenuScene(Canvas c,float left,float top,float width,float height,
                                    boolean workshop) {
@@ -2241,15 +2292,18 @@ public final class RiftGameView extends View {
         rect(c,left,top+height*.77f,left+width,top+height,0x440b2431);
         float centerX=left+width*.44f;
         float bottomY=top+height*.69f;
-        // Same native 5-rank fortress in Home, Workshop and actual battle:
-        // eliminates old-menu-vs-new-map discrepancy.
+        // One actual visual model for battle, Home and interactive Workshop.
+        // The optional NEXT view does not change costs, stats or save data.
+        int paintedRank=workshop&&previewNextFortressLook?
+                Math.min(Progression.MAX_RANK,fortressRank+1):fortressRank;
+        int paintedArsenal=workshop&&previewNextFortressLook&&
+                paintedRank==Progression.MAX_RANK&&fortressRank==Progression.MAX_RANK?
+                Math.min(4,arsenalTier()+1):
+                EvolutionProgress.fortressArsenal(ascension,paintedRank);
         c.save();
-        float sz=workshop?1.11f:.95f;
-        c.translate(centerX,bottomY);c.scale(sz,sz);
-        NativeDeployedMapArt.fort(c,0,0,fortressRank,gameTime,1f);
-        FortressStructures.rankStructures(c,0,0,fortressRank,gameTime);
-        FortressEvolutionArt.draw(c,0,0,fortressRank,arsenalTier(),gameTime);
-        EvolutionEffects.fortressBranches(c,0,0,coreForm(),treasuryForm());
+        float sz=workshop?.94f:.83f;
+        c.translate(centerX,bottomY+15);c.scale(sz,sz);
+        paintFullFortress(c,0,0,paintedRank,paintedArsenal);
         c.restore();
         // Individually animated hero, creatures, flag and floating ambient lights.
         float heroX=left+width*.79f,heroY=top+height*.81f;
