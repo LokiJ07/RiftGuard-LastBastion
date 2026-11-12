@@ -1839,6 +1839,10 @@ public final class RiftGameView extends View {
                         e.hitReaction>0||e.hp<e.maxHp*.20f);
         c.restore();
         if(painted) {
+            // Detailed actor-attached equipment uses the same real attack,
+            // movement, boss phase and hit clocks as the illustrated sprite.
+            EnemyAnimationPolish.draw(c,e.kind,e.x,e.y,e.phase,attack,
+                    e.hitReaction,e.boss,e.bossPhase);
             if(e.hp<e.maxHp) {
                 float w=e.kind==5?52:28;
                 rect(c,e.x-w,e.y-(e.kind==5?110:78),e.x+w,e.y-(e.kind==5?104:72),0xff20313a);
@@ -1932,7 +1936,16 @@ public final class RiftGameView extends View {
             c.restoreToCount(layer);c.restore();
             return;
         }
-        drawHeroActor(c,false);
+        if(dodgeTime>0){
+            float t=1-Math.max(0,dodgeTime)/DodgeRules.DURATION;
+            // Lean and squash the *real illustrated Warden*, rather than
+            // animating the glowing afterimages alone.
+            c.save();
+            c.rotate((float)Math.sin(Math.PI*t)*(-24f),heroX,heroY-53);
+            c.scale(1.08f,.87f,heroX,heroY-4);
+            drawHeroActor(c,false);
+            c.restore();
+        }else drawHeroActor(c,false);
     }
     private void drawHeroActor(Canvas c,boolean forcedHurt) {
         // State-machine clocks drive actual poses. Legacy preview callers
