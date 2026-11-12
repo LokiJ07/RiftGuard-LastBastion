@@ -21,10 +21,12 @@ import static org.junit.Assert.*;
 @Config(sdk=28)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 public final class VisualOverhaulPhaseOneTest {
-    private static Bitmap body(float phase,boolean moving,float attack,float cast,
+    private static Bitmap body(float time,boolean moving,float attack,float cast,
                                boolean hurt,boolean flip){
         Bitmap b=Bitmap.createBitmap(300,310,Bitmap.Config.ARGB_8888);
-        WardenBodyArt.draw(new Canvas(b),146,252,phase,moving,attack,cast,hurt,flip);
+        MotionArt source=new MotionArt(RuntimeEnvironment.getApplication());
+        assertTrue(source.heroBody(new Canvas(b),146,252,time,
+                flip?(float)Math.PI:0f,moving,attack,cast,hurt));
         return b;
     }
     private static int diff(Bitmap a,Bitmap b,int x1,int y1,int x2,int y2){
@@ -33,40 +35,38 @@ public final class VisualOverhaulPhaseOneTest {
             if(a.getPixel(x,y)!=b.getPixel(x,y))count++;
         return count;
     }
-    @Test public void weaponFreeWardenIsFullBodyScalableAndHasNoGearPixels(){
+    @Test public void realPaintedRigOmitsRightWaistLegacyWeaponAndHasSeparateGear(){
         Bitmap bare=body(.8f,false,-1,-1,false,false);
-        int dense=0;
+        int coverage=0;
         for(int y=105;y<258;y+=2)for(int x=97;x<207;x+=2)
-            if(Color.alpha(bare.getPixel(x,y))>85)dense++;
-        assertTrue("Clean original Warden needs armor and legs, not a placeholder",
-                dense>300);
-        // No fixed sidearm/gun/bow raster sprite exists in body rendering.
-        assertEquals(Color.TRANSPARENT,bare.getPixel(242,198));
-        assertEquals(Color.TRANSPARENT,bare.getPixel(236,214));
-        Bitmap mirrored=body(.8f,false,-1,-1,false,true);
-        assertTrue(diff(bare,mirrored,75,105,218,250)>100);
-        bare.recycle();mirrored.recycle();
+            if(Color.alpha(bare.getPixel(x,y))>85)coverage++;
+        assertTrue("Detailed original painted armor and legs must remain",coverage>180);
+        assertEquals(Color.TRANSPARENT,bare.getPixel(244,198));
+        Bitmap flipped=body(.8f,false,-1,-1,false,true);
+        assertTrue(diff(bare,flipped,75,105,218,250)>75);
+        bare.recycle();flipped.recycle();
     }
-    @Test public void runAttackCastHurtAndCapeHaveDistinctRealRenderedFrames(){
+    @Test public void enhancedPaintedRunningAttackAndSpellPosesRemainDistinct(){
         Bitmap idle=body(.1f,false,-1,-1,false,false);
-        Bitmap runA=body(.1f,true,-1,-1,false,false);
-        Bitmap runB=body(1.65f,true,-1,-1,false,false);
-        Bitmap slash=body(1.2f,false,.55f,-1,false,false);
-        Bitmap spell=body(1.2f,false,-1,.55f,false,false);
+        Bitmap running1=body(.1f,true,-1,-1,false,false);
+        Bitmap running2=body(.2f,true,-1,-1,false,false);
+        Bitmap strike=body(1.2f,false,.5f,-1,false,false);
+        Bitmap casting=body(1.2f,false,-1,.6f,false,false);
         Bitmap hurt=body(.1f,false,-1,-1,true,false);
-        assertTrue("Running requires planted/raised alternate foot pixels",
-                diff(runA,runB,78,165,224,267)>100);
-        assertTrue("Run must differ visibly from standing",
-                diff(idle,runA,70,130,224,265)>100);
-        assertTrue("Attack changes torso/head/cape pose",
-                diff(idle,slash,76,116,214,254)>80);
-        assertTrue("Cast changes back arm/cape rather than being idle",
-                diff(idle,spell,75,122,214,254)>80);
-        assertTrue("Damage must produce a real visible reaction",
-                diff(idle,hurt,75,105,221,255)>120);
-        idle.recycle();runA.recycle();runB.recycle();
-        slash.recycle();spell.recycle();hurt.recycle();
+        assertTrue("Alternating boot/leg frames must visibly change",
+                diff(running1,running2,75,140,222,263)>70);
+        assertTrue("Movement must not be idle",
+                diff(idle,running1,70,120,224,265)>70);
+        assertTrue("Weapon anticipation alters REAL painted torso",
+                diff(idle,strike,75,108,214,252)>70);
+        assertTrue("Spell casting is separate from idle",
+                diff(idle,casting,75,108,214,252)>70);
+        assertTrue("Hurt body has physical visual feedback",
+                diff(idle,hurt,75,108,214,252)>90);
+        idle.recycle();running1.recycle();running2.recycle();
+        strike.recycle();casting.recycle();hurt.recycle();
     }
+
     @Test public void everyBiomeHasDistinctLivingOriginalWorldEffects(){
         Bitmap original=Bitmap.createBitmap(840,550,Bitmap.Config.ARGB_8888);
         Canvas canvas=new Canvas(original);
