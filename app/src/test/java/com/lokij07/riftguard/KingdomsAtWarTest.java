@@ -89,6 +89,29 @@ public final class KingdomsAtWarTest {
         assertEquals(0,tower[7]);
         assertTrue(TowerPadLayout.clearOfRoad(152,7));
     }
+    @Test public void touchSelectsActualPadAndBuildTargetsChosenTower()
+            throws Exception {
+        RiftGameView g=game(1);
+        start(g,0);
+        set(g,"gold",1000);
+        // Screen position obtained from exact fixed battle camera:
+        // slot 1 = world (1092,370) => (475,275) screen.
+        long t=android.os.SystemClock.uptimeMillis();
+        android.view.MotionEvent down=android.view.MotionEvent.obtain(
+                t,t,android.view.MotionEvent.ACTION_DOWN,475f,275f,0);
+        g.onTouchEvent(down);down.recycle();
+        assertEquals(1,read(g,"selectedTowerPad"));
+        int[] towers=(int[])read(g,"towers");
+        assertEquals(0,towers[1]);
+        android.view.MotionEvent build=android.view.MotionEvent.obtain(
+                t+40,t+40,android.view.MotionEvent.ACTION_DOWN,849f,589f,0);
+        g.onTouchEvent(build);build.recycle();
+        assertEquals("selected real tower constructed",1,towers[1]);
+        assertEquals("unselected extra pad unchanged",0,towers[4]);
+        // No out-of-stage invisible pads can be selected.
+        call(g,"selectTowerPadAt",new Class<?>[]{float.class,float.class},800f,200f);
+        assertEquals(1,read(g,"selectedTowerPad"));
+    }
     @Test public void heroDodgeMovesWithCollisionAndStopsSpamDuringCooldown()
             throws Exception {
         RiftGameView g=game(1);
