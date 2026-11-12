@@ -38,8 +38,14 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, SKILLS, FORTRESS, RESOURCES, KINGDOM, PLAY, WIN, LOSE }
+    private enum Scene { HOME, MAP, ARMORY, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
+    private static final float TREE_LEFT=75f,TREE_TOP=148f,TREE_RIGHT=906f,
+            TREE_BOTTOM=592f;
+    private float ascensionScroll=AscensionTree.worldHeight()-(TREE_BOTTOM-TREE_TOP);
+    private int selectedAscensionNode=1;
+    private float treeDownX,treeDownY,treeLastY;
+    private boolean treeDragging=false;
     private boolean briefingOpen=false;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
@@ -223,6 +229,7 @@ public final class RiftGameView extends View {
             clearTouchControls();
             return true;
         }
+        if (scene==Scene.ASCENSION) {scene=Scene.FORTRESS;return true;}
         if (scene!=Scene.HOME) { scene=Scene.HOME; return true; }
         return false;
     }
@@ -254,6 +261,7 @@ public final class RiftGameView extends View {
         else if (scene==Scene.ARMORY) drawArmory(canvas);
         else if (scene==Scene.SKILLS) drawSkills(canvas);
         else if (scene==Scene.FORTRESS) drawFortress(canvas);
+        else if (scene==Scene.ASCENSION) drawAscension(canvas);
         else if (scene==Scene.RESOURCES) drawResources(canvas);
         else if (scene==Scene.KINGDOM) drawKingdom(canvas);
         else {
@@ -2322,6 +2330,209 @@ public final class RiftGameView extends View {
         prefs.edit().putInt("skill",skillId).apply();
     }
 
+
+    /** Upward-growing upgrade tree, with tangible node illustrations and real lines. */
+    private void drawAscension(Canvas c) {
+        drawBackdrop(c);
+        round(c,40,24,1242,705,25,0xf0142734);
+        text(c,"ASCENSION  /  BASTION TECH TREE",65,75,40,GOLD,false);
+        text(c,"START AT THE BOTTOM   •   CONNECT UPWARDS   •   EACH NODE CHANGES COMBAT",
+                67,109,18,INK,false);
+        round(c,62,132,923,606,22,0xff415b64);
+        round(c,TREE_LEFT,TREE_TOP,TREE_RIGHT,TREE_BOTTOM,16,0xff0c202c);
+        c.save();
+        c.clipRect(TREE_LEFT,TREE_TOP,TREE_RIGHT,TREE_BOTTOM);
+        // Parallax rift lights and small dust particles make the tree alive.
+        for(int i=0;i<52;i++){
+            float px=TREE_LEFT+((i*191)%811);
+            float py=TREE_TOP+((i*139+(int)(gameTime*(i%4+2)*3))%460);
+            circle(c,px,py,1.3f+(i%3)*.45f,0x557cc3d0);
+        }
+        for(AscensionTree.Node node:AscensionTree.NODES) {
+            if(node.predecessor<0)continue;
+            AscensionTree.Node parent=AscensionTree.byId(node.predecessor);
+            float x0=TREE_LEFT+AscensionTree.x(parent);
+            float y0=TREE_TOP+AscensionTree.worldY(parent)-ascensionScroll;
+            float x1=TREE_LEFT+AscensionTree.x(node);
+            float y1=TREE_TOP+AscensionTree.worldY(node)-ascensionScroll;
+            if(Math.min(y0,y1)>TREE_BOTTOM+70||
+                    Math.max(y0,y1)<TREE_TOP-70)continue;
+            boolean lit=ascension.owned(node.id);
+            int color=lit?0xff9ce9d3:ascension.available(node.id,fortressRank)?
+                    0xffa7c7bb:0xff415a69;
+            // Connect the preceding bottom tier to each new branch above it.
+            Path track=new Path();
+            track.moveTo(x0,y0-38);
+            track.cubicTo(x0,y0-96,x1,y1+96,x1,y1+39);
+            p.setShader(null);p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeWidth(lit?9:6);
+            p.setColor(lit?0x4471ffee:0x88374f5d);
+            c.drawPath(track,p);
+            p.setStrokeWidth(lit?4.5f:3);p.setColor(color);
+            c.drawPath(track,p);
+            p.setStyle(Paint.Style.FILL);
+            if(lit) {
+                float t=(gameTime*.32f+(node.id%7)*.14f)%1f;
+                float mx=x0+(x1-x0)*t;
+                float my=(y0-38)+(y1-y0+77)*(t*t*(3-2*t));
+                circle(c,mx,my,5,0xb0c9fff0);
+            }
+        }
+        for(AscensionTree.Node node:AscensionTree.NODES) {
+            float x=TREE_LEFT+AscensionTree.x(node);
+            float y=TREE_TOP+AscensionTree.worldY(node)-ascensionScroll;
+            if(y<TREE_TOP-75||y>TREE_BOTTOM+75)continue;
+            drawAscensionNode(c,node,x,y);
+        }
+        c.restore();
+        p.setStyle(Paint.Style.FILL);p.setShader(null);
+        // Vertical reading rail indicates the current climb through the tree.
+        round(c,912,160,919,574,3,0xff395463);
+        float amount=ascensionScroll/
+                Math.max(1,AscensionTree.worldHeight()-(TREE_BOTTOM-TREE_TOP));
+        round(c,911,160+(1-amount)*358,920,217+(1-amount)*358,4,
+                0xffc7dcac);
+        text(c,"SUMMIT",85,169,15,0xffa1c9c8,false);
+        text(c,"ORIGIN  /  SWIPE UP",86,576,16,0xffa5d7cb,false);
+        // Right details panel communicates precise requirements and benefits.
+        round(c,937,132,1224,606,22,0xff253f4c);
+        text(c,"YOUR ASCENSION",960,167,23,GOLD,false);
+        text(c,ascension.purchasedCount()+"/40 NODES",960,195,19,INK,false);
+        text(c,"SUPPLIES  "+supplies,960,224,21,0xffffd59b,false);
+        AscensionTree.Node choice=AscensionTree.byId(selectedAscensionNode);
+        int tint=AscensionTree.COLORS[choice.category];
+        round(c,960,243,1202,328,15,0xff172e3c);
+        drawAscensionGlyph(c,choice.category,998,289,tint);
+        drawStoryParagraph(c,choice.name.toUpperCase(),1035,279,162,21,25,GOLD);
+        text(c,AscensionTree.CATEGORIES[choice.category],961,358,18,tint,false);
+        drawStoryParagraph(c,AscensionTree.benefit(choice),961,388,245,20,26,INK);
+        text(c,"TIER "+choice.tier+"  /  FORT RANK "+choice.requiredRank,961,443,18,INK,false);
+        String status=ascension.owned(choice.id)?"OWNED / ACTIVE":
+                fortressRank<choice.requiredRank?"FORT RANK TOO LOW":
+                choice.predecessor>=0&&!ascension.owned(choice.predecessor)?
+                        "UNLOCK PREVIOUS NODE":
+                supplies<choice.cost?"NOT ENOUGH SUPPLIES":"READY TO PURCHASE";
+        text(c,status,961,475,17,ascension.owned(choice.id)?
+                0xff83e0b8:0xffffb18e,false);
+        text(c,"COST  "+choice.cost,961,506,21,GOLD,false);
+        button(c,957,527,1201,580,
+                ascension.owned(choice.id)?"ACTIVATED":"UNLOCK NODE",
+                ascension.available(choice.id,fortressRank)&&supplies>=choice.cost?
+                        0xffa97844:0xff52616a);
+        button(c,72,621,330,681,"BACK TO FORTRESS",0xff496b71);
+        button(c,351,621,613,681,"ARMORY",0xff65727f);
+        button(c,632,621,895,681,"GO UP  /  ▲",0xff637b70);
+        text(c,"▲ Higher tiers demand stronger forts and more supplies",
+                942,652,17,0xffabc8ca,false);
+        text(c,"Swipe down to return to the origin",942,679,16,0xff9cb5b7,false);
+    }
+
+    private void drawAscensionNode(Canvas c,AscensionTree.Node node,float x,float y){
+        boolean bought=ascension.owned(node.id);
+        boolean open=ascension.available(node.id,fortressRank);
+        boolean chosen=node.id==selectedAscensionNode;
+        int accent=AscensionTree.COLORS[node.category];
+        int border=bought?0xff8be3b7:open?0xffe9bd77:0xff4a6470;
+        if(chosen){
+            float pulse=(float)Math.sin(gameTime*3.4f)*3f;
+            round(c,x-47-pulse,y-51-pulse,x+47+pulse,y+49+pulse,19,
+                    0x998dd5eb);
+        }
+        oval(c,x-32,y+34,x+35,y+47,0x77040912);
+        round(c,x-39,y-44,x+39,y+38,16,border);
+        round(c,x-34,y-39,x+34,y+33,13,
+                bought?0xff225348:open?0xff344e56:0xff22343e);
+        drawAscensionGlyph(c,node.category,x,y-4,
+                bought||open?accent:0xff78909c);
+        if(bought){
+            circle(c,x+32,y-38,11,0xff65cc9e);
+            text(c,"✓",x+32,y-32,14,0xff112c25,true);
+        }else if(!open){
+            circle(c,x+32,y-38,10,0xff6b4f55);
+            text(c,"×",x+32,y-32,13,INK,true);
+        }else{
+            float star=(float)Math.sin(gameTime*4+node.id)*2f;
+            circle(c,x+30,y-35,9+star,0xffd8bd7a);
+        }
+        // Short type labels beneath actual illustrated nodes, not node numbers.
+        String name=node.name.length()>18?node.name.substring(0,17):node.name;
+        text(c,name.toUpperCase(),x,y+65,15,bought?0xffd3f5e5:
+                open?0xffffddae:0xff90a3a9,true);
+    }
+
+    private void drawAscensionGlyph(Canvas c,int category,float x,float y,int color){
+        c.save();c.translate(x,y);
+        switch(category){
+            case AscensionTree.ATTACK:
+                // The actual Warden's independent greatsword model.
+                WorldArt.drawHeldWeapon(c,1,0,19,.45f,gameTime);
+                break;
+            case AscensionTree.CORE:
+                polygon(c,new float[]{-23,27,-23,-10,-14,-10,-14,-25,
+                        -5,-25,-5,-10,7,-10,7,-25,17,-25,17,-10,25,-10,
+                        25,27},color);
+                rect(c,-8,3,10,28,0xff1a3646);
+                circle(c,1,-6,6,0xfff1d7a2);
+                break;
+            case AscensionTree.TOWER:
+                round(c,-24,11,24,29,4,0xff81959b);
+                polygon(c,new float[]{-20,8,0,-24,20,8},color);
+                rect(c,-6,-10,7,20,0xff324c58);
+                line(c,0,-20,0,-32,0xffe8d5a5,4);
+                break;
+            case AscensionTree.HERO:
+                circle(c,0,-17,11,color);
+                polygon(c,new float[]{-23,25,-15,-4,0,2,14,-4,24,25},color);
+                polygon(c,new float[]{-10,10,0,20,10,10,0,1},0xff274458);
+                break;
+            case AscensionTree.GOLD:
+                circle(c,0,0,24,0xffa0763c);
+                circle(c,0,0,18,color);
+                circleStroke(c,0,0,15,0xffffe9b5,3);
+                text(c,"✦",0,8,25,0xff684c2d,true);
+                break;
+            case AscensionTree.SKILL:
+                polygon(c,new float[]{-5,-32,11,-14,-2,-3,17,4,1,30,
+                        -16,8,-4,-8,-20,-12},color);
+                circle(c,17,-16,6,0xfff0defe);
+                break;
+            case AscensionTree.SPEED:
+                for(int i=0;i<3;i++)
+                    line(c,-25,-15+i*16,13,-24+i*15,color,5);
+                polygon(c,new float[]{0,-30,29,-16,2,7,12,-9},0xffbaf4f0);
+                break;
+        }
+        c.restore();
+    }
+
+    private void tapAscension(float x,float y) {
+        if(y>=614){
+            if(x>=64&&x<336)scene=Scene.FORTRESS;
+            else if(x>345&&x<620)scene=Scene.ARMORY;
+            else if(x>625&&x<904)
+                ascensionScroll=Math.max(0,ascensionScroll-225);
+            return;
+        }
+        if(x>=953&&x<1210&&y>=516&&y<592){
+            if(ascension.buy(selectedAscensionNode,fortressRank)) {
+                supplies=prefs.getInt("supplies",supplies);
+                audio.play(GameAudio.BUILD);
+            }
+            return;
+        }
+        if(x<TREE_LEFT||x>TREE_RIGHT||y<TREE_TOP||y>TREE_BOTTOM)return;
+        for(AscensionTree.Node node:AscensionTree.NODES){
+            float nx=TREE_LEFT+AscensionTree.x(node);
+            float ny=TREE_TOP+AscensionTree.worldY(node)-ascensionScroll;
+            if(Math.abs(x-nx)<43&&Math.abs(y-ny)<48){
+                selectedAscensionNode=node.id;
+                audio.play(GameAudio.BUILD);
+                return;
+            }
+        }
+    }
+
     private void drawFortress(Canvas c) {
         drawBackdrop(c);
         round(c,48,29,1233,694,25,0xf0172e36);
@@ -2358,6 +2569,7 @@ public final class RiftGameView extends View {
                 Progression.canUpgrade(fortressRank,supplies)?0xffb0704e:0xff566166);
         text(c,"BACK",92,669,24,INK,false);
         text(c,"ARMORY",453,669,25,GOLD,false);
+        button(c,738,634,1195,686,"ASCENSION  /  UPGRADE TREE",0xff476f68);
     }
 
     private void upgradeFortress() {
@@ -2474,6 +2686,24 @@ public final class RiftGameView extends View {
         if(scale<=0)return true;
         float offsetX=(getWidth()-W*scale)*.5f,offsetY=(getHeight()-H*scale)*.5f;
         float x=(ev.getX(index)-offsetX)/scale,y=(ev.getY(index)-offsetY)/scale;
+        if(scene==Scene.ASCENSION){
+            if(action==MotionEvent.ACTION_DOWN){
+                treeDownX=x;treeDownY=y;treeLastY=y;treeDragging=false;
+            }else if(action==MotionEvent.ACTION_MOVE&&
+                    treeDownX>=TREE_LEFT&&treeDownX<=TREE_RIGHT&&
+                    treeDownY>=TREE_TOP&&treeDownY<=TREE_BOTTOM){
+                float delta=y-treeLastY;
+                if(Math.abs(y-treeDownY)>9)treeDragging=true;
+                if(treeDragging)
+                    ascensionScroll=BattleRules.clamp(ascensionScroll-delta,0,
+                            AscensionTree.worldHeight()-(TREE_BOTTOM-TREE_TOP));
+                treeLastY=y;
+            }else if(action==MotionEvent.ACTION_UP){
+                if(!treeDragging)tapAscension(x,y);
+                treeDragging=false;
+            }
+            invalidate();return true;
+        }
         if(scene==Scene.PLAY && briefingOpen) {
             if(action==MotionEvent.ACTION_DOWN && x>680 && x<1150 && y>570 && y<670) {
                 briefingOpen=false;
@@ -2591,7 +2821,8 @@ public final class RiftGameView extends View {
                 }
             }
         }else if(scene==Scene.FORTRESS) {
-            if(y>539 && y<634 && x>722)upgradeFortress();
+            if(y>634 && x>722)scene=Scene.ASCENSION;
+            else if(y>539 && y<630 && x>722)upgradeFortress();
             else if(y>630 && x<300)scene=Scene.HOME;
             else if(y>630 && x>339 && x<690)scene=Scene.ARMORY;
         }else if(scene==Scene.WIN || scene==Scene.LOSE) {
