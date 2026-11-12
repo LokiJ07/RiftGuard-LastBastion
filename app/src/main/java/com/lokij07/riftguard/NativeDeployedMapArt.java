@@ -331,6 +331,16 @@ public final class NativeDeployedMapArt {
             oval(c,x,y,2,2,alpha(col,65+i%3*28));
         }
     }
+    /** Same native live-map crop in the mission briefing, not old scenery. */
+    public synchronized void preview(Canvas c,int chosen,float left,float top,
+                                     float width,float height){
+        prepare(chosen);
+        c.save();c.translate(left,top);c.clipRect(0,0,width,height);
+        c.scale(width/1150f,height/655f);c.translate(-690,-121);
+        fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
+        fort(c,950,510,1,0,1);
+        c.restore();
+    }
     public synchronized void thumbnail(Canvas c,int chosen,float left,float top,
                                        float width,float height){
         Campaign.checkStage(chosen);
