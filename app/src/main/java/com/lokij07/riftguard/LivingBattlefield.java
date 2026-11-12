@@ -423,9 +423,17 @@ public final class LivingBattlefield {
                 Math.max(-1,Math.min(1,(heroY-LaneRules.startY())/400f));
         c.save();c.clipRect(0,0,MAP_W,BACK_H);
         lay(c,0,0);
+        // Original HTML sky movement converted to native Android Canvas.
+        // Layered before the mountains; no WebView or touch overlay.
+        HtmlSceneryMotion.drawSky(c,stage,time,reducedMotion);
         lay(c,1,-look*12f);
         lay(c,2,-look*26f);
         lay(c,3,-look*43f+vertical*6f);
+        // Seeded cliff animation follows the castle, not the camera/HUD.
+        c.save();
+        c.translate(-look*43f+vertical*6f,0);
+        HtmlSceneryMotion.drawWaterfall(c,stage,time,reducedMotion);
+        c.restore();
         if(!reducedMotion){
             int world=biome(stage),seed=environmentSignature(stage);
             // Real parallax mist between cliff and foreground trees.
