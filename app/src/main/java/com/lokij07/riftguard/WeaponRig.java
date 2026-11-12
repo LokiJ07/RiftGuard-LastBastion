@@ -37,16 +37,34 @@ public final class WeaponRig {
         }
         if(attack>=0){
             float t=ease(clamp(attack));
-            if(blade){
-                // A full shoulder-driven swing repositions the wrist, not just the sprite.
-                angle=-110+208*t;
-                handX=25+(float)Math.sin(Math.PI*t)*22+18*t;
-                handY=-76+(float)Math.sin(Math.PI*t)*29;
-            }else{
-                float recoil=(float)Math.sin(Math.PI*t);
-                handX-=12*recoil;
-                handY+=5*recoil;
-                angle+=blade?0:9*recoil;
+            float forward=WeaponAnimation.wristForward(weaponId,attack);
+            float recoil=WeaponAnimation.recoil(weaponId,attack);
+            switch(weaponId){
+                case 0: // Crossbow: two-hand cross-grip and firm shoulder recoil.
+                    handX=34-recoil;handY=-67+recoil*.37f;angle=-75+recoil*.55f;
+                    break;
+                case 1: // GREAT SWORD: deep windup, shoulder follow-through.
+                    angle=-132+250*t;
+                    handX=20+23*t+forward;
+                    handY=-91+(float)Math.sin(Math.PI*t)*35;
+                    break;
+                case 2: // SABRE: two fast wrist-led cutting beats.
+                    angle=-90+175*t+(float)Math.sin(2*Math.PI*t)*24;
+                    handX=37+forward+11*t;
+                    handY=-67+(float)Math.sin(2*Math.PI*t)*15;
+                    break;
+                case 3: // ARC STAFF: raise and channel, then wand cast.
+                    angle=-30+26*t;
+                    handX=29+forward;handY=-65-14*(float)Math.sin(Math.PI*t);
+                    break;
+                case 4: // REPEATER: tight three-shot automatic recoil cycle.
+                    angle=-75+(float)Math.sin(t*Math.PI*6)*4;
+                    handX=35-recoil;handY=-66+(float)Math.abs(Math.sin(t*Math.PI*3))*4;
+                    break;
+                case 5: // FROST LANCE: long linear thrust from rear shoulder.
+                    angle=-20+13*t;
+                    handX=22+forward;handY=-59-forward*.20f;
+                    break;
             }
         }
         if(cast>=0) {
@@ -88,8 +106,13 @@ public final class WeaponRig {
                     pose.handX,pose.handY,pose.angle+aimOffset);
         }
         float angle=targetAngle;
-        // Keep the short recoil, but rotate the drawn muzzle toward its target.
-        if(attack>=0)angle+=(float)Math.sin(Math.PI*clamp(attack))*9f;
+        // The muzzle and in-hand model use exactly the same target pose.
+        // Repeater, crossbow, staff and lance have different recoil travel.
+        if(attack>=0){
+            float recoil=WeaponAnimation.recoil(weaponId,attack);
+            angle+=weaponId==4?recoil*.18f:weaponId==5?recoil*.35f:
+                    weaponId==3?recoil*.55f:recoil*.70f;
+        }
         return new Pose(pose.shoulderX,pose.shoulderY,pose.elbowX,pose.elbowY,
                 pose.handX,pose.handY,angle);
     }
