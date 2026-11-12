@@ -82,13 +82,22 @@ public final class VisualOverhaulPhaseOneTest {
         }
         assertEquals("Ten atmospheres must not share the same image",10,
                 signatures.size());
+        // Frame comparison covers the WHOLE world instead of cropping the
+        // north-west quarter, where most seeded snow could be absent.
         canvas.drawColor(Color.TRANSPARENT,android.graphics.PorterDuff.Mode.CLEAR);
+        canvas.save();canvas.scale(840f/1900,550f/1050);
         BiomeAtmosphere.drawFront(canvas,BiomeAtmosphere.SNOW,22,.2f);
+        canvas.restore();
         Bitmap first=original.copy(Bitmap.Config.ARGB_8888,false);
         canvas.drawColor(Color.TRANSPARENT,android.graphics.PorterDuff.Mode.CLEAR);
+        canvas.save();canvas.scale(840f/1900,550f/1050);
         BiomeAtmosphere.drawFront(canvas,BiomeAtmosphere.SNOW,22,2.4f);
-        assertTrue("Weather must actually animate in gameplay",
-                diff(first,original,10,15,825,530)>150);
+        canvas.restore();
+        int movingPixels=0;
+        for(int y=0;y<550;y++)for(int x=0;x<840;x++)
+            if(first.getPixel(x,y)!=original.getPixel(x,y))movingPixels++;
+        assertTrue("Snow must physically move across the FULL battlefield ("+
+                movingPixels+" pixels)",movingPixels>150);
         original.recycle();first.recycle();
     }
     @Test public void originalBodyAndSeparateActualEquippedWeaponBothRender(){
