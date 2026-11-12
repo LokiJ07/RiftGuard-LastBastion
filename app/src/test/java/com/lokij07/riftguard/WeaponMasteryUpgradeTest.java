@@ -175,7 +175,7 @@ public final class WeaponMasteryUpgradeTest {
         view.layout(0,0,1280,720);
         tap(view,221,540);
         assertEquals("ARMORY",get(view,"scene").toString());
-        tap(view,1049,133);
+        tap(view,1049,653);
         assertEquals("WEAPON_TREE",get(view,"scene").toString());
         assertEquals(0,get(view,"selectedMasteryWeapon"));
         float bottom=(float)get(view,"weaponTreeScroll");
@@ -186,7 +186,7 @@ public final class WeaponMasteryUpgradeTest {
         // First-tier path1 is visible near x=249,y=374.
         tap(view,248,374);
         assertEquals(1,get(view,"selectedWeaponMasteryNode"));
-        tap(view,996,550);
+        tap(view,1049,653);
         assertTrue(new WeaponMastery(p).owned(0,1));
         assertEquals(900-WeaponMastery.node(0,1).cost,p.getInt("supplies",-1));
         drag(view,431,465,210);
