@@ -198,6 +198,8 @@ public final class NativeDeployedMapArt {
             int col=i%3==0?0x227affbb:0x3371aa80;
             line(c,x,y,x+2+(i%3),y-4-r.nextFloat()*5,.8f,col);
         }
+        // Kingdom-specific architecture is physically seeded in the live terrain.
+        KingdomSetPieces.paint(c,stage);
         // Mission B: river + an actual road bridge, following HTML.
         if(variant==1){
             Path river=new Path();river.moveTo(1160,-55);
@@ -262,6 +264,11 @@ public final class NativeDeployedMapArt {
         for(int i=0;i<activePads;i++)pad(c,padsX[i],padsY[i]);
         // A painted core-footprint shadow holds the existing interactive fort.
         oval(c,950,615,161,26,0x550b291d);
+        // Cache expensive gradient shafts and light pools ONCE per stage.
+        // Reconstructing radial shaders every battle frame was measurable on
+        // real Android emulator graphics, while the world itself is static.
+        BiomeAtmosphere.drawBack(c,world,stage,0f);
+        BattlefieldLighting.drawGround(c,world,stage,0f,950f,510f);
     }
     private static void pad(Canvas c,float x,float y){
         oval(c,x+4,y+24,44,11,0x55051a17);
@@ -388,10 +395,16 @@ public final class NativeDeployedMapArt {
         }
     }
     public synchronized void draw(Canvas c,int chosen,float time){
+        draw(c,chosen,time,false);
+    }
+    public synchronized void draw(Canvas c,int chosen,float time,
+                                  boolean reducedMotion){
         prepare(chosen);
         fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
         int col=GLOW[world(chosen)];
-        // Deliberately sparse ambient motion, below characters and HUD.
+        // A few inexpensive moving motes retain atmosphere on weak GPUs.
+        KingdomSetPieces.animate(c,chosen,time,reducedMotion);
+        if(reducedMotion)time=0;
         for(int i=0;i<23;i++){
             float x=((i*137+Campaign.seed(chosen)%97)+time*11)%W;
             float y=270+(i*113)%530+(float)Math.sin(time*.9f+i)*8;

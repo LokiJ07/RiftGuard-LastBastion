@@ -96,10 +96,11 @@ public final class BattlefieldLighting {
                 heroX-4+leftStep*16,heroY+10+leftStep*3),P);
         c.drawOval(new RectF(heroX+4+rightStep*16,heroY-6+rightStep*3,
                 heroX+35+rightStep*16,heroY+10+rightStep*3),P);
-        P.setShader(new RadialGradient(heroX,heroY+3,
-                46,withAlpha(AMBIENT[Math.max(0,Math.min(9,biome))],45),
-                0x00000000,Shader.TileMode.CLAMP));
-        c.drawOval(new RectF(heroX-46,heroY-14,heroX+46,heroY+18),P);
-        P.setShader(null);
+        // Low-cost foot-contact falloff; no per-frame radial-shader upload.
+        int light=AMBIENT[Math.max(0,Math.min(9,biome))];
+        P.setShader(null);P.setColor(withAlpha(light,21));
+        c.drawOval(heroX-46,heroY-14,heroX+46,heroY+18,P);
+        P.setColor(withAlpha(light,36));
+        c.drawOval(heroX-20,heroY-7,heroX+20,heroY+11,P);
     }
 }
