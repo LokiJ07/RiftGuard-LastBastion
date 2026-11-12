@@ -171,19 +171,10 @@ public final class MotionArt {
     /** Draw an actual frame by sprite-sheet index: 0 idle, 1 run, 2 attack, 3 cast. */
     public void drawHeroFrame(Canvas c,int state,int frame,float x,float y,
                               boolean flip,boolean hurt) {
-        if(!heroReady())return;
-        int row=Math.max(0,Math.min(3,state));
-        int column=Math.max(0,Math.min(3,frame));
-        Rect src=new Rect(column*HERO_W,row*HERO_H,(column+1)*HERO_W,(row+1)*HERO_H);
-        c.save();
-        c.translate(x,y);
-        if(flip)c.scale(-1,1);
-        p.setColor(0x8807131b);p.setAlpha(110);
-        c.drawOval(new RectF(-32,-4,34,12),p);
-        p.setColor(Color.WHITE);p.setAlpha(hurt?175:255);
-        c.drawBitmap(heroes,src,new RectF(-57,-132,57,8),p);
-        p.setAlpha(255);
-        c.restore();
+        // Even single-frame previews must use the same equipment-masked hero as
+        // gameplay; never reintroduce the old full-rectangle character atlas.
+        drawHeroRigFrame(c,state,frame,x,y,flip,hurt,state==1,
+                frame*1.8f,state==2?frame/3f:-1f);
     }
 
 
@@ -240,10 +231,20 @@ public final class MotionArt {
                 96,111,139,187,ActorGait.leg(phase,running,1,140),34,hurt);
         float lean=ActorGait.torsoLean(phase,running,attack);
         c.save();c.rotate(lean,0,-39);
-        Rect src=new Rect(column*HERO_W,row*HERO_H,
-                (column+1)*HERO_W,row*HERO_H+122);
+        // The source sprite has a painted sidearm on its lower-right side.
+        // Keep the painted face and breastplate but exclude that original
+        // equipment and glove: a separate arm/weapon rig owns the right hand.
+        // Preserve exact original bitmap scale to avoid stretching armor.
         p.setColor(Color.WHITE);p.setAlpha(hurt?195:255);
-        c.drawBitmap(heroes,src,new RectF(-57,-132,57,-27),p);
+        int srcX=column*HERO_W,srcY=row*HERO_H;
+        c.drawBitmap(heroes,new Rect(srcX,srcY,srcX+141,srcY+76),
+                new RectF(-57,-132,41,-66.6f),p);
+        c.drawBitmap(heroes,new Rect(srcX,srcY+76,srcX+112,srcY+122),
+                new RectF(-57,-66.6f,21,-27),p);
+        // Restore only the upper right steel pauldron as a separate layer.
+        // The articulated foreground arm and hand overlap its cut seam.
+        c.drawBitmap(heroes,new Rect(srcX+101,srcY+34,srcX+139,srcY+72),
+                new RectF(9,-104,41,-73),p);
         // Painted central tabard overlaps the hip/greave seam, with its own
         // much smaller cloth motion than the legs. Avoid rectangular cut-lines.
         float cloth=(float)Math.sin(phase*.77f)*(running?3.2f:1.1f);
@@ -256,10 +257,10 @@ public final class MotionArt {
         c.restore();
     }
 
-    /** Synchronize movement, attack and spell frames with the real simulation. */
-    public boolean hero(Canvas c,float x,float y,float time,float facing,
-                        boolean running,float attackProgress,float castProgress,
-                        boolean hurt,int weaponId) {
+    /** Hero's armor and limbs without any externally equipped weapon. */
+    public boolean heroBody(Canvas c,float x,float y,float time,float facing,
+                            boolean running,float attackProgress,float castProgress,
+                            boolean hurt) {
         if(!heroReady())return false;
         int state=castProgress>=0?3:attackProgress>=0?2:running?1:0;
         int frame=state==2?eventFrame(attackProgress):state==3?
@@ -267,6 +268,16 @@ public final class MotionArt {
         boolean left=Math.cos(facing)<-.28f;
         drawHeroRigFrame(c,state,frame,x,y,left,hurt,running,time*11.7f,
                 attackProgress);
+        return true;
+    }
+
+    /** Synchronize the same cleaned hero body with the equipped weapon rig. */
+    public boolean hero(Canvas c,float x,float y,float time,float facing,
+                        boolean running,float attackProgress,float castProgress,
+                        boolean hurt,int weaponId) {
+        if(!heroBody(c,x,y,time,facing,running,attackProgress,castProgress,hurt))
+            return false;
+        boolean left=Math.cos(facing)<-.28f;
         // Keep the transparent combat model visible even if an icon atlas is missing.
         c.save();c.translate(x,y);
         if(left)c.scale(-1,1);
