@@ -2,7 +2,18 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.21.0 — replaced real battle terrain + kingdom map with uploaded HTML designs
+## Current version: V0.30.0 — LokiJ Identity and Consistent Upgrade UI
+
+- **Real Android startup branding:** `LokiSplashView` presents the RIFTGUARD crest, `THE LAST BASTION`, and the creator credit **LokiJ** during actual game initialization. Indeterminate visual ornament is never a fake download percent, and no network is required.
+- **New launcher artwork:** `res/drawable/ic_launcher.xml` is a genuinely bundled, scalable high-contrast shield with a rune blade, battlements, gilded trim and contrast-safe colors.
+- **One consistent upgrade action bar:** Armory, Abilities, Fortress Workshop, Weapon Mastery and Ascension now share the SAME 4-button bottom-footer geometry (`UpgradeActionLayout`) with real, matching touch areas. Primary purchase/unlock actions always appear in the far-right slot. No phantom action in the details panel.
+- **Actual world map and menus:** kingdom atlas now features a stronger readable frame, selected realm text that scales to its panel, visible PREVIOUS/NEXT level buttons, a clear BACK button, progress strip, and a tighter header. Buttons measure and shrink labels so long upgrade names no longer escape their frames.
+- **Fortress art parity:** Home, Workshop and real battles show the SAME native 5-rank fortress family. Each tier has specific detail work: timber grains, mortar/stone rows, shingles, heraldic plaques, mounted buttresses, spire glass and damage cracks. No regression to the old workshop-only outpost.
+- **Base weapon quality:** six held weapons have added mechanical details (crossbow rails/rivets/trigger, sword fuller/guard/pommel, staff/lance sockets and wrapped shafts). The combat weapons still use the current authoritative aim and hitbox logic.
+- **Tests and screenshot proof:** `V030UpgradeIdentityTest` checks all four visible footer buttons and actual navigation/purchase, all five rank silhouettes, and the real native LokiJ splash. CI gallery additionally includes the rendered splash and app icon. The existing 300 stage IDs, save preferences, combat and map routes remain intact.
+- **Known limits:** This is a major **UI, branding and fortress/weapon presentation release**, not 300 individually painted stages, a full new character rig or a physical Android device certification. Build/GUI tests and screenshot review are required before marking final. This build uses a development/debug signing identity.
+
+## v0.21.0 — full Java HTML-style map replacement
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
