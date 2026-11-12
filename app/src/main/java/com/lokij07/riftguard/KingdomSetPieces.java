@@ -124,6 +124,18 @@ public final class KingdomSetPieces {
                     rect(c,xx-3,-18,xx+3,5,0xffc7a973);
                 }
         }
+        // Small worked-stone footing and weathered runic edging anchor the
+        // structure to the landscape; it is not a floating emblem.
+        for(int stoneIndex=-3;stoneIndex<=3;stoneIndex++){
+            float px=stoneIndex*19f;
+            rect(c,px-8,7,px+8,11,translucent(stone,154));
+            line(c,px-9,12,px+7,12,translucent(light,50),2);
+        }
+        for(int i=-2;i<=2;i++){
+            float px=i*27f;
+            oval(c,px,18+(i%2)*3,9,3,translucent(stone,130));
+            if(i%2==0)oval(c,px+5,16,2,2,translucent(light,180));
+        }
         if(variant==1){ // bridge/supply route versions get a visible trail marker
             line(c,-70,14,72,14,0xffd8c48d,5);
         }else if(variant==2){ // last stands carry fortified palisades
@@ -137,18 +149,23 @@ public final class KingdomSetPieces {
         Campaign.checkStage(stage);
         int realm=Campaign.world(stage),mission=Campaign.map(stage);
         Random r=new Random(((long)Campaign.seed(stage)<<21)^0x1a3c07fL);
-        for(int i=0;i<3;i++){
-            float x=i==0?450+r.nextInt(150):i==1?1130+r.nextInt(140):1630+r.nextInt(110);
-            float y=(i%2==0?260:850)+(r.nextInt(40)-20);
-            if(Math.abs(y-LaneRules.stagePathY(stage,x))<140)
-                y=y<550?180:860;
-            // Pad clearances are checked against the same authoritative map.
+        // Stage-aware display positions are inside the playable camera.
+        // Previous setpieces were often outside the cropped battle viewport.
+        // The largest cluster remains behind the actual road and all pad slots.
+        float[] xs={930f,1430f,1740f};
+        float[] ys={345f,345f,340f};
+        for(int i=0;i<xs.length;i++){
+            float x=xs[i]+r.nextInt(21)-10;
+            float y=ys[i]+r.nextInt(15)-7;
+            if(Math.abs(y-LaneRules.stagePathY(stage,x))<112f)
+                y=245f;
             boolean safe=true;
             for(int p=0;p<TowerPadLayout.count(stage);p++){
                 float dx=x-TowerPadLayout.x(stage,p),dy=y-TowerPadLayout.y(stage,p);
-                if(dx*dx+dy*dy<180*180){safe=false;break;}
+                if(dx*dx+dy*dy<115f*115f){safe=false;break;}
             }
-            if(safe)motif(c,realm,mission,x,y,.70f+(i%2)*.17f,Campaign.seed(stage));
+            if(safe)motif(c,realm,mission,x,y,
+                    i==1?1.04f:.86f,Campaign.seed(stage));
         }
     }
     /** Ambient architecture glows animate *in world-space*, behind entities. */
