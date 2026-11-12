@@ -7,16 +7,17 @@ package com.lokij07.riftguard;
  * Animation states are independent of physics and input; one-shot clips do
  * not wrap, and frame markers fire exactly once even at low frame rates.
  *
- * Priority: DEATH > HURT > CAST > ATTACK > RUN > IDLE.
+ * Priority: DEATH > HURT > DODGE > CAST > ATTACK > RUN > IDLE.
  * Attack/cast blend only the torso; lower-body motion stays separately
  * articulated by MotionArt. Weapon hitboxes read the same event clock.
  */
 public final class WardenAnimationMachine {
-    public enum State { IDLE,RUN,ATTACK,CAST,HURT,DEATH }
+    public enum State { IDLE,RUN,ATTACK,CAST,DODGE,HURT,DEATH }
     public enum Event { ATTACK_CONTACT, FOOTSTEP, CLIP_FINISHED }
 
     private static final float CAST_SECONDS=.55f;
     private static final float HURT_SECONDS=.19f;
+    private static final float DODGE_SECONDS=DodgeRules.DURATION;
     private static final float DEATH_SECONDS=.66f;
     private static final float RUN_STEP_SECONDS=.235f;
     private static final float MAX_FRAME_STEP=.20f;
@@ -43,7 +44,7 @@ public final class WardenAnimationMachine {
     public float castProgress(){return state==State.CAST?normalized():-1f;}
     public float deathProgress(){return state==State.DEATH?normalized():-1f;}
     public boolean isHurt(){return state==State.HURT;}
-    public boolean locked(){return state==State.HURT||state==State.DEATH;}
+    public boolean locked(){return state==State.HURT||state==State.DEATH||state==State.DODGE;}
     public float duration(){return duration;}
     public static float contactProgress(int w){
         if(w<0||w>=CONTACT.length)throw new IllegalArgumentException("weapon");
@@ -51,7 +52,7 @@ public final class WardenAnimationMachine {
     }
     /** Called when a real projectile or melee animation is started. */
     public boolean attack(int w){
-        if(state==State.DEATH||state==State.HURT||state==State.CAST)
+        if(state==State.DEATH||state==State.HURT||state==State.DODGE||state==State.CAST)
             return false;
         if(w<0||w>=6)throw new IllegalArgumentException("weapon");
         weapon=w;
@@ -62,8 +63,16 @@ public final class WardenAnimationMachine {
         return true;
     }
     public boolean cast(){
-        if(state==State.DEATH||state==State.HURT)return false;
+        if(state==State.DEATH||state==State.HURT||state==State.DODGE)return false;
         state=State.CAST;time=0;duration=CAST_SECONDS;
+        contactSent=contactEvent=false;
+        clipFinishEvent=false;
+        return true;
+    }
+    /** Dash cancels a pending attack but cannot interrupt a death animation. */
+    public boolean dodge(){
+        if(state==State.DEATH||state==State.HURT)return false;
+        state=State.DODGE;time=0;duration=DODGE_SECONDS;
         contactSent=contactEvent=false;
         clipFinishEvent=false;
         return true;
@@ -82,7 +91,7 @@ public final class WardenAnimationMachine {
     }
     private static boolean singleShot(State state){
         return state==State.ATTACK||state==State.CAST||
-                state==State.HURT||state==State.DEATH;
+                state==State.DODGE||state==State.HURT||state==State.DEATH;
     }
     /** Variable-step animation clock; physics and touch sampling stay separate. */
     public void advance(float dt,boolean moving){
@@ -130,7 +139,7 @@ public final class WardenAnimationMachine {
     /** The bundled Warden atlas offers IDLE/RUN/ATTACK/CAST rows only. */
     public int sourceRow(){
         switch(state){
-            case RUN:return 1;
+            case RUN:case DODGE:return 1;
             case ATTACK:return 2;
             case CAST:return 3;
             default:return 0; // HURT/DEATH use tinted/rotated idle until new art arrives.
