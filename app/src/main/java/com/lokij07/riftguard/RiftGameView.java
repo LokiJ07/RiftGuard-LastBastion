@@ -78,6 +78,7 @@ public final class RiftGameView extends View {
     private final SharedPreferences prefs;
     private final KingdomMeta kingdom;
     private final AscensionTree ascension;
+    private final WeaponMastery weaponMastery;
     private final GameAudio audio;
     private int kingdomTab=0;
     private String kingdomMessage="Complete challenges to earn rewards!";
@@ -192,6 +193,7 @@ public final class RiftGameView extends View {
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         kingdom=new KingdomMeta(prefs);
         ascension=new AscensionTree(prefs);
+        weaponMastery=new WeaponMastery(prefs);
         audio=new GameAudio(context,prefs);
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
         supplies=Math.max(0,prefs.getInt("supplies",0));
@@ -349,7 +351,8 @@ public final class RiftGameView extends View {
         if(heroMoving)walkClock+=dt;
         if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
             heroDir=(float)Math.atan2(axisY,axisX);
-        if(pendingMelee && MeleeSwingRules.hitWindow(1f-fireFlash/.23f))
+        if(pendingMelee && MeleeSwingRules.hitWindow(
+                1f-fireFlash/WeaponAnimation.duration(pendingMeleeWeapon)))
             resolveMeleeHit();
         if (firing) fire();
         updateSkillObjects(dt);
@@ -679,8 +682,9 @@ public final class RiftGameView extends View {
     private void fire() {
         if (shotTimer>0 || scene!=Scene.PLAY) return;
         Progression.Weapon weapon=Progression.WEAPONS[equippedWeapon];
-        Enemy target=closest(heroX,heroY,weapon.range);
-        if(target==null) { shotTimer=Math.min(.2f,weapon.cooldown); return; }
+        Enemy target=closest(heroX,heroY,
+                weapon.range+weaponMastery.bonusRange(equippedWeapon));
+        if(target==null) {shotTimer=Math.min(.2f,weapon.cooldown);return;}
         heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
         // Spawn the projectile precisely at the displayed weapon's rotating tip,
         // not at the center of the player sprite. This must use the same animation
@@ -690,9 +694,9 @@ public final class RiftGameView extends View {
         WeaponRig.Point muzzle=WeaponRig.muzzle(equippedWeapon,0f,cast,
                 animTime,heroMoving,heroDir);
         float muzzleX=heroX+muzzle.x,muzzleY=heroY+muzzle.y;
-        shotTimer=weapon.cooldown;
+        shotTimer=weapon.cooldown*weaponMastery.cooldownMultiplier(equippedWeapon);
         audio.play("MELEE".equals(weapon.type)?GameAudio.BLADE:GameAudio.SHOT);
-        fireFlash=.23f;
+        fireFlash=WeaponAnimation.duration(equippedWeapon);
         if("MELEE".equals(weapon.type)) {
             // Queue contact damage at the MIDPOINT of the animated sword swing.
             // No 360-degree instant hit the moment the attack button is pressed.
@@ -700,7 +704,8 @@ public final class RiftGameView extends View {
             pendingMeleeWeapon=equippedWeapon;
             pendingMeleeFacing=heroDir;
         } else {
-            Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*ascension.attackMultiplier(),
+            Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*
+                    ascension.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,target,false);
             shot.weaponId=equippedWeapon;
             shots.add(shot);
@@ -717,9 +722,22 @@ public final class RiftGameView extends View {
         Progression.Weapon weapon=Progression.WEAPONS[pendingMeleeWeapon];
         for(Enemy e:enemies) {
             if(e.hp<=0)continue;
-            if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,weapon.range,
+            if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,
+                    weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon),
                     e.x,e.y))continue;
-            e.hp-=weapon.damage*ascension.attackMultiplier();
+            e.hp-=weapon.damage*ascension.attackMultiplier()*
+                    weaponMastery.damageMultiplier(pendingMeleeWeapon);
+            if(weaponMastery.mastered(pendingMeleeWeapon)) {
+                // Titan Splitter has a concussive shockwave; Phoenix Drive
+                // applies actual burning pressure on each sword contact.
+                if(pendingMeleeWeapon==1){
+                    e.slowTimer=Math.max(e.slowTimer,1.7f);
+                    e.hp-=weapon.damage*.22f;
+                }else if(pendingMeleeWeapon==2){
+                    e.burnTimer=Math.max(e.burnTimer,4f);
+                    e.burnDps=30f;
+                }
+            }
             e.hitReaction=.21f;
             puff(e.x,e.y-18,7,weapon.color);
             if(impacts.size()<64)
@@ -1776,7 +1794,7 @@ public final class RiftGameView extends View {
         circle(c,x+15,y-23,3,0xfff9edbe);
     }
     private void drawHero(Canvas c) {
-        float attackProgress=fireFlash>0?1-fireFlash/.23f:-1f;
+        float attackProgress=WeaponAnimation.progress(equippedWeapon,fireFlash);
         float castProgress=pulseFlash>0?1-pulseFlash/.55f:-1f;
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
