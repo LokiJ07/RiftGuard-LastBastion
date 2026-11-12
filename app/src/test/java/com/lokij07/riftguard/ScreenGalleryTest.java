@@ -73,10 +73,84 @@ public class ScreenGalleryTest {
         image.recycle();
     }
 
+    private void saveCustom(Bitmap image,String name)throws Exception {
+        File root=new File(System.getProperty("user.dir"));
+        File folder=new File(root,new File("app/build.gradle").exists()
+                ?"app/build/screenshots":"build/screenshots");
+        if(!folder.exists())assertTrue(folder.mkdirs());
+        File path=new File(folder,name+".png");
+        try(FileOutputStream stream=new FileOutputStream(path)){
+            assertTrue(image.compress(Bitmap.CompressFormat.PNG,100,stream));
+        }
+        assertTrue(path.length()>4000);
+    }
+
+    /** Real hero rig at gameplay animation poses, not external concept art. */
+    private void captureCleanHeroRig() throws Exception {
+        Bitmap image=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(image);
+        c.drawColor(0xff0d2030);
+        android.graphics.Paint label=new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        label.setColor(0xfff5d39a);label.setTextSize(28);label.setFakeBoldText(true);
+        c.drawText("RIFTGUARD — REAL IN-GAME WEAPON-FREE WARDEN RIG",46,56,label);
+        label.setTextSize(18);label.setColor(0xffbad3d8);label.setFakeBoldText(false);
+        c.drawText("Original scalable artwork — each panel is a different animated pose",47,83,label);
+        String[] states={"IDLE / UNARMED","RUN / FOOT PLANT","ATTACK / LEAN","SPELL / CAST"};
+        for(int i=0;i<4;i++){
+            float left=26+i*315;
+            label.setColor(0xff294454);
+            c.drawRoundRect(left,108,left+296,682,18,18,label);
+            label.setColor(0xffe8d2aa);label.setTextSize(20);
+            c.drawText(states[i],left+24,151,label);
+            c.save();
+            c.translate(left-70,155);
+            c.scale(2.65f,2.65f);
+            WardenBodyArt.draw(c,83,172,i==1?1.65f:.7f,
+                    i==1,i==2?.55f:-1f,i==3?.5f:-1f,
+                    false,false);
+            c.restore();
+            label.setColor(0xff8faab0);label.setTextSize(17);
+            c.drawText(i==0?"No baked weapons":i==1?"Independent steps":
+                    i==2?"Torso + cape recoil":"Arm + cape casting",left+24,651,label);
+        }
+        saveCustom(image,"36-weaponfree-warden-animation");
+        image.recycle();
+    }
+    private void captureBiomeAtmosphere()throws Exception {
+        Bitmap image=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(image);
+        c.drawColor(0xff0c1f2b);
+        android.graphics.Paint label=new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        label.setColor(0xffedd4a5);label.setTextSize(27);label.setFakeBoldText(true);
+        c.drawText("RIFTGUARD — TEN LIVING BIOME ATMOSPHERES",30,43,label);
+        String[] names={"GREENHAVEN","HOLLOW WOODS","VENOM MIRE","ASH CANYON",
+                "FROST PEAKS","IRON FOUNDRY","CRYSTAL DEPTHS","TEMPEST ISLES",
+                "SHADOWFALL","ECLIPSE KEEP"};
+        for(int biome=0;biome<10;biome++){
+            float x=20+(biome%5)*254,y=72+(biome/5)*319;
+            c.save();c.translate(x,y);c.clipRect(0,0,245,290);
+            label.setColor(0xff25404f);
+            c.drawRoundRect(0,0,245,290,12,12,label);
+            c.save();c.translate(0,34);c.scale(.13f,.19f);
+            BiomeAtmosphere.drawBack(c,biome,biome*25,2f);
+            BiomeAtmosphere.drawFront(c,biome,biome*25,2f);
+            c.restore();
+            label.setColor(0xffe5d3a4);label.setTextSize(17);
+            c.drawText(names[biome],12,25,label);
+            c.restore();
+        }
+        saveCustom(image,"37-animated-biome-atmosphere");
+        image.recycle();
+    }
+
     @Test public void captureActualUiAsVisualGallery() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().putInt("fortress_rank",2).putInt("supplies",220)
                 .putInt("weapon",2).commit();
+        captureCleanHeroRig();
+        captureBiomeAtmosphere();
         RiftGameView view=new RiftGameView(context);
         view.layout(0,0,1280,720);
         capture(view,"01-home");
