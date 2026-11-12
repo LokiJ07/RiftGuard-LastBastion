@@ -1088,6 +1088,8 @@ public final class RiftGameView extends View {
         // The HTML map is now the actual game terrain and route; old
         // mountain/castle/lake scenery no longer overlays the battlefield.
         deployedMap.draw(c,stage,gameTime);
+        // Actual gameplay VFX inherit the kingdom's local landmark palette.
+        // The static structures are cached; no per-frame bitmap allocation.
         BattlefieldLighting.drawGround(c,biome,stage,gameTime,BASE_X,BASE_Y);
         // Multi-depth light shafts and biome weather live in world coordinates,
         // so scenery moves with the level rather than scrolling over the HUD.
