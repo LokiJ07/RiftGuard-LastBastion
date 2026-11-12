@@ -96,6 +96,7 @@ public class ScreenGalleryTest {
         c.drawText("RIFTGUARD — REAL IN-GAME WEAPON-FREE WARDEN RIG",46,56,label);
         label.setTextSize(18);label.setColor(0xffbad3d8);label.setFakeBoldText(false);
         c.drawText("Original scalable artwork — each panel is a different animated pose",47,83,label);
+        MotionArt productionRig=new MotionArt(context);
         String[] states={"IDLE / UNARMED","RUN / FOOT PLANT","ATTACK / LEAN","SPELL / CAST"};
         for(int i=0;i<4;i++){
             float left=26+i*315;
@@ -106,9 +107,9 @@ public class ScreenGalleryTest {
             c.save();
             c.translate(left-70,155);
             c.scale(2.65f,2.65f);
-            WardenBodyArt.draw(c,83,172,i==1?1.65f:.7f,
-                    i==1,i==2?.55f:-1f,i==3?.5f:-1f,
-                    false,false);
+            assertTrue("Preview MUST show actual in-game painted hybrid",
+                    productionRig.heroBody(c,83,172,i==1?.14f:.7f,
+                            0f,i==1,i==2?.55f:-1f,i==3?.5f:-1f,false));
             c.restore();
             label.setColor(0xff8faab0);label.setTextSize(17);
             c.drawText(i==0?"No baked weapons":i==1?"Independent steps":
