@@ -97,6 +97,7 @@ The user's uploaded **AI Animation Skills** `SKILL.md` was read directly; its co
 - **Hurt and defeat presentation:** hero plays short nonlooping hurt and a physical falling/degrading Warden pose when killed (tilted existing painted source, not fake new death-frame art).
 - **Grounded footstep feedback:** alternating gait phase emits subtle dirt at actual planted feet with a strict particle cap; logic is independent of upper-body action clips.
 - **Visual QA:** Robolectric captures the REAL painted atlas in all 7 state storyboard examples. Integration tests cover frame-rate independence, attack/cast interruption priority, exact melee HP impact and death pose changes.
+- **New HD artwork quality gate:** `tools/verify_warden_hd_atlas.py` accepts a genuinely painted 8-column × 6-row RGBA source with 256px frames, 2px gutter and fixed feet pivot, and exports a validated transparent WebP plus six GIF previews. It rejects empty/duplicate idle/run frames, cropped art and opaque screenshot backgrounds. No such NEW HD source has passed the gate yet, so the new importer does not replace the in-game atlas.
 - **Important remaining asset gap:** `riftguard_hero_motion.webp` is still the original 4-column × 4-row painted atlas. Generated imagery for this development turn returned a **marketing presentation**, NOT a usable 8-frame transparent Warden/monster sprite atlas, and was rejected. This update improves live animation behavior; it is NOT a claim that professional HD sprite art or the full 300-stage environment overhaul has been created.
 
 ## Playing
