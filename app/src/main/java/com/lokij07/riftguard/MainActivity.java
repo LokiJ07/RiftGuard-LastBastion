@@ -26,6 +26,10 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() { super.onResume(); immersive(); if (game != null) game.setActive(true); }
     @Override protected void onPause() { if (game != null) game.setActive(false); super.onPause(); }
+    @Override protected void onDestroy(){
+        if(game!=null)game.releaseAudio();
+        super.onDestroy();
+    }
     @Override public void onBackPressed() {
         if (game != null && game.handleBack()) return;
         super.onBackPressed();
