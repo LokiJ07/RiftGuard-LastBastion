@@ -40,6 +40,9 @@ take "02-world-map"
 adb shell input tap 190 470
 sleep 1
 take "03-regional-journey"
+# An emulator robot is slower than a real player, so use the actual EASY
+# difficulty control to prevent time-to-defeat during instrumentation.
+adb shell input tap 939 614
 adb shell input tap 620 619
 sleep 2
 take "04-mission-briefing"
@@ -52,16 +55,14 @@ sleep 1
 take "05-battle-start"
 # Reset Android's hardware frame timeline, then issue actual movement/touch.
 adb shell dumpsys gfxinfo "$APP" reset >/dev/null || true
-# Capture the first real combat inputs promptly: after 12 lengthy ADB input
-# cycles the hero could be defeated, making the final picture an atlas
-# instead of an active-battle validation. Separate survival testing belongs
-# in deterministic game tests, not this launch/input smoke check.
-for n in $(seq 1 3); do
-  adb shell input swipe 150 565 215 520 180
-  adb shell input tap 730 590
-  adb shell input tap 1045 588
-done
-sleep 0.3
+# Real battle inputs are tested promptly before time-consuming ADB shell
+# command overhead can advance the stage into LOSE -> map navigation.
+# Also construct a defense so the battle persists long enough for the test.
+adb shell input tap 849 589
+adb shell input swipe 150 565 215 520 160
+adb shell input tap 730 590
+adb shell input tap 1125 560
+sleep 0.2
 take "06-battle-interaction"
 # The battle screenshot must differ from the initial start state and cannot
 # silently be the atlas. This test is image-based but not dependent on OCR.
@@ -82,7 +83,47 @@ a=read_png(p/"05-battle-start.png")
 b=read_png(p/"06-battle-interaction.png")
 if a==b:
     raise SystemExit("Battle inputs did not change any displayed pixels")
-print("Battle interaction screenshot differs from pre-input frame")
+# On this fixed 1280x720 portrait-free emulator, (400,55) is the green
+# CORE health fill only while the actual playable battle scene is visible.
+# It is dark slate on the kingdom atlas or result navigation screen.
+def sample_rgba(path,x,y):
+    source=path.read_bytes()
+    import struct
+    width,height,depth,kind,_,_,_=struct.unpack('>IIBBBBB',source[16:29])
+    if (width,height,depth,kind)!=(1280,720,8,6):
+        raise SystemExit("Unexpected screenshot format for battle HUD assertion")
+    pos=8; content=b''
+    while pos<len(source):
+        n=int.from_bytes(source[pos:pos+4],'big')
+        tag=source[pos+4:pos+8]
+        if tag==b'IDAT':content+=source[pos+8:pos+8+n]
+        pos+=12+n
+        if tag==b'IEND':break
+    raw=zlib.decompress(content)
+    stride=width*4; prev=bytearray(stride);offset=0
+    for row in range(y+1):
+        filt=raw[offset];offset+=1
+        current=bytearray(raw[offset:offset+stride]);offset+=stride
+        for i in range(stride):
+            a=current[i-4] if i>=4 else 0
+            b=prev[i]
+            c=prev[i-4] if i>=4 else 0
+            if filt==1: current[i]=(current[i]+a)&255
+            elif filt==2: current[i]=(current[i]+b)&255
+            elif filt==3: current[i]=(current[i]+(a+b)//2)&255
+            elif filt==4:
+                p=a+b-c
+                pa,pb,pc=abs(p-a),abs(p-b),abs(p-c)
+                predictor=a if pa<=pb and pa<=pc else b if pb<=pc else c
+                current[i]=(current[i]+predictor)&255
+            elif filt!=0: raise SystemExit("Unexpected PNG filter")
+        prev=current
+    off=x*4
+    return tuple(prev[off:off+4])
+r,g,b,_=sample_rgba(p/"06-battle-interaction.png",400,55)
+if not(g>r+35 and g>b+20):
+    raise SystemExit("Battle interaction ended on atlas/defeat/overlay, not live battle!")
+print("BATTLE_SCENE_PRESENT_AFTER_REAL_INPUT; green CORE HUD pixel verified")
 PY
 adb shell dumpsys gfxinfo "$APP" framestats > "$OUT/gfxinfo-framestats.txt" || true
 adb shell dumpsys gfxinfo "$APP" > "$OUT/gfxinfo-summary.txt" || true
