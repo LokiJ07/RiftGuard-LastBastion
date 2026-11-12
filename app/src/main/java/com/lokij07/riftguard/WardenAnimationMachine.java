@@ -51,7 +51,8 @@ public final class WardenAnimationMachine {
     }
     /** Called when a real projectile or melee animation is started. */
     public boolean attack(int w){
-        if(state==State.DEATH||state==State.HURT)return false;
+        if(state==State.DEATH||state==State.HURT||state==State.CAST)
+            return false;
         if(w<0||w>=6)throw new IllegalArgumentException("weapon");
         weapon=w;
         state=State.ATTACK;
