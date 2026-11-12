@@ -363,6 +363,13 @@ public final class MotionArt {
     public boolean hero(Canvas c,float x,float y,float time,float facing,
                         boolean running,float attackProgress,float castProgress,
                         boolean hurt,int weaponId) {
+        return hero(c,x,y,time,facing,running,attackProgress,castProgress,
+                hurt,weaponId,0);
+    }
+    /** The actual visible equipment evolves as mastery nodes are purchased. */
+    public boolean hero(Canvas c,float x,float y,float time,float facing,
+                        boolean running,float attackProgress,float castProgress,
+                        boolean hurt,int weaponId,int masteryNodes) {
         if(!heroReady())return false;
         int state=castProgress>=0?3:attackProgress>=0?2:running?1:0;
         int frame=state==2?eventFrame(attackProgress):state==3?
@@ -375,7 +382,8 @@ public final class MotionArt {
         // Keep the transparent combat model visible even if an icon atlas is missing.
         c.save();c.translate(x,y);
         if(left)c.scale(-1,1);
-        drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running,facing);
+        drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running,
+                facing,masteryNodes);
         c.restore();
         return true;
     }
@@ -386,7 +394,7 @@ public final class MotionArt {
      */
     private void drawHeldWeapon(Canvas c,int weaponId,float time,
                                 float attackProgress,float castProgress,
-                                boolean running,float facing) {
+                                boolean running,float facing,int masteryNodes) {
         int id=Math.max(0,Math.min(5,weaponId));
         WeaponRig.Pose pose=WeaponRig.aimedPose(id,attackProgress,castProgress,
                 time,running,facing);
@@ -449,6 +457,40 @@ public final class MotionArt {
         // Unlike the inventory bitmap, these in-hand weapon models have
         // transparent backgrounds. Never paint a solid equipment-card tile.
         WorldArt.drawHeldWeapon(c,id,0,0,1f,time);
+        // Mastery marks are IN the rotated weapon's local coordinates. They
+        // stay glued to the weapon (not a floating HUD ring) across all poses.
+        if(masteryNodes>=2) {
+            Paint rune=new Paint(Paint.ANTI_ALIAS_FLAG);
+            int tint=Progression.WEAPONS[id].color;
+            float pulse=.68f+.24f*(float)Math.sin(time*6+id);
+            rune.setColor(tint);rune.setAlpha((int)(220*pulse));
+            rune.setStyle(Paint.Style.STROKE);rune.setStrokeWidth(2.2f);
+            c.drawLine(-3,-11,-3,-29,rune);
+            c.drawLine(3,-11,3,-29,rune);
+            rune.setStyle(Paint.Style.FILL);
+            c.drawCircle(0,-32,2.8f,rune);
+            if(masteryNodes>=6) {
+                Path etched=new Path();
+                etched.moveTo(0,-42);etched.lineTo(7,-35);
+                etched.lineTo(0,-27);etched.lineTo(-7,-35);
+                etched.close();
+                c.drawPath(etched,rune);
+                rune.setAlpha(230);
+                c.drawCircle(0,-35,3.3f,rune);
+            }
+            if(masteryNodes>=11) {
+                // The final mastered model acquires a pointed colored cutting
+                // extension; energy radiates along its actual local blade axis.
+                Path crest=new Path();
+                crest.moveTo(-8,-40);crest.lineTo(0,-55);
+                crest.lineTo(8,-40);crest.lineTo(0,-46);crest.close();
+                rune.setColor(tint);rune.setAlpha(200);
+                c.drawPath(crest,rune);
+                rune.setColor(Color.WHITE);rune.setStyle(Paint.Style.STROKE);
+                rune.setStrokeWidth(1.7f);
+                c.drawLine(0,-45,0,-53,rune);
+            }
+        }
         c.restore();
         // The hand is drawn over the handle, so visibly gripping the weapon.
         arm.setColor(0xff293d4e);
