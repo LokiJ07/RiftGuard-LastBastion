@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.16.0 — collision-driven animation feedback and game feel (visual phase 3)
+## Current version: V0.17.0 — Warden state-machine attacks, frame events, footfalls and death motion
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -86,6 +86,18 @@ The current initial downloadable pack contains the same art that ships with the 
 - A saved `reduced_motion` preference suppresses shake and animation hit-pause for accessibility while preserving a brief impact signal.
 - Robolectric tests cover real projectile collisions, timed pause and decay, screen shake, reduced motion, and visible pixel effects.
 - Implemented using the **game animation, game-feel and 2D Canvas principles** from the user's AI Animation Skills reference index. The full referenced `references/*.md` documents were not accessible here; no claims that an AI asset model generated a new HD sprite sheet. Fully illustrated HD player/enemy art remains outstanding.
+
+## V0.17.0 — actual game-animation skill development, not an AI concept image
+
+The user's uploaded **AI Animation Skills** `SKILL.md` was read directly; its complete game animation, game feel, sprite/skeletal 2D, scenery and performance references are present within that one file. RiftGuard is a **custom native Android Java Canvas 2D game**, not Unity/Godot/Roblox, so the corresponding concepts are implemented with Java and the real existing renderer.
+
+- `WardenAnimationMachine`: real-time animation state machine with **DEATH > HURT > CAST > ATTACK > RUN > IDLE**, independent upper-body attack/cast clips and locomotion footstep cadence. Interrupted swings are canceled rather than creating invisible hits.
+- **Unique weapon-contact frame events:** all six weapons have separate normalized contact timing. Damage now occurs only when the animated melee strike passes its contact frame, exactly once even on dropped frames. No early invisible melee damage.
+- **120ms attack input buffer** gives short taps a chance to fire after a brief cooldown, while sustained touch still uses automatic shooting. Cast interrupts pending melee; enemy damage animates Hurt before normal locomotion resumes.
+- **Hurt and defeat presentation:** hero plays short nonlooping hurt and a physical falling/degrading Warden pose when killed (tilted existing painted source, not fake new death-frame art).
+- **Grounded footstep feedback:** alternating gait phase emits subtle dirt at actual planted feet with a strict particle cap; logic is independent of upper-body action clips.
+- **Visual QA:** Robolectric captures the REAL painted atlas in all 7 state storyboard examples. Integration tests cover frame-rate independence, attack/cast interruption priority, exact melee HP impact and death pose changes.
+- **Important remaining asset gap:** `riftguard_hero_motion.webp` is still the original 4-column × 4-row painted atlas. Generated imagery for this development turn returned a **marketing presentation**, NOT a usable 8-frame transparent Warden/monster sprite atlas, and was rejected. This update improves live animation behavior; it is NOT a claim that professional HD sprite art or the full 300-stage environment overhaul has been created.
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
