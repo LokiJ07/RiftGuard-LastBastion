@@ -157,6 +157,16 @@ public final class FortressShowcaseV051Test {
         Field field=game.getClass().getDeclaredField("scene");
         field.setAccessible(true);return String.valueOf(field.get(game));
     }
+    @Test public void projectileSpawnsMatchVisibleFortressWeapons(){
+        assertEquals(950f-147f,FortressArmamentRules.muzzleX(950,0,1),.001f);
+        assertEquals(950f+169f,FortressArmamentRules.muzzleX(950,1,2),.001f);
+        assertEquals(950f,FortressArmamentRules.muzzleX(950,0,3),.001f);
+        assertEquals(950f,FortressArmamentRules.muzzleX(950,12,4),.001f);
+        assertEquals(510f-88f,FortressArmamentRules.muzzleY(510,1),.001f);
+        assertEquals(510f-105f,FortressArmamentRules.muzzleY(510,2),.001f);
+        assertEquals(510f-218f,FortressArmamentRules.muzzleY(510,3),.001f);
+        assertEquals(510f-249f,FortressArmamentRules.muzzleY(510,4),.001f);
+    }
     @Test public void evolutionSoundIsOriginalValidOfflineWav(){
         byte[] wav=GameAudio.synthesize(GameAudio.EVOLUTION);
         assertTrue(wav.length>12000);
