@@ -8,6 +8,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -185,6 +186,71 @@ public final class MotionArt {
         c.restore();
     }
 
+
+    /**
+     * Separately articulated lower body: boots, shins and knees are independent
+     * bones rather than vertical bob applied to the entire original character.
+     * Upper-body armor remains a clipped section of the original detailed art.
+     */
+    private static void leg(Canvas c,float phase,boolean walking,int side,
+                            float height,int metal,int highlight,boolean hoof) {
+        ActorGait.Leg pose=ActorGait.leg(phase,walking,side,height);
+        Paint limb=new Paint(Paint.ANTI_ALIAS_FLAG);
+        limb.setStrokeCap(Paint.Cap.ROUND);
+        limb.setStrokeJoin(Paint.Join.ROUND);
+        limb.setStyle(Paint.Style.STROKE);
+        limb.setStrokeWidth(height*.11f);
+        limb.setColor(0xff1e3440);
+        c.drawLine(pose.hipX,pose.hipY,pose.kneeX,pose.kneeY,limb);
+        c.drawLine(pose.kneeX,pose.kneeY,pose.footX,pose.footY-4,limb);
+        limb.setStrokeWidth(height*.068f);limb.setColor(metal);
+        c.drawLine(pose.hipX-1,pose.hipY,pose.kneeX-1,pose.kneeY,limb);
+        c.drawLine(pose.kneeX-1,pose.kneeY,pose.footX-1,pose.footY-5,limb);
+        limb.setStyle(Paint.Style.FILL);limb.setColor(highlight);
+        c.drawCircle(pose.kneeX,pose.kneeY,height*.055f,limb);
+        Path armor=new Path();
+        float shin=height*.045f;
+        armor.moveTo(pose.kneeX-shin,pose.kneeY+3);
+        armor.lineTo(pose.kneeX+shin,pose.kneeY+3);
+        armor.lineTo(pose.footX+shin*.8f,pose.footY-5);
+        armor.lineTo(pose.footX-shin*.8f,pose.footY-5);
+        armor.close();limb.setColor(metal);c.drawPath(armor,limb);
+        limb.setColor(0xff283a47);
+        c.drawOval(pose.footX-height*.075f,pose.footY-8,
+                   pose.footX+height*(hoof?.075f:.105f),pose.footY+5,limb);
+        limb.setColor(highlight);
+        c.drawOval(pose.footX-height*.07f,pose.footY-8,
+                   pose.footX+height*.055f,pose.footY-4,limb);
+    }
+    private void drawHeroRigFrame(Canvas c,int state,int frame,float x,float y,
+                                  boolean flip,boolean hurt,boolean running,float phase,
+                                  float attack) {
+        if(!heroReady())return;
+        int row=Math.max(0,Math.min(3,state));
+        int column=Math.max(0,Math.min(3,frame));
+        c.save();c.translate(x,y);
+        if(flip)c.scale(-1,1);
+        p.setStyle(Paint.Style.FILL);p.setColor(0x9908131e);p.setAlpha(120);
+        c.drawOval(new RectF(-36,-3,35,11),p);
+        // Cape has a separate wind motion, partially hidden beneath breastplate.
+        float wind=running?(float)Math.sin(phase)*11:((float)Math.sin(phase*.3f))*2;
+        Path cape=new Path();cape.moveTo(-23,-103);
+        cape.cubicTo(-37,-89,-35+wind,-34,-43+wind,2);
+        cape.lineTo(-13+wind*.4f,-2);cape.lineTo(13,-88);
+        cape.close();p.setColor(0xff233a62);p.setAlpha(255);c.drawPath(cape,p);
+        // Back leg is darkened and moves in opposite gait phase to front leg.
+        leg(c,phase,running,-1,140,0xff657f92,0xffb8a6a0,false);
+        leg(c,phase,running,1,140,0xff496b85,0xff9dc9d5,false);
+        float lean=ActorGait.torsoLean(phase,running,attack);
+        c.save();c.rotate(lean,0,-39);
+        Rect src=new Rect(column*HERO_W,row*HERO_H,
+                (column+1)*HERO_W,row*HERO_H+150);
+        p.setColor(Color.WHITE);p.setAlpha(hurt?195:255);
+        c.drawBitmap(heroes,src,new RectF(-57,-132,57,-23),p);
+        p.setAlpha(255);c.restore();
+        c.restore();
+    }
+
     /** Synchronize movement, attack and spell frames with the real simulation. */
     public boolean hero(Canvas c,float x,float y,float time,float facing,
                         boolean running,float attackProgress,float castProgress,
@@ -194,11 +260,12 @@ public final class MotionArt {
         int frame=state==2?eventFrame(attackProgress):state==3?
                 eventFrame(castProgress):frame(time,state==1?10:3,4);
         boolean left=Math.cos(facing)<-.28f;
-        drawHeroFrame(c,state,frame,x,y,left,hurt);
+        drawHeroRigFrame(c,state,frame,x,y,left,hurt,running,time*11.7f,
+                attackProgress);
         if(weaponsReady()){
             c.save();c.translate(x,y);
             if(left)c.scale(-1,1);
-            drawHeldWeapon(c,weaponId,time,attackProgress,castProgress);
+            drawHeldWeapon(c,weaponId,time,attackProgress,castProgress,running);
             c.restore();
         }
         return true;
@@ -209,9 +276,10 @@ public final class MotionArt {
      * Uses the original art; full separated skeletal sprites remain future work.
      */
     private void drawHeldWeapon(Canvas c,int weaponId,float time,
-                                float attackProgress,float castProgress) {
+                                float attackProgress,float castProgress,
+                                boolean running) {
         int id=Math.max(0,Math.min(5,weaponId));
-        WeaponRig.Pose pose=WeaponRig.pose(id,attackProgress,castProgress,time);
+        WeaponRig.Pose pose=WeaponRig.pose(id,attackProgress,castProgress,time,running);
         boolean blade=id==1||id==2;
         if(blade && attackProgress>=.07f && attackProgress<.92f){
             float t=clamp01(attackProgress);
@@ -285,8 +353,28 @@ public final class MotionArt {
         c.save();c.translate(x,y);
         p.setColor(0xbb000000);p.setAlpha(100);
         c.drawOval(new RectF(-width*.35f,-4,width*.35f,10),p);
-        p.setColor(Color.WHITE);p.setAlpha(hurt?190:255);
-        c.drawBitmap(monsters,src,new RectF(-width/2,-height,width/2,6),p);
+        if(kind!=3) {
+            // Enemy feet now walk with staggered ground contact; the upper body
+            // keeps its illustrated species details instead of bobbing as a unit.
+            float step=height*.93f;
+            int plate=kind==2?0xff827c78:kind==5?0xff85727d:
+                    kind==4?0xff5c8e78:0xff7a7162;
+            leg(c,time,moving,-1,step,plate,0xffc4aca0,kind==6);
+            leg(c,time,moving,1,step,plate,0xffe0caaa,kind==6);
+            Rect upper=new Rect(src.left,src.top,src.right,
+                    src.top+(int)(ENEMY_H*.79f));
+            c.save();
+            float bodyLean=ActorGait.torsoLean(time,moving,attackProgress);
+            c.rotate(bodyLean,0,-height*.23f);
+            p.setColor(Color.WHITE);p.setAlpha(hurt?188:255);
+            c.drawBitmap(monsters,upper,
+                    new RectF(-width/2,-height,width/2,-height*.20f),p);
+            c.restore();
+        }else{
+            // Winged units retain their illustrated flapping animation.
+            p.setColor(Color.WHITE);p.setAlpha(hurt?190:255);
+            c.drawBitmap(monsters,src,new RectF(-width/2,-height,width/2,6),p);
+        }
         p.setAlpha(255);
         c.restore();
         return true;

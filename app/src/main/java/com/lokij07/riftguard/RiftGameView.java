@@ -77,6 +77,8 @@ public final class RiftGameView extends View {
     private final List<Enemy> enemies=new ArrayList<>();
     private final List<Shot> shots=new ArrayList<>();
     private final List<Spark> sparks=new ArrayList<>();
+    private final List<DeathEcho> deaths=new ArrayList<>();
+    private final List<Impact> impacts=new ArrayList<>();
     private final List<Decor> decor=new ArrayList<>();
     private final List<Pickup> pickups=new ArrayList<>();
     private final int[] towers=new int[4];
@@ -124,6 +126,22 @@ public final class RiftGameView extends View {
         int color;
         Spark(float x,float y,float vx,float vy,float life,int color) {
             this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.life=life;this.maxLife=life;this.color=color;
+        }
+    }
+    private static final class DeathEcho {
+        final float x,y,phase;
+        final int kind;
+        float life=.64f;
+        DeathEcho(float x,float y,int kind,float phase){
+            this.x=x;this.y=y;this.kind=kind;this.phase=phase;
+        }
+    }
+    private static final class Impact {
+        final float x,y,radius;
+        final int color;
+        float life=.42f;
+        Impact(float x,float y,int color,float radius){
+            this.x=x;this.y=y;this.color=color;this.radius=radius;
         }
     }
     private static final class Pickup {
@@ -229,6 +247,7 @@ public final class RiftGameView extends View {
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
         waveNotice=2.6f; noticeTimer=0; gold=150+(fortressRank-1)*20; kills=0;
         enemies.clear();shots.clear();sparks.clear();decor.clear();pickups.clear();
+        deaths.clear();impacts.clear();
         for (int i=0;i<towers.length;i++){
             towers[i]=0;towerTimers[i]=0;towerRecoil[i]=0;
             towerAim[i]=0;
@@ -317,6 +336,9 @@ public final class RiftGameView extends View {
                 if(pickups.size()<28 && random.nextFloat()<.22f)
                     pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
                 puff(e.x,e.y,9,GLOWS[Campaign.world(stage)]);
+                if(deaths.size()<32)deaths.add(new DeathEcho(e.x,e.y,e.kind,e.phase));
+                if(impacts.size()<64)impacts.add(new Impact(e.x,e.y,
+                        GLOWS[Campaign.world(stage)],e.boss?86:41));
                 it.remove();continue;
             }
             e.attackAnim=Math.max(0,e.attackAnim-dt);
@@ -447,6 +469,9 @@ public final class RiftGameView extends View {
                         nearby.hp-=shot.damage*.25f;
                 }
                 puff(shot.target.x,shot.target.y,7,impact);
+                if(impacts.size()<64)impacts.add(new Impact(
+                        shot.target.x,shot.target.y-15,impact,
+                        shot.tower&&shot.towerSlot==1?85:39));
                 sit.remove();
             } else {
                 // Clamp each step to target distance, preventing projectile oscillation.
@@ -454,6 +479,18 @@ public final class RiftGameView extends View {
                 shot.x+=(shot.target.x-shot.x)/Math.max(1,d)*step;
                 shot.y+=(shot.target.y-10-shot.y)/Math.max(1,d)*step;
             }
+        }
+        Iterator<DeathEcho> deathIt=deaths.iterator();
+        while(deathIt.hasNext()){
+            DeathEcho death=deathIt.next();
+            death.life-=dt;
+            if(death.life<=0)deathIt.remove();
+        }
+        Iterator<Impact> impactIt=impacts.iterator();
+        while(impactIt.hasNext()){
+            Impact impact=impactIt.next();
+            impact.life-=dt;
+            if(impact.life<=0)impactIt.remove();
         }
         Iterator<Spark> pit=sparks.iterator();
         while(pit.hasNext()) {
@@ -648,14 +685,28 @@ public final class RiftGameView extends View {
             else if(entry.type==DROP)drawPickup(c,(Pickup)entry.entity);
             else if(entry.type==WARDEN)drawHero(c);
         }
+        // Draw actual class-specific projectile silhouettes instead of identical dots.
         for(Shot s:shots){
-            int boltColor=s.tower?towerColor(Math.max(0,s.towerSlot)):
-                    Progression.WEAPONS[s.weaponId].color;
-            circle(c,s.x,s.y,s.weaponId==5||s.towerSlot==1?16:11,
-                    boltColor&0x77ffffff);
-            circle(c,s.x,s.y,s.weaponId==5?8:5,boltColor);
-            if(s.weaponId==4 || s.weaponId==0)
-                line(c,s.x-10,s.y+10,s.x+7,s.y-9,0xfff6ead9,3);
+            CombatVfx.projectile(c,s.x,s.y,s.target.x,s.target.y-10,
+                    s.weaponId,s.tower?s.towerSlot:-1,gameTime);
+        }
+        // Death animation persists after combat removal; rewards still count once.
+        for(DeathEcho d:deaths){
+            float progress=1f-Math.max(0,d.life)/.64f;
+            int alpha=Math.max(0,Math.min(255,(int)(195*(1f-progress))));
+            c.save();
+            c.rotate(70f*progress,d.x,d.y);
+            int layer=c.saveLayerAlpha(d.x-100,d.y-150,d.x+100,d.y+40,alpha);
+            motionArt.enemy(c,d.kind,d.x,d.y+progress*22f,d.phase,
+                    false,-1,true);
+            c.restoreToCount(layer);
+            c.restore();
+            CombatVfx.hit(c,d.x,d.y-16,progress,
+                    GLOWS[Campaign.world(stage)],d.kind==5?90:47);
+        }
+        for(Impact impact:impacts) {
+            CombatVfx.hit(c,impact.x,impact.y,1f-impact.life/.42f,
+                    impact.color,impact.radius);
         }
         for(Spark s:sparks){
             p.setColor(s.color);p.setAlpha((int)(255*Math.max(0,s.life/s.maxLife)));

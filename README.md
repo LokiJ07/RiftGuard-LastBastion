@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.8.4 — visually upgraded tiered turrets, castle mounting and wrist-linked hero weapons
+## Current version: V0.9.0 — frame-synced articulated locomotion and weapon-specific real combat effects
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -100,3 +100,14 @@ Real rendered screenshot inspection exposed a cropped fortress on the left. The 
 
 ## V0.8.4 visible turret tier stages
 Every turret family visibly changes across tiers 1 to 5 with reinforcing armor, auxiliary barrels, active energy rings and an upgraded crown. Screenshot gallery compares tier 1/3/5 guns in actual gameplay. The weapons and fortress remain native Canvas illustrated assets, not finished AAA-quality 3D skeletal models.
+
+## V0.9.0 — actual articulated motion and real-time combat VFX
+- A new **ActorGait** system animates independently moving left/right legs, knees and grounded footfalls. Detailed original illustrated upper torsos are clipped from their sprite sheets; motion is applied to leg bones instead of vertically shaking the whole photo. The cape moves independently.
+- Hero weapon sockets now counter-swing naturally with the running stride; attack-specific wrist pivots and gauntlet grips remain active for all six equipment types.
+- Ground enemies have staggered left/right leg motion. Flying enemies preserve their fluttering wing sprite animation.
+- Real-time projectiles have meaningful ballista arrows, cannon shells/smoke, ice shards and electrical lightning instead of nearly identical circles.
+- Defeated monsters now show a short fall/fade visual and linger briefly as a timed effect; kill rewards are counted once on enemy removal.
+- Separate impact effects linger and expand from real projectile damage positions.
+- Robolectric tests verify gait math, weapon wrists, different projectile renderings, and monster death lifetime. Gallery captures two separate hero run poses.
+
+**Art-quality limitation:** this uses procedural bones combined with the original painted character torsos; it does not replace the underlying image atlas with a full professionally authored set of weapon-free, multi-directional skeletal animation sprites. Long-session performance, physical touch feel and all 300 late-game stages remain to be playtested on devices.

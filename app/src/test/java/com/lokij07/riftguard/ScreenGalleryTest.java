@@ -117,6 +117,8 @@ public class ScreenGalleryTest {
         update.setAccessible(true);
         for(int i=0;i<8;i++)update.invoke(view,.04f);
         capture(view,"08-warden-running");
+        for(int i=0;i<6;i++)update.invoke(view,.04f);
+        capture(view,"27-warden-midstride");
         axis.setFloat(view,0f);
         java.lang.reflect.Field firing=RiftGameView.class.getDeclaredField("firing");
         firing.setAccessible(true);firing.setBoolean(view,true);
