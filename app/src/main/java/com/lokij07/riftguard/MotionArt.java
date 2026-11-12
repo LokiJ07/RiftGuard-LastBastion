@@ -202,7 +202,7 @@ public final class MotionArt {
                             ActorGait.Leg bone,float width,boolean hurt){
         float dy=Math.max(15,bone.footY-bone.hipY);
         float dx=bone.footX-bone.hipX;
-        float tilt=-(float)Math.toDegrees(Math.atan2(dx,dy));
+        float tilt=-(float)Math.toDegrees(Math.atan2(dx,dy))*.47f;
         c.save();
         c.translate(bone.hipX,bone.hipY);
         c.rotate(tilt);
@@ -244,6 +244,14 @@ public final class MotionArt {
                 (column+1)*HERO_W,row*HERO_H+122);
         p.setColor(Color.WHITE);p.setAlpha(hurt?195:255);
         c.drawBitmap(heroes,src,new RectF(-57,-132,57,-27),p);
+        // Painted central tabard overlaps the hip/greave seam, with its own
+        // much smaller cloth motion than the legs. Avoid rectangular cut-lines.
+        float cloth=(float)Math.sin(phase*.77f)*(running?3.2f:1.1f);
+        Rect tabard=new Rect(column*HERO_W+73,row*HERO_H+97,
+                column*HERO_W+113,row*HERO_H+176);
+        p.setAlpha(hurt?185:255);
+        c.drawBitmap(heroes,tabard,
+                new RectF(-17+cloth*.55f,-57,22+cloth*.18f,4),p);
         p.setAlpha(255);c.restore();
         c.restore();
     }
