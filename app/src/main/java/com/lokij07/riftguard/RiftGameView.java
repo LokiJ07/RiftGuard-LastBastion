@@ -78,6 +78,7 @@ public final class RiftGameView extends View {
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
     private final List<Shot> shots=new ArrayList<>();
+    private final List<HostileBolt> hostileBolts=new ArrayList<>();
     private final List<Spark> sparks=new ArrayList<>();
     private final List<DeathEcho> deaths=new ArrayList<>();
     private final List<Impact> impacts=new ArrayList<>();
@@ -113,7 +114,8 @@ public final class RiftGameView extends View {
     private long lastNs=0;
 
     private static final class Enemy {
-        float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer,specialTimer,specialCharge,burnTimer,burnDps;
+        float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer,specialTimer,specialCharge,
+                burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown;
         boolean moving,boss;
         int kind;
         Enemy(float x,float y,int kind,float hp,float phase) {
@@ -128,6 +130,13 @@ public final class RiftGameView extends View {
         Shot(float x,float y,float damage,float speed,Enemy target,boolean tower) {
             this.x=x; this.y=y; this.damage=damage; this.speed=speed; this.target=target;
             this.tower=tower; this.life=2.8f;
+        }
+    }
+    private static final class HostileBolt {
+        float x,y,life=3.6f;
+        final float tx,ty;
+        HostileBolt(float x,float y,float tx,float ty){
+            this.x=x;this.y=y;this.tx=tx;this.ty=ty;
         }
     }
     private static final class Spark {
@@ -271,7 +280,8 @@ public final class RiftGameView extends View {
         pendingMelee=false;pendingMeleeWeapon=-1;
         bannerTime=0;bannerTick=0;trapTime=0;meteorTime=0;
         waveNotice=2.6f; noticeTimer=0; gold=150+(fortressRank-1)*20; kills=0;
-        enemies.clear();shots.clear();sparks.clear();decor.clear();pickups.clear();
+        enemies.clear();shots.clear();hostileBolts.clear();sparks.clear();
+        decor.clear();pickups.clear();
         deaths.clear();impacts.clear();
         for (int i=0;i<towers.length;i++){
             towers[i]=0;towerTimers[i]=0;towerRecoil[i]=0;
@@ -380,7 +390,26 @@ public final class RiftGameView extends View {
                 if(e.hp<=0)continue; // credited by normal enemy death processing next frame
             }
             float dHero=distance(e.x,e.y,heroX,heroY);
-            boolean hunt=MovementRules.huntsHero(dHero,e.kind);
+            // Boars telegraph before sprinting; shamans fire dodgeable bolts
+            // rather than applying ranged damage instantly without a visual.
+            e.dashCooldown-=dt;
+            e.shamanCooldown-=dt;
+            if(EnemySpecials.canBoarCharge(e.kind,dHero,e.dashCooldown) &&
+                    e.dashWindup<=0 && e.dashTime<=0){
+                e.dashWindup=EnemySpecials.BOAR_WINDUP;e.dashCooldown=5.2f;
+            }
+            if(e.dashWindup>0){
+                e.dashWindup=Math.max(0,e.dashWindup-dt);
+                if(e.dashWindup<=0)e.dashTime=EnemySpecials.BOAR_DASH;
+            }else if(e.dashTime>0)e.dashTime=Math.max(0,e.dashTime-dt);
+            if(EnemySpecials.canShamanCast(e.kind,dHero,e.shamanCooldown) &&
+                    hostileBolts.size()<24){
+                hostileBolts.add(new HostileBolt(e.x,e.y-44,heroX,heroY-25));
+                e.shamanCooldown=3.8f;
+                e.attackAnim=.42f;
+            }
+            boolean hunt=MovementRules.huntsHero(dHero,e.kind)||
+                    e.dashWindup>0||e.dashTime>0;
             // Follow the actual stage-specific painted lane, not a separate
             // invisible straight line. Hero aggro can temporarily interrupt it.
             boolean traveling=!hunt && e.x>LaneRules.CASTLE_GATE_X+120f;
@@ -396,7 +425,8 @@ public final class RiftGameView extends View {
             if(e.moving) {
                 float speedFactor=(e.kind==3?1.15f:1f)*
                         DifficultyRules.enemySpeed(difficultyMode)*
-                        (e.slowTimer>0?.64f:1f);
+                        (e.slowTimer>0?.64f:1f)*
+                        EnemySpecials.mobilityMultiplier(e.dashWindup,e.dashTime);
                 float step=Math.min(d-stop,BattleRules.enemySpeed(e.kind)*speedFactor*dt);
                 e.x+=(tx-e.x)/Math.max(1,d)*step;
                 e.y+=(ty-e.y)/Math.max(1,d)*step;
@@ -439,6 +469,14 @@ public final class RiftGameView extends View {
                         announce("BOSS SHOCKWAVE!");
                     }
                 }
+            }
+            if(e.kind==6 && e.dashTime>0 &&
+                    distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0){
+                heroHp-=29*DifficultyRules.enemyDamage(difficultyMode);
+                e.dashTime=0;hurtCooldown=.85f;
+                puff(heroX,heroY,14,0xffffb27b);
+                audio.play(GameAudio.HURT);
+                if(heroHp<=0){heroHp=0;markDefeat();return;}
             }
             if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0) {
                 heroHp-=(e.kind==2?20:11)*
@@ -518,6 +556,30 @@ public final class RiftGameView extends View {
                 shot.y+=(shot.target.y-10-shot.y)/Math.max(1,d)*step;
             }
         }
+        Iterator<HostileBolt> bolts=hostileBolts.iterator();
+        while(bolts.hasNext()){
+            HostileBolt b=bolts.next();
+            b.life-=dt;
+            float distance=distance(b.x,b.y,b.tx,b.ty);
+            if(b.life<=0){bolts.remove();continue;}
+            if(distance<22){
+                if(EnemySpecials.boltConnects(b.tx,b.ty,heroX,heroY-25)
+                        &&hurtCooldown<=0){
+                    heroHp-=17*DifficultyRules.enemyDamage(difficultyMode);
+                    hurtCooldown=.65f;
+                    audio.play(GameAudio.HURT);
+                    puff(heroX,heroY-26,8,0xffcda5f3);
+                    if(heroHp<=0){heroHp=0;markDefeat();return;}
+                }
+                if(impacts.size()<64)impacts.add(new Impact(b.tx,b.ty,
+                        0xffc7a1f2,32));
+                bolts.remove();
+            }else{
+                float step=Math.min(distance,EnemySpecials.SHAMAN_BOLT_SPEED*dt);
+                b.x+=(b.tx-b.x)/Math.max(1,distance)*step;
+                b.y+=(b.ty-b.y)/Math.max(1,distance)*step;
+            }
+        }
         Iterator<DeathEcho> deathIt=deaths.iterator();
         while(deathIt.hasNext()){
             DeathEcho death=deathIt.next();
@@ -572,6 +634,8 @@ public final class RiftGameView extends View {
         float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
         if(elite)hp*=DifficultyRules.finalBossMultiplier(stage);
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
+        if(kind==6)enemy.dashCooldown=1.6f;
+        if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
         if(elite)enemy.specialTimer=5.0f;
         enemies.add(enemy);
@@ -849,6 +913,16 @@ public final class RiftGameView extends View {
         for(Shot s:shots){
             CombatVfx.projectile(c,s.x,s.y,s.target.x,s.target.y-10,
                     s.weaponId,s.tower?s.towerSlot:-1,gameTime);
+        }
+        // Enemy shaman bolts are animated physical objects with fixed targets.
+        for(HostileBolt b:hostileBolts){
+            float a=(float)Math.atan2(b.ty-b.y,b.tx-b.x);
+            float bx=b.x-(float)Math.cos(a)*21,by=b.y-(float)Math.sin(a)*21;
+            line(c,bx,by,b.x,b.y,0xff8959cb,10);
+            line(c,bx+6,by-5,b.x,b.y,0xffe9caff,3);
+            circle(c,b.x,b.y,8,0x88b777f0);
+            polygon(c,new float[]{b.x+(float)Math.cos(a)*14,b.y+
+                    (float)Math.sin(a)*14,b.x-8,b.y-7,b.x-8,b.y+7},0xffe7caff);
         }
         // Death animation persists after combat removal; rewards still count once.
         for(DeathEcho d:deaths){
@@ -1567,6 +1641,15 @@ public final class RiftGameView extends View {
         }
     }
     private void drawEnemy(Canvas c,Enemy e) {
+        if(e.kind==6 && e.dashWindup>0){
+            line(c,e.x,e.y-30,heroX,heroY-18,0xaaffb778,4);
+            text(c,"CHARGE!",e.x,e.y-98,20,0xffffd69b,true);
+        }
+        if(e.kind==6 && e.dashTime>0){
+            for(int n=0;n<4;n++)
+                line(c,e.x+40+n*14,e.y-22+n*7,e.x+62+n*14,
+                        e.y-19+n*7,0xaaffc58c,3);
+        }
         if(e.boss) {
             float pulse=(float)Math.sin(gameTime*4)*5;
             float outer=e.specialCharge>0?115-30*e.specialCharge:78+pulse;
