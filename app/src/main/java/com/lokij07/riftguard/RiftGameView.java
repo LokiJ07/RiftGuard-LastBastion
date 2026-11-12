@@ -375,6 +375,7 @@ public final class RiftGameView extends View {
         }
         random.setSeed(Campaign.seed(stage)^0xDDEEFF);
         combatFeel.reset();
+        audio.play(GameAudio.AMBIENT);
         clearTouchControls();
     }
 
@@ -444,7 +445,10 @@ public final class RiftGameView extends View {
                             TowerPadLayout.family(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
-                    audio.play(GameAudio.SHOT);
+                    int family=TowerPadLayout.family(i);
+                    audio.play(family==1?GameAudio.TOWER_CANNON:
+                            family==2?GameAudio.TOWER_FROST:
+                            family==3?GameAudio.TOWER_ARC:GameAudio.SHOT);
                     towerAim[i]=(float)Math.atan2(target.y-towerY[i],target.x-towerX[i]);
                     towerRecoil[i]=.20f;
                     towerTimers[i]=Math.max(.25f,(TowerPadLayout.family(i)==1?1.35f:
@@ -553,6 +557,7 @@ public final class RiftGameView extends View {
                         }
                     }
                     e.bossPhase=newPhase;
+                    audio.play(GameAudio.BOSS_PHASE);
                     announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
                 }
                 e.specialTimer-=dt;
@@ -560,6 +565,7 @@ public final class RiftGameView extends View {
                         distance(e.x,e.y,BASE_X,BASE_Y)<440f){
                     e.specialCharge=BossTactics.chargeTime(stage,e.bossPhase);
                     e.specialTimer=BossTactics.interval(stage,e.bossPhase);
+                    audio.play(GameAudio.BOSS_WARN);
                 }else if(e.specialCharge>0){
                     e.specialCharge-=dt;
                     if(e.specialCharge<=0){
@@ -3218,6 +3224,7 @@ public final class RiftGameView extends View {
         dodgeDirX=dx;dodgeDirY=dy;
         dodgeTime=DodgeRules.DURATION;
         dodgeCooldown=DodgeRules.COOLDOWN;
+        audio.play(GameAudio.DODGE);
         // Drop pending strike contact so dodging cannot deal invisible damage.
         pendingMelee=false;pendingMeleeWeapon=-1;
         bufferedAttackTime=0;
