@@ -123,7 +123,8 @@ public final class RiftGameView extends View {
 
     private static final class Enemy {
         float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer,specialTimer,specialCharge,
-                burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown;
+                burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
+                hitReaction;
         boolean moving,boss;
         int kind;
         Enemy(float x,float y,int kind,float hp,float phase) {
@@ -397,6 +398,7 @@ public final class RiftGameView extends View {
                 it.remove();continue;
             }
             e.attackAnim=Math.max(0,e.attackAnim-dt);
+            e.hitReaction=Math.max(0,e.hitReaction-dt);
             e.slowTimer=Math.max(0,e.slowTimer-dt);
             if(e.burnTimer>0) {
                 float burnStep=Math.min(e.burnTimer,dt);
@@ -523,6 +525,7 @@ public final class RiftGameView extends View {
             float d=distance(shot.x,shot.y,shot.target.x,shot.target.y-10);
             if(d<24) {
                 shot.target.hp-=shot.damage;
+                shot.target.hitReaction=.21f;
                 int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
                 if(shot.tower && shot.towerSlot==1) {
                     // Cannon shells hit clustered enemies around the impact point.
@@ -717,6 +720,7 @@ public final class RiftGameView extends View {
             if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,weapon.range,
                     e.x,e.y))continue;
             e.hp-=weapon.damage*ascension.attackMultiplier();
+            e.hitReaction=.21f;
             puff(e.x,e.y-18,7,weapon.color);
             if(impacts.size()<64)
                 impacts.add(new Impact(e.x,e.y-18,weapon.color,32));
@@ -1687,8 +1691,20 @@ public final class RiftGameView extends View {
             }
         }
         float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
-        if(motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,attack,e.hp<e.maxHp*.20f)
-                || characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,e.hp<e.maxHp*.2f)) {
+        // Physical, timed hit-stagger rotates the actual actor in world space,
+        // rather than showing only detached impact rings.
+        c.save();
+        if(e.hitReaction>0){
+            float t=e.hitReaction/.21f;
+            float jerk=(float)Math.sin(t*Math.PI*2f)*11f*t;
+            c.rotate(jerk,e.x,e.y-48);
+        }
+        boolean painted=motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,
+                attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
+                ||characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,
+                        e.hitReaction>0||e.hp<e.maxHp*.20f);
+        c.restore();
+        if(painted) {
             if(e.hp<e.maxHp) {
                 float w=e.kind==5?52:28;
                 rect(c,e.x-w,e.y-(e.kind==5?110:78),e.x+w,e.y-(e.kind==5?104:72),0xff20313a);
