@@ -48,7 +48,7 @@ public final class DifficultyRules {
         return Math.max(.12f,Math.max(.23f,1.1f-stage*.0016f)*SPAWN[safe(mode)]);
     }
     public static float betweenWaves(int mode){
-        return new float[]{5f,3.2f,2.1f,1.0f}[safe(mode)];
+        return new float[]{4f,2.5f,1.85f,.9f}[safe(mode)];
     }
     public static int startingGold(int rank,int mode){
         return GOLD[safe(mode)]+(Math.max(1,rank)-1)*20;
