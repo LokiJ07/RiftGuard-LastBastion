@@ -227,6 +227,68 @@ public class ScreenGalleryTest {
         image.recycle();
     }
 
+    /**
+     * Native Canvas state-machine storyboard. Every sprite frame below comes
+     * from the BUILT-IN Android asset atlas (not an AI concept illustration).
+     */
+    private void captureRealAnimationStateMachine()throws Exception {
+        Bitmap sheet=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(sheet);
+        c.drawColor(0xff0d2030);
+        android.graphics.Paint label=new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        label.setColor(0xffe6c994);label.setTextSize(29);
+        label.setFakeBoldText(true);
+        c.drawText("WARDEN — REAL NATIVE 2D ANIMATION STATE MACHINE",26,47,label);
+        label.setFakeBoldText(false);label.setTextSize(17);
+        label.setColor(0xffb7cfd8);
+        c.drawText("HUD-free visual QA | game-engine frame events and 4x4 painted source atlas",
+                28,78,label);
+        MotionArt rig=new MotionArt(context);
+        String[] states={"IDLE","RUN","GREAT SWORD WINDUP","SWORD CONTACT",
+                "SKILL CAST","HURT","DEATH"};
+        for(int i=0;i<states.length;i++){
+            float left=10+i*182;
+            float top=119;
+            label.setColor(0xff254251);
+            c.drawRoundRect(left,top,left+173,top+443,11,11,label);
+            label.setColor(0xfff1d5a6);
+            label.setTextSize(states[i].length()>15?13:17);
+            c.drawText(states[i],left+10,top+35,label);
+            WardenAnimationMachine state=new WardenAnimationMachine();
+            boolean move=false,hurt=false;
+            float elapsed=1.5f;
+            if(i==1){state.advance(.1f,true);move=true;}
+            else if(i==2){state.attack(1);state.advance(.045f,false);}
+            else if(i==3){state.attack(1);state.advance(.20f,false);}
+            else if(i==4){state.cast();state.advance(.20f,false);}
+            else if(i==5){state.hurt();hurt=true;}
+            else if(i==6){state.die();state.advance(.20f,false);hurt=true;}
+            float attack=state.attackProgress(),cast=state.castProgress();
+            c.save();
+            c.translate(left+5,top+77);
+            c.scale(1.15f,1.15f);
+            if(i==6)c.rotate(50f,65,172);
+            assertTrue(rig.hero(c,70,194,elapsed,0f,move,attack,cast,
+                    hurt,i==2||i==3?1:0,0));
+            c.restore();
+            label.setTextSize(15);label.setColor(0xffbad4d2);
+            c.drawText("row "+state.sourceRow()+"  /  "+
+                    (state.state().name()),left+10,top+383,label);
+            if(i==3){
+                assertTrue("Sword must reach real attack contact frame",
+                        state.consume(WardenAnimationMachine.Event.ATTACK_CONTACT));
+            }
+        }
+        label.setColor(0xffe4b97e);label.setTextSize(18);
+        c.drawText("State priority: DEATH > HURT > CAST > ATTACK > RUN > IDLE",
+                32,635,label);
+        c.drawText("Contact events fire once. Animations pause during on-hit hold; physics continues.",
+                32,667,label);
+        saveCustom(sheet,"44-warden-animation-state-machine");
+        sheet.recycle();
+    }
+
     @Test public void captureActualUiAsVisualGallery() throws Exception {
         context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
                 .edit().putInt("fortress_rank",2).putInt("supplies",220)
@@ -235,6 +297,7 @@ public class ScreenGalleryTest {
         captureBiomeAtmosphere();
         captureSixWeaponAnimationGallery();
         captureInterpolatedSpriteAnimation();
+        captureRealAnimationStateMachine();
         RiftGameView view=new RiftGameView(context);
         view.layout(0,0,1280,720);
         capture(view,"01-home");
