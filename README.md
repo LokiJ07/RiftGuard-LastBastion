@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.13.0 — painted hero motion refinement and living biome atmosphere (visual phase 1)
+## Current version: V0.14.0 — six independent Weapon Mastery trees and individual combat animations
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -58,6 +58,16 @@ The current initial downloadable pack contains the same art that ships with the 
 - **Ten world atmospheres:** `BiomeAtmosphere` adds layered background lighting, fog and front-facing snow, rain, ash, fireflies, crystal dust and shadow particles in world coordinates. Effects remain behind the HUD and do not affect combat collision.
 - **Verified with native pixels:** Robolectric visual tests compare actual idle/run/attack/cast/hurt frames, independent weapon attachment, all 10 biome signatures and motion, and live enemy impacts. CI screenshots include real weaponless-body preview and weather compositions.
 - **Not completed yet:** these are meaningful animation and environmental improvements but do not provide a completely new HD multi-directional hero/enemy sprite library or photo-realistic landscape overhaul. The exact “AI animation skills” isn't available here; Higgsfield has no available generation credits. Physical phone playtest still required. See [v0.13 Visual QA notes](docs/V013_WEAPONFREE_ANIMATION_VISUAL_QA.md).
+
+## V0.14.0 — six weapon-specific animated attacks and Mastery trees
+
+- **Every weapon has its own persistent tree:** Home → ARMORY → **WEAPON UPGRADE TREES**. Six selectable weapons, 11 tiered nodes each (66 total), bottom Origin → three branching Power/Technique/Special paths → summit mastery. Tap, swipe upward, buy with Supplies, and revisit to see animated illuminated connections and real status. Purchases persist across reinstalls only if the app data is retained; ordinary APK update preserves progress.
+- **Not a decorative tree:** Weapon-specific damage multipliers, reduced attack cooldown, increased attack range, and signature masteries are calculated directly in real gameplay. Each weapon maintains independently saved progression, and fortress rank/branch prerequisites apply. Summit requires all three tier-3 branches; one route cannot bypass the others.
+- **Unique combat animations:** Crossbow shoulder recoil, weighty greatsword windup, rapid Ember Sabre slash, raised/channelling Arc Staff, repeated Siege Repeater kickback, and linear Frost Lance thrust. Player's original painted torso uses weapon-specific anticipation; large weapons include a moving support hand. Actual muzzle/weapon-tip positions remain synchronized with projectiles and slash trails.
+- **Mastery signatures:** Crossbow Phantom Volley extra hit; Greatsword Titan Splitter stagger; Ember Sabre Phoenix Drive burning; Arc Staff Tempest Crown extra lightning chains; Siege Repeater War Drum Barrage splash suppression; Frost Lance Absolute Zero extra freeze/shatter damage.
+- **Regression checks:** six trees/66-node graph, purchase/save/gates, real shot damage and cooldown, UI navigation/swipes, six actual animated painted hero rigs, and rendered Android gallery of weapon attacks plus mastery tree screens.
+
+**Not yet complete:** The single illustrative generated design image is NOT an in-game sprite sheet and is not bundled as completed character animation. Existing character art is still painterly cutout animation and weapon silhouettes are Canvas drawings; professional frame-by-frame illustrated HD art, mobile GPU testing and balance playtests remain required.
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
