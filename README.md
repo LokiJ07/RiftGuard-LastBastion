@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.9.0 — frame-synced articulated locomotion and weapon-specific real combat effects
+## Current version: V0.9.2 — textured articulated gait, distinct projectile VFX, stable boss artwork
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -111,3 +111,6 @@ Every turret family visibly changes across tiers 1 to 5 with reinforcing armor, 
 - Robolectric tests verify gait math, weapon wrists, different projectile renderings, and monster death lifetime. Gallery captures two separate hero run poses.
 
 **Art-quality limitation:** this uses procedural bones combined with the original painted character torsos; it does not replace the underlying image atlas with a full professionally authored set of weapon-free, multi-directional skeletal animation sprites. Long-session performance, physical touch feel and all 300 late-game stages remain to be playtested on devices.
+
+## V0.9.2 final animation-art correction
+In-game screenshot inspection found that the first procedural legs used flat colored boots and did not match the detailed original hero artwork. They were replaced by independently animated transparent leg and cape **cutouts from the existing painted atlas**. The giant's original fire platform was accidentally attached to its foot cutouts; types 3 (winged), 5 (giant boss), and 6 (four-legged beast) now retain their intact illustrated animation until proper model-specific rigs are available. Screenshot tests cover two Warden strides and the real boss stage. The artwork is still not an authored full skeletal animation set.

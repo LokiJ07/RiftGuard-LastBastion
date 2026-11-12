@@ -36,6 +36,15 @@ public final class ActorAnimationVfxTest {
         assertTrue(idle.planted);
         assertThrows(IllegalArgumentException.class,()->ActorGait.leg(0,true,0,h));
     }
+    @Test public void illustratedBossesAndFourLeggedAnimalsKeepIntactSourceArt(){
+        for(int kind:new int[]{0,1,2,4})
+            assertTrue("Ground type should have a segmented gait "+kind,
+                    MotionArt.segmentedEnemyLegs(kind));
+        for(int kind:new int[]{3,5,6})
+            assertFalse("Unsegmented model must retain its intact art "+kind,
+                    MotionArt.segmentedEnemyLegs(kind));
+    }
+
     @Test public void sixHeroWeaponsKeepGripWhileRunning(){
         for(int id=0;id<6;id++){
             WeaponRig.Pose idle=WeaponRig.pose(id,-1,-1,.1f,false);
