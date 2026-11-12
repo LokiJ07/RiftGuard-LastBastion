@@ -21,7 +21,9 @@ import static org.junit.Assert.*;
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 public final class WeaponMuzzleAlignmentTest {
     @Test public void fourRangedClassesAimTheirBitmapTipsAtTheirTargets() {
-        float[] tipLengths={41f,65f,65f,68f,41f,84f};
+        float[] tipLengths=new float[6];
+        for(int i=0;i<tipLengths.length;i++)
+            tipLengths[i]=WeaponRig.tipLength(i);
         float[] facings={0f,(float)Math.PI,(float)Math.PI/2f,
                 -(float)Math.PI/3f,2.1f};
         for(int id:new int[]{0,3,4,5})for(float facing:facings){
