@@ -78,6 +78,21 @@ public final class LivingBattlefieldTest {
         renderer.release();
         assertEquals(0,renderer.activeBitmapCount());
     }
+    @Test public void eachOfTenLocalLevelsHasDifferentDayNightStormColorGrade(){
+        LivingBattlefield renderer=new LivingBattlefield();
+        Set<Integer> horizonTones=new HashSet<>();
+        for(int level=0;level<10;level++){
+            Bitmap bitmap=scene(renderer,level*3,1234,1f,true);
+            // The upper sky pixel is intentionally independent of any
+            // foreground hill/monster/fortress elements.
+            int tone=bitmap.getPixel(90,14);
+            assertTrue("Ten level beats should have visually distinct lighting "+level,
+                    horizonTones.add(tone));
+            bitmap.recycle();
+        }
+        assertEquals(10,horizonTones.size());
+        renderer.release();
+    }
     @Test public void scoutBridgeAndSiegeMapsShowDifferentCastleAndLandscape(){
         LivingBattlefield renderer=new LivingBattlefield();
         Bitmap scout=scene(renderer,0,1234,1f,true);
