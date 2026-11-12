@@ -124,7 +124,7 @@ public final class RiftGameViewSmokeTest {
         assertEquals(0,value(reloaded,"supplies"));
         invoke(reloaded,"start",new Class<?>[]{int.class},0);
         assertEquals(Progression.maxCoreHp(2),number(reloaded,"baseHp"),.001f);
-        // Unlocked melee weapon must inflict immediate close-range damage.
+        // Unlocked melee weapon must inflict contact damage during the visible blade swing.
         invoke(reloaded,"spawnEnemy",new Class<?>[0]);
         @SuppressWarnings("unchecked")
         List<Object> foes=(List<Object>)value(reloaded,"enemies");
@@ -133,6 +133,8 @@ public final class RiftGameViewSmokeTest {
         set(enemy,"y",number(reloaded,"heroY"));
         set(enemy,"hp",300f);set(enemy,"maxHp",300f);
         invoke(reloaded,"fire",new Class<?>[0]);
+        assertEquals("Contact not before swing",300f,number(enemy,"hp"),.01f);
+        invoke(reloaded,"update",new Class<?>[]{float.class},.14f);
         assertTrue("Equipped Ember Sabre must damage enemies",number(enemy,"hp")<300f);
     }
 
