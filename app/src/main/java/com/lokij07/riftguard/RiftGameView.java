@@ -127,6 +127,8 @@ public final class RiftGameView extends View {
     private boolean defeatedElite;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
+    private float fortressArsenalTimer;
+    private int fortressArsenalShots;
     // 120-ms button tap buffer per the animation skill's responsive cancel window.
     private float bufferedAttackTime;
     private float dodgeTime,dodgeCooldown,dodgeDirX,dodgeDirY;
@@ -343,6 +345,7 @@ public final class RiftGameView extends View {
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
+        fortressArsenalTimer=.95f;fortressArsenalShots=0;
         bufferedAttackTime=0;
         dodgeTime=dodgeCooldown=0;
         dodgeDirX=0;dodgeDirY=0;
@@ -464,6 +467,31 @@ public final class RiftGameView extends View {
                             -towers[i]*.11f);
                     puff(towerX[i],towerY[i]-38,6,towerColor(TowerPadLayout.family(i)));
                 }
+            }
+        }
+        // Purchased fortress arsenal is genuine independently firing artillery.
+        // The attached weapons in FortressEvolutionArt launch these projectiles;
+        // they do not consume or occupy any of the 5–8 usable tower pads.
+        fortressArsenalTimer-=dt;
+        int keepArsenal=arsenalTier();
+        if(keepArsenal>0 && fortressArsenalTimer<=0){
+            Enemy siegeTarget=closest(BASE_X,BASE_Y,
+                    FortressArmamentRules.range(keepArsenal));
+            if(siegeTarget!=null&&shots.size()<110){
+                float spawnX=FortressArmamentRules.muzzleX(BASE_X,fortressArsenalShots);
+                float spawnY=FortressArmamentRules.muzzleY(BASE_Y,keepArsenal);
+                Shot battery=new Shot(spawnX,spawnY,
+                        FortressArmamentRules.damage(keepArsenal)*
+                                kingdom.towerDamageMultiplier()*ascension.towerMultiplier(),
+                        FortressArmamentRules.speed(keepArsenal),siegeTarget,true);
+                battery.towerSlot=FortressArmamentRules.family(keepArsenal);
+                shots.add(battery);
+                fortressArsenalShots++;
+                fortressArsenalTimer=FortressArmamentRules.cooldown(keepArsenal);
+                int category=FortressArmamentRules.family(keepArsenal);
+                audio.play(category==1?GameAudio.TOWER_CANNON:
+                        category==3?GameAudio.TOWER_ARC:GameAudio.SHOT);
+                puff(spawnX,spawnY,8,keepArsenal>=3?0xffb4edfb:0xffffca8e);
             }
         }
         // Boss reinforcements are collected separately so the active enemy
