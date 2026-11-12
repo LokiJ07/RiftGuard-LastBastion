@@ -74,11 +74,20 @@ public final class WeaponRig {
     public static Pose aimedPose(int weaponId,float attack,float cast,
                                  float time,boolean moving,float facing) {
         Pose pose=pose(weaponId,attack,cast,time,moving);
-        if(weaponId==1||weaponId==2)return pose; // Real blade swing is independent.
         boolean mirrored=Math.cos(facing)<-.28f;
         float localX=(float)Math.cos(facing)*(mirrored?-1f:1f);
         float localY=(float)Math.sin(facing);
-        float angle=(float)Math.toDegrees(Math.atan2(localX,-localY));
+        float targetAngle=(float)Math.toDegrees(Math.atan2(localX,-localY));
+        if(weaponId==1||weaponId==2) {
+            // The middle of the swing must point toward the selected enemy.
+            // Previous swipes always faced sideways even when the target was above
+            // or below the hero. A locked attack arc uses the same target heading
+            // as its damage cone.
+            float aimOffset=targetAngle+6f;
+            return new Pose(pose.shoulderX,pose.shoulderY,pose.elbowX,pose.elbowY,
+                    pose.handX,pose.handY,pose.angle+aimOffset);
+        }
+        float angle=targetAngle;
         // Keep the short recoil, but rotate the drawn muzzle toward its target.
         if(attack>=0)angle+=(float)Math.sin(Math.PI*clamp(attack))*9f;
         return new Pose(pose.shoulderX,pose.shoulderY,pose.elbowX,pose.elbowY,

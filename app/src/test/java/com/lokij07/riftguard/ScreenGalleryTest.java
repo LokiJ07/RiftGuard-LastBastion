@@ -88,7 +88,9 @@ public class ScreenGalleryTest {
         capture(view,"04-fortress");
         tap(view,120,654); // home
         tap(view,250,449);
-        tap(view,630,613); // deploy
+        tap(view,630,613); // deploy with the animated chronicle gate
+        capture(view,"28-mission-briefing");
+        tap(view,900,620); // deliberately BEGIN BATTLE
         // Show actual moving enemies for screenshot verification, not an empty map.
         java.lang.reflect.Method spawn=RiftGameView.class.getDeclaredMethod("spawnEnemy");
         spawn.setAccessible(true);

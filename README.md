@@ -2,7 +2,7 @@
 
 Mobile-first, fully offline Android fortress-defense action game.
 
-## Current version: V0.9.4 — weapon-anchored shots and transparent held equipment
+## Current version: V0.10.0 — mission-story encounters and weapon-aware melee contact
 - Playable 100-level × 3-stage campaign structure with deterministic battleground layouts.
 - **Real bundled art**: first original AI-generated paintings are packed into a 1024×768 WebP texture atlas under `res/drawable-nodpi`, decoded offline and drawn in Home, Campaign, Workshop and stage thumbnails.
 - **Production environment layer**: 60 independently rendered transparent prop sprites (10 regions × 6 types), world-space depth sorting, near-hero occlusion fading, gentle vegetation motion and closer gameplay camera. No fixed screenshot overlays in the battlefield.\n- **State-driven animation**: original artwork reworked into 4×4 Warden pose frames (idle/run/attack/cast); 7 enemy groups with 4 locomotion and 4 attack frames each. Frames change based on actual movement and combat states, not static image bobbing.
@@ -22,6 +22,14 @@ This build combines **original generative painting assets** in interactive scree
 The game works **offline immediately**, because all current essential game resources remain bundled. The new **Home → Resources** screen lets players download/verify the original art pack from GitHub over HTTPS. The app stores checked assets in private storage; on the next app launch it uses those assets offline. There are **no ads, account requirements, tracking SDKs, or forced network checks**.
 
 The current initial downloadable pack contains the same art that ships with the APK: it demonstrates secure downloading and offline caching. It **does not yet introduce new ultra-HD artwork**. Future independently generated and optimized layers can be shipped by updating `game-content/manifest.json`. See [resource pack guide](docs/RESOURCE_PACKS.md).
+
+## V0.10.0 — storybook briefing and hero art cleanup
+
+- Before **every mission deployed from the campaign atlas**, the player sees a distinct illustrated chronicle panel with biome lore, A/B/C mission orders, wave goals, and boss warnings. An explicit **BEGIN BATTLE** button starts the actual simulation; combat input and waves are frozen during the story.
+- The Warden's upper body uses a composited armor source that masks off the old painted lower-right sidearm area while keeping its detailed face, chest, pauldron and cape. The right arm/weapon is held by an independently animated attachment. **This does not replace the hero with a fully new equipment-free source sprite atlas.**
+- Blade swings now rotate toward the actual enemy's direction. Greatsword and sabre hits occur **at mid-swing**, applying damage once in a forward attack cone, not immediately in a 360-degree radius around the player.
+- Full offline story logic and actual Robolectric View/touch tests, weapon/body render tests, melee-hit tests and screen-gallery captures are part of Android CI.
+- Roadmap and limitations: [V0.10 QA notes](docs/V010_MISSION_STORY_COMBAT_QA.md).
 
 ## Playing
 1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
