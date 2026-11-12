@@ -105,14 +105,16 @@ public final class RiftGameView extends View {
     private final List<Impact> impacts=new ArrayList<>();
     private final List<Decor> decor=new ArrayList<>();
     private final List<Pickup> pickups=new ArrayList<>();
-    private final int[] towers=new int[4];
-    private final float[] towerTimers=new float[4];
-    private final float[] towerRecoil=new float[4];
-    private final float[] towerAim=new float[4];
+    private final int[] towers=new int[TowerPadLayout.MAX];
+    private final float[] towerTimers=new float[TowerPadLayout.MAX];
+    private final float[] towerRecoil=new float[TowerPadLayout.MAX];
+    private final float[] towerAim=new float[TowerPadLayout.MAX];
+    private int activeTowerCount=4;
+    private int selectedTowerPad=-1;
     private final float[] hazardTimers=new float[4];
     private float hazardSlowTimer=0;
-    private final float[] towerX={810,1092,811,1093};
-    private final float[] towerY={370,370,624,624};
+    private final float[] towerX=new float[TowerPadLayout.MAX];
+    private final float[] towerY=new float[TowerPadLayout.MAX];
     private int unlocked;
     private int supplies, fortressRank, equippedWeapon, equippedSkill, difficultyMode;
     private int lastCastSkill=WardenSkills.PULSE;
@@ -121,11 +123,13 @@ public final class RiftGameView extends View {
     private float meteorX,meteorY,meteorTime;
     private int selectedLevel=1, selectedMap=0, stage=0;
     private boolean regionalMap=false;
-    private int wave, remaining, gold, kills;
+    private int wave, remaining, gold, kills,missionBuilds,objectiveBonus;
+    private boolean defeatedElite;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     // 120-ms button tap buffer per the animation skill's responsive cancel window.
     private float bufferedAttackTime;
+    private float dodgeTime,dodgeCooldown,dodgeDirX,dodgeDirY;
     private String notice="";
     private boolean waiting, paused, active=true, firing, heroMoving;
     private boolean pendingMelee=false;
@@ -141,7 +145,7 @@ public final class RiftGameView extends View {
                 burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
                 hitReaction;
         boolean moving,boss;
-        int kind;
+        int kind,bossPhase=1;
         Enemy(float x,float y,int kind,float hp,float phase) {
             this.x=x; this.y=y; this.kind=kind; this.hp=hp; this.maxHp=hp; this.phase=phase;
         }
@@ -228,6 +232,7 @@ public final class RiftGameView extends View {
         axisX=axisY=0;
         firing=false;
         bufferedAttackTime=0;
+        dodgeTime=0;
     }
     public void setActive(boolean value) {
         active=value;
@@ -312,7 +317,14 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
+        activeTowerCount=TowerPadLayout.count(stage);
+        selectedTowerPad=-1;
+        for(int pad=0;pad<activeTowerCount;pad++){
+            towerX[pad]=TowerPadLayout.x(stage,pad);
+            towerY[pad]=TowerPadLayout.y(stage,pad);
+        }
         battleRecorded=false; battlePulses=0;
+        missionBuilds=0;objectiveBonus=0;defeatedElite=false;
         hazardSlowTimer=0;
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         // Full Java version of deployed-map-generator.html. No old scenery.
@@ -325,6 +337,8 @@ public final class RiftGameView extends View {
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
         bufferedAttackTime=0;
+        dodgeTime=dodgeCooldown=0;
+        dodgeDirX=0;dodgeDirY=0;
         pendingMelee=false;pendingMeleeWeapon=-1;
         bannerTime=0;bannerTick=0;trapTime=0;meteorTime=0;
         waveNotice=2.6f; noticeTimer=0;
@@ -372,16 +386,27 @@ public final class RiftGameView extends View {
         waveNotice=Math.max(0,waveNotice-dt);
         noticeTimer=Math.max(0,noticeTimer-dt);
         hazardSlowTimer=Math.max(0,hazardSlowTimer-dt);
+        dodgeCooldown=Math.max(0,dodgeCooldown-dt);
+        boolean dashing=dodgeTime>0;
+        float activeDodgeStep=dashing?Math.min(dt,dodgeTime):0f;
+        // Dash ignores movement slow but respects world walls and real towers.
         float speed=245f*ascension.moveMultiplier()*(hazardSlowTimer>0?.71f:1f);
+        float mx=dashing?dodgeDirX:axisX,my=dashing?dodgeDirY:axisY;
+        float movementTime=dashing?activeDodgeStep:dt;
+        float movementSpeed=dashing?DodgeRules.SPEED:speed;
         float previousHeroX=heroX,previousHeroY=heroY;
         // Independent X/Y collision resolution allows sliding along walls.
-        float nextX=LaneRules.heroX(MovementRules.heroNextX(heroX,heroY,axisX*speed*dt));
+        float nextX=LaneRules.heroX(MovementRules.heroNextX(
+                heroX,heroY,mx*movementSpeed*movementTime));
         if (!hitsBuiltTower(nextX,heroY)) heroX=nextX;
-        float nextY=LaneRules.heroY(MovementRules.heroNextY(heroX,heroY,axisY*speed*dt));
+        float nextY=LaneRules.heroY(MovementRules.heroNextY(
+                heroX,heroY,my*movementSpeed*movementTime));
         if (!hitsBuiltTower(heroX,nextY)) heroY=nextY;
+        if(dashing)dodgeTime=Math.max(0,dodgeTime-dt);
         heroMoving=distance(heroX,heroY,previousHeroX,previousHeroY)>.3f;
         if(heroMoving)walkClock+=animationDelta;
-        if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
+        if (dashing)heroDir=(float)Math.atan2(dodgeDirY,dodgeDirX);
+        else if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
             heroDir=(float)Math.atan2(axisY,axisX);
         // Exactly one animation controller owns clip priority and contact
         // events. Direct Robolectric physics calls use dt; rendered gameplay
@@ -406,7 +431,7 @@ public final class RiftGameView extends View {
                 spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
             }
         }
-        for (int i=0;i<towers.length;i++) {
+        for (int i=0;i<activeTowerCount;i++) {
             towerTimers[i]-=dt;
             towerRecoil[i]=Math.max(0,towerRecoil[i]-dt);
             if (towers[i]>0 && towerTimers[i]<=0) {
@@ -414,24 +439,29 @@ public final class RiftGameView extends View {
                 if (target!=null) {
                     float[] modifiers={1f,1.50f,.77f,1.13f};
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*modifiers[i]*
+                            BattleRules.towerDamage(towers[i])*modifiers[TowerPadLayout.family(i)]*
                                     kingdom.towerDamageMultiplier()*ascension.towerMultiplier(),
-                            i==1?550:750,target,true);
+                            TowerPadLayout.family(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
                     audio.play(GameAudio.SHOT);
                     towerAim[i]=(float)Math.atan2(target.y-towerY[i],target.x-towerX[i]);
                     towerRecoil[i]=.20f;
-                    towerTimers[i]=Math.max(.25f,(i==1?1.35f:i==2?1.02f:.92f)
+                    towerTimers[i]=Math.max(.25f,(TowerPadLayout.family(i)==1?1.35f:
+                             TowerPadLayout.family(i)==2?1.02f:.92f)
                             -towers[i]*.11f);
-                    puff(towerX[i],towerY[i]-38,6,towerColor(i));
+                    puff(towerX[i],towerY[i]-38,6,towerColor(TowerPadLayout.family(i)));
                 }
             }
         }
+        // Boss reinforcements are collected separately so the active enemy
+        // iterator cannot be invalidated by a phase-transition summon.
+        final List<Enemy> reinforcements=new ArrayList<>();
         Iterator<Enemy> it=enemies.iterator();
         while(it.hasNext()) {
             Enemy e=it.next();
             if(e.hp<=0) {
+                if(e.boss)defeatedElite=true;
                 gold+=BattleRules.killCoins(e.kind);
                 kills++;
                 if(pickups.size()<28 && random.nextFloat()<.22f)
@@ -506,34 +536,64 @@ public final class RiftGameView extends View {
                     e.y=BASE_Y+(wallDy<0?-134:134);
             }
             if(e.boss){
-                e.specialTimer-=dt;
-                if(e.specialCharge<=0 && e.specialTimer<=0 &&
-                        distance(e.x,e.y,BASE_X,BASE_Y)<440f){
-                    e.specialCharge=.86f; // visible charge-up before the blast
-                    e.specialTimer=7.3f;
-                }else if(e.specialCharge>0) {
-                    e.specialCharge-=dt;
-                    if(e.specialCharge<=0) {
-                        float strength=DifficultyRules.enemyDamage(difficultyMode);
-                        if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
-                            baseHp-=28f*strength;
-                            puff(BASE_X,BASE_Y,19,0xffffac83);
+                int newPhase=BossTactics.phase(e.hp,e.maxHp);
+                if(newPhase>e.bossPhase){
+                    // Each threshold summons *real* enemies with health,
+                    // pathfinding, collision and combat like a normal wave.
+                    for(int phase=e.bossPhase+1;phase<=newPhase;phase++){
+                        int num=BossTactics.minions(phase);
+                        for(int k=0;k<num&&enemies.size()+reinforcements.size()<35;k++){
+                            int kind=BossTactics.minionKind(stage);
+                            float x=Math.min(LaneRules.ENEMY_SPAWN_X-30,e.x+90+k*46);
+                            float y=LaneRules.stagePathY(stage,x)+(k%2==0?38:-38);
+                            float hp=BattleRules.enemyHealth(stage,kind)*
+                                    DifficultyRules.health(difficultyMode);
+                            Enemy ally=new Enemy(x,y,kind,hp,(k+1)*1.2f);
+                            reinforcements.add(ally);
                         }
-                        if(distance(e.x,e.y,heroX,heroY)<265){
-                            heroHp-=21f*strength;
-                            puff(heroX,heroY,18,0xffe5a0fa);
+                    }
+                    e.bossPhase=newPhase;
+                    announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
+                }
+                e.specialTimer-=dt;
+                if(e.specialCharge<=0&&e.specialTimer<=0&&
+                        distance(e.x,e.y,BASE_X,BASE_Y)<440f){
+                    e.specialCharge=BossTactics.chargeTime(stage,e.bossPhase);
+                    e.specialTimer=BossTactics.interval(stage,e.bossPhase);
+                }else if(e.specialCharge>0){
+                    e.specialCharge-=dt;
+                    if(e.specialCharge<=0){
+                        float strength=DifficultyRules.enemyDamage(difficultyMode)*
+                                BossTactics.damageMultiplier(e.bossPhase);
+                        int tactic=BossTactics.tactic(stage);
+                        if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
+                            baseHp-=(tactic==1?20f:28f)*strength;
+                            puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
+                        }
+                        if(distance(e.x,e.y,heroX,heroY)<265&&
+                                !DodgeRules.invulnerable(dodgeTime)){
+                            heroHp-=(tactic==0?24f:18f)*strength;
+                            puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
+                            if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
+                        }
+                        if(tactic==1){
+                            // Sustain bosses can recover health but not exceed
+                            // their original maximum; interrupt by killing fast.
+                            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.05f);
+                            puff(e.x,e.y,14,0xff9fd7c8);
                         }
                         if(baseHp<=0||heroHp<=0){
                             baseHp=Math.max(0,baseHp);
                             heroHp=Math.max(0,heroHp);
                             markDefeat();return;
                         }
-                        announce("BOSS SHOCKWAVE!");
+                        announce(BossTactics.warning(stage)+"!");
                     }
                 }
             }
             if(e.kind==6 && e.dashTime>0 &&
-                    distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0){
+                    distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0 &&
+                    !DodgeRules.invulnerable(dodgeTime)){
                 heroHp-=29*DifficultyRules.enemyDamage(difficultyMode);
                 e.dashTime=0;hurtCooldown=.85f;
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
@@ -541,7 +601,8 @@ public final class RiftGameView extends View {
                 audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;markDefeat();return;}
             }
-            if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0) {
+            if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0 &&
+                    !DodgeRules.invulnerable(dodgeTime)) {
                 heroHp-=(e.kind==2?20:11)*
                         DifficultyRules.enemyDamage(difficultyMode);
                 e.attackAnim=.42f;
@@ -564,6 +625,8 @@ public final class RiftGameView extends View {
                 }
             }
         }
+        // Commit the summon queue only after enemy iteration has finished.
+        enemies.addAll(reinforcements);
         updateStageHazards(dt);
         if(scene!=Scene.PLAY)return;
         Iterator<Shot> sit=shots.iterator();
@@ -579,16 +642,16 @@ public final class RiftGameView extends View {
                             Progression.WEAPONS[shot.weaponId].color,false,
                             shot.damage);
                 int impact=shot.tower?GOLD:Progression.WEAPONS[shot.weaponId].color;
-                if(shot.tower && shot.towerSlot==1) {
+                if(shot.tower && TowerPadLayout.family(shot.towerSlot)==1) {
                     // Cannon shells hit clustered enemies around the impact point.
                     for(Enemy nearby:enemies)
                         if(nearby!=shot.target && nearby.hp>0 &&
                            distance(nearby.x,nearby.y,shot.target.x,shot.target.y)<95)
                             nearby.hp-=shot.damage*.44f;
-                } else if(shot.tower && shot.towerSlot==2) {
+                } else if(shot.tower && TowerPadLayout.family(shot.towerSlot)==2) {
                     // Frost turrets meaningfully reduce enemy movement for 2.6 seconds.
                     shot.target.slowTimer=2.6f;
-                } else if(shot.tower && shot.towerSlot==3) {
+                } else if(shot.tower && TowerPadLayout.family(shot.towerSlot)==3) {
                     // Arc turrets chain to a secondary target.
                     for(Enemy nearby:enemies)
                         if(nearby!=shot.target && nearby.hp>0 &&
@@ -652,7 +715,7 @@ public final class RiftGameView extends View {
                 puff(shot.target.x,shot.target.y,7,impact);
                 if(impacts.size()<64)impacts.add(new Impact(
                         shot.target.x,shot.target.y-15,impact,
-                        shot.tower&&shot.towerSlot==1?85:39));
+                        shot.tower&&TowerPadLayout.family(shot.towerSlot)==1?85:39));
                 audio.play(GameAudio.IMPACT);
                 sit.remove();
             } else {
@@ -670,7 +733,7 @@ public final class RiftGameView extends View {
             if(b.life<=0){bolts.remove();continue;}
             if(distance<22){
                 if(EnemySpecials.boltConnects(b.tx,b.ty,heroX,heroY-25)
-                        &&hurtCooldown<=0){
+                        &&hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
                     heroHp-=17*DifficultyRules.enemyDamage(difficultyMode);
                     hurtCooldown=.65f;
                     audio.play(GameAudio.HURT);
@@ -947,20 +1010,26 @@ public final class RiftGameView extends View {
         }
     }
     private boolean hitsBuiltTower(float x,float y) {
-        for (int i=0;i<towers.length;i++)
+        for (int i=0;i<activeTowerCount;i++)
             if (towers[i]>0 && distance(x,y,towerX[i],towerY[i])<29) return true;
         return false;
     }
     private void build() {
-        int choice=-1;
-        for(int i=0;i<towers.length;i++) {
-            if(choice==-1 || towers[i]<towers[choice]) choice=i;
+        int choice=selectedTowerPad;
+        if(choice<0||choice>=activeTowerCount){
+            // Auto-build still works when no pad has been selected.
+            choice=-1;
+            for(int i=0;i<activeTowerCount;i++)
+                if(choice==-1||towers[i]<towers[choice])choice=i;
         }
         if(choice<0 || towers[choice]>=BattleRules.MAX_TOWER_TIER) {
-            announce("ALL TOWERS MAXED");return;
+            announce(selectedTowerPad>=0?"SELECTED TOWER IS MAXED":
+                    "ALL TOWERS MAXED");
+            return;
         }
         int cost=BattleRules.towerCost(towers[choice]);
         if(gold<cost){announce("NEED "+(cost-gold)+" MORE GOLD");return;}
+        if(towers[choice]==0)missionBuilds++;
         gold-=cost;towers[choice]++;
         audio.play(GameAudio.BUILD);
         puff(towerX[choice],towerY[choice],18,GOLD);
@@ -985,7 +1054,11 @@ public final class RiftGameView extends View {
         scene=Scene.WIN;paused=false;
         boolean firstClear=stage>=unlocked;
         int reward=Progression.stageReward(stage,firstClear);
-        supplies+=reward+DifficultyRules.supplyBonus(difficultyMode,reward);
+        objectiveBonus=MissionObjectives.completed(stage,missionBuilds,
+                baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
+                defeatedElite)?MissionObjectives.bonus(stage):0;
+        supplies+=reward+DifficultyRules.supplyBonus(difficultyMode,reward)
+                +objectiveBonus;
         unlocked=Campaign.unlockedAfter(unlocked,stage);
         prefs.edit().putInt("unlocked",unlocked).putInt("supplies",supplies).apply();
         selectedLevel=Campaign.level(Math.min(stage+1,299));
@@ -1023,6 +1096,14 @@ public final class RiftGameView extends View {
         // NativeDeployedMapArt from the same seed as real enemy AI.
         drawStageHazards(c);
         drawPlacedSkills(c);
+        if(selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
+            float sx=towerX[selectedTowerPad],sy=towerY[selectedTowerPad];
+            float pulse=(float)Math.sin(gameTime*3.4f)*4;
+            circleStroke(c,sx,sy,58+pulse,0xfff2d68e,5);
+            circleStroke(c,sx,sy,44,0x99b8fff0,2);
+            text(c,"SELECTED PAD "+(selectedTowerPad+1),sx,sy-81,19,
+                    0xffffe8ac,true);
+        }
         // Stable depth sorting by world-space foot position. Trees can pass in
         // front of the hero while structures and monsters retain proper layering.
         drawQueue.clear();
@@ -1031,7 +1112,7 @@ public final class RiftGameView extends View {
         // The castle walls and masonry mounts render before the working guns.
         // Previously upper turret weapons were depth-sorted behind the castle art.
         layer(KEEP,BASE_Y-305,null,0);
-        for(int i=0;i<towers.length;i++)layer(TOWER,towerY[i]+31,null,i);
+        for(int i=0;i<activeTowerCount;i++)layer(TOWER,towerY[i]+31,null,i);
         for(Enemy e:enemies)layer(MONSTER,e.y+8,e,0);
         for(Pickup drop:pickups)layer(DROP,drop.y+12,drop,0);
         layer(WARDEN,heroY+9,null,0);
@@ -1218,7 +1299,8 @@ public final class RiftGameView extends View {
                 // Venom, mist and shadow cause BOTH slowing and damage.
                 // Brambles and frost slow only, to keep early regions approachable.
                 if(StageHazards.slows(stage))hazardSlowTimer=1.3f;
-                heroHp-=StageHazards.heroDamage(stage,difficultyMode);
+                if(!DodgeRules.invulnerable(dodgeTime))
+                    heroHp-=StageHazards.heroDamage(stage,difficultyMode);
                 hit=true;
             }
             for(Enemy e:enemies)if(e.hp>0&&distance(e.x,e.y,x,y)<radius) {
@@ -1619,7 +1701,7 @@ public final class RiftGameView extends View {
     }
     /** Four distinctive functional fortress-mounted weapons. No generic sticks. */
     private void drawTower(Canvas c,float x,float y,int tier,int slot,int biome) {
-        final int accent=towerColor(slot);
+        final int accent=towerColor(TowerPadLayout.family(slot));
         float recoil=towerRecoil[slot]/.20f;
         oval(c,x-43,y+17,x+43,y+41,0x99091218);
         // Load-bearing parapet joins the tower to the castle structure.
@@ -1645,14 +1727,14 @@ public final class RiftGameView extends View {
         c.translate(x,top-12);
         c.rotate((float)Math.toDegrees(towerAim[slot]));
         float back=recoil*13;
-        if(slot==0) { // Mounted ballista: twin limbs and visible bow string.
+        if(TowerPadLayout.family(slot)==0) { // Mounted ballista: twin limbs and visible bow string.
             rect(c,-20-back,-8,30-back,8,0xff9a7858);
             polygon(c,new float[]{-14,0,-36,-30,-47,-22,-32,4},0xffcda877);
             polygon(c,new float[]{-14,0,-36,30,-47,22,-32,-4},0xffcda877);
             line(c,-44,-23,30,0,0xfff6d6a0,2);
             line(c,-44,23,30,0,0xfff6d6a0,2);
             polygon(c,new float[]{47-back,0,27-back,-7,27-back,7},0xffdbe9ec);
-        } else if(slot==1) { // Siege cannon: blackened iron barrel and orange vent.
+        } else if(TowerPadLayout.family(slot)==1) { // Siege cannon: blackened iron barrel and orange vent.
             round(c,-25-back,-15,38-back,15,5,0xff414852);
             round(c,-11-back,-19,27-back,19,4,0xff6f747a);
             rect(c,29-back,-20,43-back,20,0xffa8a9a4);
@@ -1660,7 +1742,7 @@ public final class RiftGameView extends View {
             circle(c,43-back,0,6,0xffce6d48);
             for(int bolt=-1;bolt<=1;bolt++)
                 circle(c,bolt*14-back,-14,3,0xffecc27c);
-        } else if(slot==2) { // Frost launcher: icy prongs and rotating crystal.
+        } else if(TowerPadLayout.family(slot)==2) { // Frost launcher: icy prongs and rotating crystal.
             polygon(c,new float[]{-22,-18,8,-18,37-back,0,8,18,-22,18},
                     0xff8cb8ca);
             polygon(c,new float[]{48-back,0,18-back,-18,-1,-2,18-back,18},
@@ -1738,7 +1820,8 @@ public final class RiftGameView extends View {
             if(e.specialCharge>0) {
                 circleStroke(c,e.x,e.y-38,95+e.specialCharge*25,
                         0xffffc18f,5);
-                text(c,"CHARGING",e.x,e.y-118,19,0xffffcb9c,true);
+                text(c,BossTactics.warning(stage),e.x,e.y-118,18,
+                     0xffffcb9c,true);
             }
         }
         float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
@@ -1827,6 +1910,17 @@ public final class RiftGameView extends View {
         circle(c,x+15,y-23,3,0xfff9edbe);
     }
     private void drawHero(Canvas c) {
+        if(dodgeTime>0){
+            float progress=1-dodgeTime/DodgeRules.DURATION;
+            // Actual directional after-image trail, attached to the moving hero.
+            for(int k=1;k<=3;k++){
+                float offset=k*25f*progress;
+                float xx=heroX-dodgeDirX*offset,yy=heroY-dodgeDirY*offset;
+                oval(c,xx-20,yy+21,xx+20,yy+34,0x3359d3cf);
+                circle(c,xx,yy-35,17,0x2276e2ee);
+            }
+            circleStroke(c,heroX,heroY-29,37,0x6677e9ef,3);
+        }
         if(heroAnimation.state()==WardenAnimationMachine.State.DEATH){
             float t=heroAnimation.deathProgress();
             c.save();
@@ -1902,6 +1996,7 @@ public final class RiftGameView extends View {
         return Math.max(0,Math.min(220f,(getWidth()/scale-W)*.5f));
     }
     private float stickHudX(){return 153f-hudSideBleed()*.75f;}
+    private float dodgeHudX(){return 729f+hudSideBleed()*.32f;}
     private float buildHudX(){return 849f+hudSideBleed()*.49f;}
     private float pulseHudX(){return 974f+hudSideBleed()*.65f;}
     private float attackHudX(){return 1130f+hudSideBleed()*.8f;}
@@ -1921,6 +2016,9 @@ public final class RiftGameView extends View {
         circle(c,stickX+axisX*61,568+axisY*61,45,0xbba3c4c6);
         circle(c,stickX+axisX*61,568+axisY*61,26,0xff416578);
         int nextTier=nextTowerTier();
+        action(c,dodgeHudX(),590,42,
+                dodgeTime>0?0xff66b8bc:0xff487d95,"DODGE",
+                dodgeCooldown>0?""+(int)Math.ceil(dodgeCooldown)+"s":"READY");
         action(c,buildHudX(),589,50,0xff4c837d,"BUILD",
                 nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":""+BattleRules.towerCost(nextTier));
         action(c,pulseHudX(),593,49,WardenSkills.SKILLS[equippedSkill].color,
@@ -1933,7 +2031,18 @@ public final class RiftGameView extends View {
         }
         if(noticeTimer>0 && !bossActive)
             text(c,notice,640,207,30,GOLD,true);
+        if(!bossActive && waveNotice<=0 && noticeTimer<=0){
+            String challenge=MissionObjectives.name(stage)+" • "+
+                    MissionObjectives.status(stage,missionBuilds,
+                            baseHp/Math.max(1f,coreMaxHp()),
+                            heroHp/Math.max(1f,heroMaxHp()),defeatedElite);
+            round(c,448,119,830,153,8,0xcc203941);
+            textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
+        }
         text(c,"MOVE",stickX,688,17,0xffb5cfc5,true);
+        text(c,selectedTowerPad<0?"PADS "+activeTowerCount:
+                "PAD "+(selectedTowerPad+1)+"/"+activeTowerCount,
+                buildHudX(),680,15,0xffb9ddd2,true);
         if(!motionArt.weaponIcon(c,equippedWeapon,624,646,45,62))
             WorldArt.drawWeapon(c,equippedWeapon,624,646,.59f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
@@ -1957,7 +2066,8 @@ public final class RiftGameView extends View {
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
             if(e.specialCharge>0)
-                text(c,"INCOMING SHOCKWAVE  •  MOVE!",640,190,21,
+                text(c,"PHASE "+e.bossPhase+" / 3 • "+
+                        BossTactics.warning(stage)+" • DODGE!",640,190,21,
                         0xffffc18f,true);
             return true;
         }
@@ -1966,7 +2076,7 @@ public final class RiftGameView extends View {
 
     private int nextTowerTier() {
         int tier=BattleRules.MAX_TOWER_TIER;
-        for(int t:towers) tier=Math.min(tier,t);
+        for(int pad=0;pad<activeTowerCount;pad++)tier=Math.min(tier,towers[pad]);
         return tier;
     }
     private void drawHudTop(Canvas c,int biome) {
@@ -2090,6 +2200,9 @@ public final class RiftGameView extends View {
             c.clipRect(905,top,1204,top+68);
             deployedMap.thumbnail(c,mission,905,top,299,68);
             drawStagePreview(c,mission,905,top);
+            round(c,912,top+4,1010,top+27,6,0xdd1a3640);
+            text(c,TowerPadLayout.count(mission)+" REAL PADS",
+                    961,top+21,13,0xffffe3aa,true);
             // Name the actual stage's landscape directly on the illustrated
             // A/B/C mission preview, instead of another anonymous map number.
             rect(c,905,top+43,1204,top+67,0xd0182b35);
@@ -2872,6 +2985,9 @@ public final class RiftGameView extends View {
                 640,346,22,0xffc1d9d4,true);
         text(c,"Enemies defeated: "+kills+"     Gold earned: "+gold,
                 640,388,21,INK,true);
+        if(scene==Scene.WIN)
+            textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES",640,418,
+                    430,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
         button(c,435,429,845,502,scene==Scene.WIN?"NEXT STAGE":"RETRY STAGE",0xffae7652);
         button(c,435,520,845,585,"CAMPAIGN MAP",0xff3f626e);
     }
@@ -2901,7 +3017,9 @@ public final class RiftGameView extends View {
         drawStoryParagraph(c,story.lore,594,305,552,23,33,0xffecede5);
         text(c,"WARDEN'S ORDERS",596,384,18,0xff9cb6ba,false);
         drawStoryParagraph(c,story.order,594,418,552,22,31,INK);
-        text(c,story.objective,134,572,21,0xffc0e0bf,false);
+        textFit(c,story.objective,134,570,410,21,0xffc0e0bf,false);
+        textFit(c,TowerPadLayout.count(stage)+" LIVE TOWER PADS • "+
+                MissionObjectives.name(stage),134,604,413,16,0xffffd7a1,false);
         drawStoryParagraph(c,story.warning,594,523,538,19,26,0xffffc38f);
         button(c,700,586,1130,652,"BEGIN BATTLE",0xffa46a45);
         text(c,"BACK TO ATLAS",141,634,20,0xffcad5cc,false);
@@ -3044,6 +3162,8 @@ public final class RiftGameView extends View {
             }
             else if(distance(x,y,pulseHudX(),593)<62) pulse();
             else if(distance(x,y,buildHudX(),589)<65) build();
+            else if(distance(x,y,dodgeHudX(),590)<54) triggerDodge();
+            else selectTowerPadAt(x,y);
         }else if(action==MotionEvent.ACTION_MOVE) {
             if(joyPointer!=-1){
                 int at=ev.findPointerIndex(joyPointer);
@@ -3058,6 +3178,37 @@ public final class RiftGameView extends View {
         }
         invalidate();
         return true;
+    }
+    /**
+     * Convert physical battle screen taps back to the same world camera used
+     * by drawBattle. Only *actual* active build sites are selectable.
+     * Tapping one only selects it; the visible BUILD button confirms spending.
+     */
+    private void selectTowerPadAt(float screenX,float screenY){
+        float worldX=(screenX-W*.5f)/BATTLE_ZOOM+LaneRules.VIEW_CENTER_X;
+        float worldY=(screenY-H*.5f)/BATTLE_ZOOM+LaneRules.VIEW_CENTER_Y;
+        for(int slot=0;slot<activeTowerCount;slot++){
+            if(distance(worldX,worldY,towerX[slot],towerY[slot])<59f){
+                selectedTowerPad=slot;
+                announce("PAD "+(slot+1)+" SELECTED • TAP BUILD");
+                return;
+            }
+        }
+    }
+    /** Dash input is responsive but cannot be chained or used while paused. */
+    private void triggerDodge(){
+        if(scene!=Scene.PLAY||paused||briefingOpen||
+                !DodgeRules.canStart(dodgeTime,dodgeCooldown))return;
+        float dx=DodgeRules.normalized(axisX,axisY,true,heroDir);
+        float dy=DodgeRules.normalized(axisX,axisY,false,heroDir);
+        if(!heroAnimation.dodge())return;
+        dodgeDirX=dx;dodgeDirY=dy;
+        dodgeTime=DodgeRules.DURATION;
+        dodgeCooldown=DodgeRules.COOLDOWN;
+        // Drop pending strike contact so dodging cannot deal invisible damage.
+        pendingMelee=false;pendingMeleeWeapon=-1;
+        bufferedAttackTime=0;
+        puff(heroX,heroY,6,0xffa6dfe0);
     }
     private void updateStick(float x,float y) {
         float dx=x-stickHudX(),dy=y-568,d=(float)Math.hypot(dx,dy);

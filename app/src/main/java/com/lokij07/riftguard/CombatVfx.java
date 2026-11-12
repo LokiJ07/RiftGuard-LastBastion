@@ -27,7 +27,7 @@ public final class CombatVfx {
     public static void projectile(Canvas c,float x,float y,float tx,float ty,
                                   int weaponId,int turretSlot,float seconds){
         boolean turret=turretSlot>=0;
-        int slot=turret?Math.min(3,turretSlot):-1;
+        int slot=turret?TowerPadLayout.family(turretSlot):-1;
         int w=Math.max(0,Math.min(5,weaponId));
         float angle=(float)Math.atan2(ty-y,tx-x);
         c.save();
