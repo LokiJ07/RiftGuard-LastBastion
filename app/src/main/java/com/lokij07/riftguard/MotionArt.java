@@ -454,6 +454,9 @@ public final class MotionArt {
         c.save();
         c.translate(pose.handX,pose.handY);
         c.rotate(pose.angle);
+        // Scale BOTH combat geometry and its mastery markings together.
+        // The hit tip from WeaponRig uses this exact same render scale.
+        c.scale(WeaponRig.renderScale(id),WeaponRig.renderScale(id));
         // Unlike the inventory bitmap, these in-hand weapon models have
         // transparent backgrounds. Never paint a solid equipment-card tile.
         WorldArt.drawHeldWeapon(c,id,0,0,1f,time);
