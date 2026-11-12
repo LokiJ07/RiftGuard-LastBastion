@@ -127,6 +127,7 @@ public final class RiftGameView extends View {
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     // 120-ms button tap buffer per the animation skill's responsive cancel window.
     private float bufferedAttackTime;
+    private float dodgeTime,dodgeCooldown,dodgeDirX,dodgeDirY;
     private String notice="";
     private boolean waiting, paused, active=true, firing, heroMoving;
     private boolean pendingMelee=false;
@@ -229,6 +230,7 @@ public final class RiftGameView extends View {
         axisX=axisY=0;
         firing=false;
         bufferedAttackTime=0;
+        dodgeTime=0;
     }
     public void setActive(boolean value) {
         active=value;
@@ -331,6 +333,8 @@ public final class RiftGameView extends View {
         spawnTimer=3.2f; intermission=0; waiting=false;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
         bufferedAttackTime=0;
+        dodgeTime=dodgeCooldown=0;
+        dodgeDirX=0;dodgeDirY=0;
         pendingMelee=false;pendingMeleeWeapon=-1;
         bannerTime=0;bannerTick=0;trapTime=0;meteorTime=0;
         waveNotice=2.6f; noticeTimer=0;
@@ -378,16 +382,27 @@ public final class RiftGameView extends View {
         waveNotice=Math.max(0,waveNotice-dt);
         noticeTimer=Math.max(0,noticeTimer-dt);
         hazardSlowTimer=Math.max(0,hazardSlowTimer-dt);
+        dodgeCooldown=Math.max(0,dodgeCooldown-dt);
+        boolean dashing=dodgeTime>0;
+        float activeDodgeStep=dashing?Math.min(dt,dodgeTime):0f;
+        // Dash ignores movement slow but respects world walls and real towers.
         float speed=245f*ascension.moveMultiplier()*(hazardSlowTimer>0?.71f:1f);
+        float mx=dashing?dodgeDirX:axisX,my=dashing?dodgeDirY:axisY;
+        float movementTime=dashing?activeDodgeStep:dt;
+        float movementSpeed=dashing?DodgeRules.SPEED:speed;
         float previousHeroX=heroX,previousHeroY=heroY;
         // Independent X/Y collision resolution allows sliding along walls.
-        float nextX=LaneRules.heroX(MovementRules.heroNextX(heroX,heroY,axisX*speed*dt));
+        float nextX=LaneRules.heroX(MovementRules.heroNextX(
+                heroX,heroY,mx*movementSpeed*movementTime));
         if (!hitsBuiltTower(nextX,heroY)) heroX=nextX;
-        float nextY=LaneRules.heroY(MovementRules.heroNextY(heroX,heroY,axisY*speed*dt));
+        float nextY=LaneRules.heroY(MovementRules.heroNextY(
+                heroX,heroY,my*movementSpeed*movementTime));
         if (!hitsBuiltTower(heroX,nextY)) heroY=nextY;
+        if(dashing)dodgeTime=Math.max(0,dodgeTime-dt);
         heroMoving=distance(heroX,heroY,previousHeroX,previousHeroY)>.3f;
         if(heroMoving)walkClock+=animationDelta;
-        if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
+        if (dashing)heroDir=(float)Math.atan2(dodgeDirY,dodgeDirX);
+        else if (Math.abs(axisX)+Math.abs(axisY)>.1f && !pendingMelee)
             heroDir=(float)Math.atan2(axisY,axisX);
         // Exactly one animation controller owns clip priority and contact
         // events. Direct Robolectric physics calls use dt; rendered gameplay
@@ -526,7 +541,7 @@ public final class RiftGameView extends View {
                             baseHp-=28f*strength;
                             puff(BASE_X,BASE_Y,19,0xffffac83);
                         }
-                        if(distance(e.x,e.y,heroX,heroY)<265){
+                        if(distance(e.x,e.y,heroX,heroY)<265&&!DodgeRules.invulnerable(dodgeTime)){
                             heroHp-=21f*strength;
                             puff(heroX,heroY,18,0xffe5a0fa);
                         }
@@ -540,7 +555,8 @@ public final class RiftGameView extends View {
                 }
             }
             if(e.kind==6 && e.dashTime>0 &&
-                    distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0){
+                    distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0 &&
+                    !DodgeRules.invulnerable(dodgeTime)){
                 heroHp-=29*DifficultyRules.enemyDamage(difficultyMode);
                 e.dashTime=0;hurtCooldown=.85f;
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
@@ -548,7 +564,8 @@ public final class RiftGameView extends View {
                 audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;markDefeat();return;}
             }
-            if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0) {
+            if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0 &&
+                    !DodgeRules.invulnerable(dodgeTime)) {
                 heroHp-=(e.kind==2?20:11)*
                         DifficultyRules.enemyDamage(difficultyMode);
                 e.attackAnim=.42f;
@@ -677,7 +694,7 @@ public final class RiftGameView extends View {
             if(b.life<=0){bolts.remove();continue;}
             if(distance<22){
                 if(EnemySpecials.boltConnects(b.tx,b.ty,heroX,heroY-25)
-                        &&hurtCooldown<=0){
+                        &&hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
                     heroHp-=17*DifficultyRules.enemyDamage(difficultyMode);
                     hurtCooldown=.65f;
                     audio.play(GameAudio.HURT);
@@ -1225,7 +1242,8 @@ public final class RiftGameView extends View {
                 // Venom, mist and shadow cause BOTH slowing and damage.
                 // Brambles and frost slow only, to keep early regions approachable.
                 if(StageHazards.slows(stage))hazardSlowTimer=1.3f;
-                heroHp-=StageHazards.heroDamage(stage,difficultyMode);
+                if(!DodgeRules.invulnerable(dodgeTime))
+                    heroHp-=StageHazards.heroDamage(stage,difficultyMode);
                 hit=true;
             }
             for(Enemy e:enemies)if(e.hp>0&&distance(e.x,e.y,x,y)<radius) {
@@ -1834,6 +1852,17 @@ public final class RiftGameView extends View {
         circle(c,x+15,y-23,3,0xfff9edbe);
     }
     private void drawHero(Canvas c) {
+        if(dodgeTime>0){
+            float progress=1-dodgeTime/DodgeRules.DURATION;
+            // Actual directional after-image trail, attached to the moving hero.
+            for(int k=1;k<=3;k++){
+                float offset=k*25f*progress;
+                float xx=heroX-dodgeDirX*offset,yy=heroY-dodgeDirY*offset;
+                oval(c,xx-20,yy+21,xx+20,yy+34,0x3359d3cf);
+                circle(c,xx,yy-35,17,0x2276e2ee);
+            }
+            circleStroke(c,heroX,heroY-29,37,0x6677e9ef,3);
+        }
         if(heroAnimation.state()==WardenAnimationMachine.State.DEATH){
             float t=heroAnimation.deathProgress();
             c.save();
@@ -1909,6 +1938,7 @@ public final class RiftGameView extends View {
         return Math.max(0,Math.min(220f,(getWidth()/scale-W)*.5f));
     }
     private float stickHudX(){return 153f-hudSideBleed()*.75f;}
+    private float dodgeHudX(){return 729f+hudSideBleed()*.32f;}
     private float buildHudX(){return 849f+hudSideBleed()*.49f;}
     private float pulseHudX(){return 974f+hudSideBleed()*.65f;}
     private float attackHudX(){return 1130f+hudSideBleed()*.8f;}
@@ -1928,6 +1958,9 @@ public final class RiftGameView extends View {
         circle(c,stickX+axisX*61,568+axisY*61,45,0xbba3c4c6);
         circle(c,stickX+axisX*61,568+axisY*61,26,0xff416578);
         int nextTier=nextTowerTier();
+        action(c,dodgeHudX(),590,42,
+                dodgeTime>0?0xff66b8bc:0xff487d95,"DODGE",
+                dodgeCooldown>0?""+(int)Math.ceil(dodgeCooldown)+"s":"READY");
         action(c,buildHudX(),589,50,0xff4c837d,"BUILD",
                 nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":""+BattleRules.towerCost(nextTier));
         action(c,pulseHudX(),593,49,WardenSkills.SKILLS[equippedSkill].color,
@@ -3051,6 +3084,7 @@ public final class RiftGameView extends View {
             }
             else if(distance(x,y,pulseHudX(),593)<62) pulse();
             else if(distance(x,y,buildHudX(),589)<65) build();
+            else if(distance(x,y,dodgeHudX(),590)<54) triggerDodge();
         }else if(action==MotionEvent.ACTION_MOVE) {
             if(joyPointer!=-1){
                 int at=ev.findPointerIndex(joyPointer);
@@ -3065,6 +3099,21 @@ public final class RiftGameView extends View {
         }
         invalidate();
         return true;
+    }
+    /** Dash input is responsive but cannot be chained or used while paused. */
+    private void triggerDodge(){
+        if(scene!=Scene.PLAY||paused||briefingOpen||
+                !DodgeRules.canStart(dodgeTime,dodgeCooldown))return;
+        float dx=DodgeRules.normalized(axisX,axisY,true,heroDir);
+        float dy=DodgeRules.normalized(axisX,axisY,false,heroDir);
+        if(!heroAnimation.dodge())return;
+        dodgeDirX=dx;dodgeDirY=dy;
+        dodgeTime=DodgeRules.DURATION;
+        dodgeCooldown=DodgeRules.COOLDOWN;
+        // Drop pending strike contact so dodging cannot deal invisible damage.
+        pendingMelee=false;pendingMeleeWeapon=-1;
+        bufferedAttackTime=0;
+        puff(heroX,heroY,6,0xffa6dfe0);
     }
     private void updateStick(float x,float y) {
         float dx=x-stickHudX(),dy=y-568,d=(float)Math.hypot(dx,dy);
