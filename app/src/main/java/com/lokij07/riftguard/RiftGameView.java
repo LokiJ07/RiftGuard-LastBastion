@@ -2031,16 +2031,13 @@ public final class RiftGameView extends View {
         rect(c,left,top+height*.77f,left+width,top+height,0x440b2431);
         float centerX=left+width*.44f;
         float bottomY=top+height*.69f;
-        if(fortressRank>=3 && motionArt.fortressReady()){
-            motionArt.fortress(c,centerX,bottomY,fortressRank,gameTime);
-        }else{
-            c.save();
-            float sz=workshop?.88f:.74f;
-            c.translate(centerX,bottomY);c.scale(sz,sz);
-            c.translate(-BASE_X,-BASE_Y);
-            drawWoodOutpost(c,biome);
-            c.restore();
-        }
+        // Same native 5-rank fortress in Home, Workshop and actual battle:
+        // eliminates old-menu-vs-new-map discrepancy.
+        c.save();
+        float sz=workshop?1.11f:.95f;
+        c.translate(centerX,bottomY);c.scale(sz,sz);
+        NativeDeployedMapArt.fort(c,0,0,fortressRank,gameTime,1f);
+        c.restore();
         // Individually animated hero, creatures, flag and floating ambient lights.
         float heroX=left+width*.79f,heroY=top+height*.81f;
         boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
@@ -2073,7 +2070,8 @@ public final class RiftGameView extends View {
         round(c,35,21,1245,700,27,0xf0162b32);
         text(c,"RIFTGUARD  /  KINGDOM ATLAS",65,82,36,GOLD,false);
         text(c,"10 REALMS  •  300 STAGES",917,82,20,INK,false);
-        round(c,64,111,879,578,21,0xff9f845f);
+        round(c,60,107,882,581,22,0xffb68e58);
+        round(c,64,111,879,578,18,0xff254a4b);
         int current=(selectedLevel-1)/10;
         if(regionalMap)
             RegionJourney.draw(c,current,selectedLevel,unlocked,gameTime,biomeProps);
@@ -2082,6 +2080,7 @@ public final class RiftGameView extends View {
         round(c,893,111,1216,576,20,0xff182f3a);
         textFit(c,Campaign.WORLDS[current].toUpperCase(),912,155,287,23,GOLD,false);
         text(c,"LEVEL "+selectedLevel+" / 100",916,185,22,INK,false);
+        bar(c,912,189,284,5,unlocked/300f,0xffb9daa5);
         for(int m=0;m<3;m++) {
             int mission=Campaign.stage(selectedLevel,m);
             boolean accessible=Campaign.accessible(mission,unlocked);
@@ -2106,8 +2105,8 @@ public final class RiftGameView extends View {
             text(c,accessible?(mission<unlocked?"DONE":"GO"):"LOCK",
                     1173,top+91,15,accessible?0xffb6e3a0:0xffffb5a4,true);
         }
-        text(c,"< LEVEL",936,551,22,GOLD,false);
-        text(c,"LEVEL >",1199,551,22,GOLD,true);
+        button(c,904,532,1049,571,"PREVIOUS",0xff42616a);
+        button(c,1057,532,1206,571,"NEXT LEVEL",0xff42616a);
         int chosen=Campaign.stage(selectedLevel,selectedMap);
         button(c,406,599,875,655,
                 Campaign.accessible(chosen,unlocked)?
@@ -2129,7 +2128,7 @@ public final class RiftGameView extends View {
         text(c,"+"+DifficultyRules.bonusWaves(difficultyMode)+" WAVES    BONUS +"+
                         DifficultyRules.supplyBonus(difficultyMode,baseReward)+"%",
                 905,679,15,INK,false);
-        text(c,"CLEARED: "+unlocked+" / 300",1110,701,15,GOLD,true);
+        text(c,"CLEARED  "+unlocked+" / 300",1110,699,15,GOLD,true);
     }
 
     private static final String[] KINGDOM_TABS={
