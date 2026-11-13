@@ -19,6 +19,15 @@ if "Error:" in launch or "Exception" in launch:
     raise SystemExit("FAIL: Android activity did not launch")
 if fatal:
     raise SystemExit("FAIL: RiftGuard crashed in Android emulator logcat")
+# Real PLAY + five input dispatch events are mandatory. A screenshot of a
+# seven-scene chapter cannot pass a combat smoke test again.
+state=(folder/"qa-state.txt").read_text(errors="replace") if (
+    folder/"qa-state.txt").exists() else ""
+if "scene=PLAY story=false paused=false briefing=false" not in state:
+    raise SystemExit("FAIL: Emulator combat screenshot was not actual PLAY")
+for control in ("MOVE","DODGE","BUILD","SKILL","ATTACK"):
+    if f"control={control} scene=PLAY story=false" not in state:
+        raise SystemExit(f"FAIL: Actual battle never received {control} touch")
 if len(frames)<8:
     raise SystemExit("FAIL: Insufficient Android graphics frame measurements")
 p50=statistics.median(frames)
@@ -31,6 +40,8 @@ if not m:m=re.search(r"\bTOTAL\s+([\d,]+)",mem)
 summary={
     "environment":"Android Emulator (virtualized; NOT a physical phone)",
     "captures":len(shots),
+    "actual_playing_battle_verified":True,
+    "accepted_touch_controls":["MOVE","DODGE","BUILD","SKILL","ATTACK"],
     "frame_count":len(frames),
     "frame_ms_p50":round(p50,2),
     "frame_ms_p95":round(p95,2),
