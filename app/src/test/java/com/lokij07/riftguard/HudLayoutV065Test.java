@@ -146,4 +146,31 @@ public final class HudLayoutV065Test {
         h.reload();
         assertEquals(1030,h.x(HudLayoutV065.ATTACK),.01);
     }
+
+    @Test public void relocatedBuildSkillAndDodgeTriggerActualBattleActions()throws Exception{
+        Context ctx=RuntimeEnvironment.getApplication();
+        SharedPreferences saved=ctx.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
+        saved.edit().clear().commit();
+        RiftGameView game=new RiftGameView(ctx);
+        game.layout(0,0,1280,720);
+        Method start=RiftGameView.class.getDeclaredMethod("start",int.class);
+        start.setAccessible(true);start.invoke(game,0);
+        HudLayoutV065 hud=(HudLayoutV065)field(game,"hudLayout");
+        hud.move(HudLayoutV065.BUILD,800,355);
+        hud.move(HudLayoutV065.SKILL,1035,360);
+        hud.move(HudLayoutV065.DODGE,585,355);
+        field(game,"selectedTowerPad",0);
+        field(game,"gold",999);
+        int[] towers=(int[])field(game,"towers");
+        int before=towers[0];
+        tap(game,MotionEvent.ACTION_DOWN,849,589); // old BUILD location
+        assertEquals("Old BUILD location must no longer upgrade",before,towers[0]);
+        tap(game,MotionEvent.ACTION_DOWN,800,355); // moved BUILD
+        assertEquals("Relocated BUILD must upgrade selected tower",before+1,towers[0]);
+        assertEquals(0f,(Float)field(game,"pulseCooldown"),.0001f);
+        tap(game,MotionEvent.ACTION_DOWN,1035,360); // moved SKILL
+        assertTrue("Relocated SKILL must execute",((Float)field(game,"pulseCooldown"))>0f);
+        tap(game,MotionEvent.ACTION_DOWN,585,355); // moved DODGE
+        assertTrue("Relocated DODGE must execute",((Float)field(game,"dodgeTime"))>0f);
+    }
 }
