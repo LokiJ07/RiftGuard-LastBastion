@@ -30,6 +30,31 @@ public final class BattleViewportV066Test {
         assertFalse(view.visible(950f,Float.POSITIVE_INFINITY,100));
         assertFalse(view.visible(950f,525f,Float.NaN));
     }
+    @Test public void sameViewportTracksMovingOutroCameraWithoutStaleBounds(){
+        BattleViewportV066 view=new BattleViewportV066(950,525,1280,720,1f);
+        assertTrue(view.visible(950,525,0));
+        assertFalse(view.visible(1850,525,0));
+        view.reset(1550,525,1280,720,1f);
+        assertTrue("Moving camera must reveal far road",view.visible(1850,525,0));
+        assertTrue("Keep is still visible at edge",view.visible(950,525,0));
+        view.reset(1700,525,1280,720,1.6f);
+        assertFalse("Zoomed-in outro must cull distant fortress",
+                view.visible(950,525,0));
+        assertTrue(view.visible(1850,525,0));
+        view.reset(950,525,1280,720,1f);
+        assertEquals(310f,view.left(),.01f);
+        assertTrue("Returning to fixed battle camera retains original bounds",
+                view.visible(950,525,0));
+    }
+    @Test public void viewportRejectsInvalidLiveCameraWithoutStateCorruption(){
+        BattleViewportV066 view=new BattleViewportV066(950,525,1280,720,1f);
+        try{
+            view.reset(950,525,1280,720,0);
+            fail("Invalid zoom should not silently cull every enemy");
+        }catch(IllegalArgumentException expected){}
+        assertEquals(310f,view.left(),.01f);
+        assertEquals(1590f,view.right(),.01f);
+    }
     @Test public void victoryCameraZoomTracksWithoutCullingItsHero(){
         BattleViewportV066 far=new BattleViewportV066(1200,525,1280,720,.64f);
         assertTrue(far.visible(1775,475,110f));
