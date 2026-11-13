@@ -43,8 +43,9 @@ public final class WaveCheckpointV065 {
         }
     }
     public static Snapshot capture(int stage,int wave,int gold,int kills,int built,int revivalsUsed,
-                                   int destroyedCount,
+                                   int destroyedCount,int pulses,
                                    boolean defeatedElite,float heroHp,float coreHp,float relicHp,
+                                   float heroX,float heroY,
                                    int[] tiers,int[] types,int[] destroyed,float[] hp){
         Campaign.checkStage(stage);
         if(wave<1||gold<0||destroyedCount<0||pulses<0||heroHp<0||coreHp<0||relicHp<0||
