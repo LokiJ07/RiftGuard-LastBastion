@@ -724,7 +724,10 @@ public final class RiftGameView extends View {
                 if(bossWarningCountdown<=0)spawnTimer=0;
             }else{
                 spawnTimer-=dt;
-                if(remaining>0 && spawnTimer<=0){
+                // Queue the rest of the wave until active slots free up.
+                // No enemy is discarded and boss spawns remain deterministic.
+                if(remaining>0 && spawnTimer<=0 &&
+                        SiegeBalanceV066.canSpawn(enemies.size(),difficultyMode)){
                     boolean finalBoss=DifficultyRules.eliteFinalWave(stage,wave,difficultyMode)
                             &&remaining==1;
                     if(finalBoss&&!bossSpawnWarned){
@@ -813,7 +816,8 @@ public final class RiftGameView extends View {
             Enemy e=it.next();
             if(e.hp<=0) {
                 if(e.boss)defeatedElite=true;
-                gold+=BattleRules.killCoins(e.kind);
+                // Smaller formations must not bankrupt tower upgrades.
+                gold+=SiegeBalanceV066.killGold(stage,wave,difficultyMode,e.kind);
                 kills++;
                 if(pickups.size()<28 && random.nextFloat()<.22f)
                     pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
@@ -1353,7 +1357,9 @@ public final class RiftGameView extends View {
                 wave==DifficultyRules.waves(stage,difficultyMode);
         // Hard/Expert mid-stage elites are NOT the story boss.
         if(elite)kind=5;
-        float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
+        float hp=BattleRules.enemyHealth(stage,kind)*
+                DifficultyRules.health(difficultyMode)*
+                SiegeBalanceV066.waveHealth(wave);
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
         enemy.variant=random.nextInt(4);
