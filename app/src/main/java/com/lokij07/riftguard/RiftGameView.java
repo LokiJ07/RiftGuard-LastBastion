@@ -927,18 +927,28 @@ public final class RiftGameView extends View {
         }
         if(remaining==0 && enemies.isEmpty()) {
             if(!waiting){waiting=true;
-                intermission=DifficultyRules.betweenWaves(difficultyMode);
+                intermission=WavePacingV065.seconds(difficultyMode,
+                        DifficultyRules.worldBoss(stage)&&wave+1==
+                        DifficultyRules.waves(stage,difficultyMode));
                 gold+=25;waveNotice=2.5f;}
             else {
                 intermission-=dt;
-                if(intermission<=0) {
-                    if(wave>=DifficultyRules.waves(stage,difficultyMode)){complete();return;}
-                    wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
-                    spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
-                    waveNotice=2;waiting=false;
-                }
+                if(intermission<=0)advanceWave(false);
             }
         }
+    }
+    /** One-shot countdown or manual early start: no duplicated gold or waves. */
+    private void advanceWave(boolean early){
+        if(!waiting)return;
+        int cap=DifficultyRules.waves(stage,difficultyMode);
+        if(wave>=cap){complete();return;}
+        boolean bossIncoming=DifficultyRules.worldBoss(stage)&&wave+1==cap;
+        int bonus=early?WavePacingV065.earlyBonus(intermission,difficultyMode,bossIncoming):0;
+        gold+=bonus;
+        wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
+        spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
+        intermission=0;waiting=false;waveNotice=2.2f;
+        if(early)announce("EARLY WAVE • +"+bonus+" BATTLE GOLD");
     }
     private void spawnEnemy() {
         float x=LaneRules.ENEMY_SPAWN_X-random.nextFloat()*26f;
@@ -2332,6 +2342,13 @@ public final class RiftGameView extends View {
                 WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
         action(c,attackHudX(),560,70,0xffb3684c,"ATTACK","FIRE");
+        if(waiting && wave<DifficultyRules.waves(stage,difficultyMode)){
+            boolean bossNext=DifficultyRules.worldBoss(stage)&&
+                    wave+1==DifficultyRules.waves(stage,difficultyMode);
+            int bonus=WavePacingV065.earlyBonus(intermission,difficultyMode,bossNext);
+            button(c,452,216,828,270,"NEXT WAVE  •  "+
+                    (int)Math.ceil(intermission)+"s  •  +"+bonus+" GOLD",0xff77604d);
+        }
         if(waveNotice>0 && !bossActive) {
             String text=waiting?"WAVE CLEARED!  +25 GOLD":"WAVE "+wave+"  •  DEFEND THE CORE";
             text(c,text,640,159,34,0xfff2e4bf,true);
@@ -3756,6 +3773,8 @@ public final class RiftGameView extends View {
                     paused=false;clearTouchControls();
                 }
             }else if(x>1138 && y<112) {paused=true;clearTouchControls();}
+            else if(waiting && x>452 && x<828 && y>216 && y<270)
+                advanceWave(true);
             else if(distance(x,y,stickHudX(),568)<150) {joyPointer=id;updateStick(x,y);}
             else if(distance(x,y,attackHudX(),560)<82) {
                 attackPointer=id;firing=true;bufferedAttackTime=.12f;fire();
