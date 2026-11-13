@@ -33,12 +33,22 @@ public final class BossThreatV066 {
                             float coreX,float coreY,
                             float secondsRemaining,float totalSeconds,
                             int tactic,int phase,boolean reducedMotion){
+        draw(c,bossX,bossY,coreX,coreY,secondsRemaining,totalSeconds,
+                tactic,phase,reducedMotion,HERO_THREAT_RADIUS);
+    }
+    /** The drawn radius must be the actual hit radius for this realm/phase. */
+    public static void draw(Canvas c,float bossX,float bossY,
+                            float coreX,float coreY,
+                            float secondsRemaining,float totalSeconds,
+                            int tactic,int phase,boolean reducedMotion,
+                            float dangerRadius){
+        if(!Float.isFinite(dangerRadius)||dangerRadius<=0f)return;
         if(!Float.isFinite(secondsRemaining)||secondsRemaining<=0f||
                 !Float.isFinite(bossX)||!Float.isFinite(bossY)||
                 tactic<0||tactic>=COLORS.length)return;
         float progress=progress(secondsRemaining,totalSeconds);
         int tint=COLORS[tactic];
-        float radius=HERO_THREAT_RADIUS;
+        float radius=dangerRadius;
         P.setShader(null);
         // World-space ground shadow: a thin ring identifies the actual
         // distance at which the Warden will be hurt on the charge impact.
