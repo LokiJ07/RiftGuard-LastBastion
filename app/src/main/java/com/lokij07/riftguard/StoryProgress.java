@@ -67,4 +67,12 @@ public final class StoryProgress {
         return prefs.getInt("unlocked",0)>=Campaign.STAGES&&ownedSeals()==10;
     }
     public boolean trueEndingUnlocked(){return caveUnlocked()&&total()==100;}
+    public static final int ENDING_NONE=0,ENDING_GOOD=1,ENDING_TRUE=2,ENDING_PARTIAL=3;
+    public int ending(){return prefs.getInt("story.v065.caveEnding",ENDING_NONE);}
+    public boolean saveEnding(int result){
+        if(!caveUnlocked()||result<ENDING_GOOD||result>ENDING_PARTIAL)return false;
+        if(result==ENDING_TRUE&&!trueEndingUnlocked())return false;
+        return prefs.edit().putInt("story.v065.caveEnding",result).commit();
+    }
+
 }
