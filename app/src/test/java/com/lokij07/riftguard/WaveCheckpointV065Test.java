@@ -77,6 +77,9 @@ public final class WaveCheckpointV065Test {
         // Simulate wave loss and spent resources; snapshot is immutable.
         towers[3]=0;towerHp[3]=0;set(game,"gold",10);set(game,"heroHp",0f);
         action(game,"markDefeat");
+        assertEquals("OUTRO",get(game,"scene").toString());
+        for(int i=0;i<60;i++)call(game,"update",new Class<?>[]{float.class},.05f);
+        assertEquals("LOSE",get(game,"scene").toString());
         assertTrue((Boolean)call(game,"canRetryWave",new Class<?>[0]));
         action(game,"retryWave");
         assertEquals("PLAY",get(game,"scene").toString());
