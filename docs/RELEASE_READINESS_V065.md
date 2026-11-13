@@ -26,7 +26,10 @@ Status: **development / draft PR #23**. This document is an acceptance checklist
 - [x] Existing automation covers upgrades, wave checkpoints, defenses, boss components, combos, memory, three endings and cinematics.
 - [ ] Human complete-game QA from fresh save and migrated save, including 300 stages and all 100 recoverable memories.
 - [ ] Live boss attack telegraph balance, tower repair/rebuild UX, dodge/skill control readability and every upgrade's exact value/appearance.
-- [ ] Recover an active wave after Android process death/reboot rather than only handling in-memory pause/resume.
+- [x] Restart from the last **saved wave boundary** after Android process death: durable JSON snapshot of active towers, type/tier/health, gold, kills, hero/core/relic HP, mission counters and difficulty. HOME shows a CONTINUE action; battle resumes paused, re-spawns the wave rather than restoring in-flight projectiles/enemies.
+- [x] Clear recovery on intentional exit/defeat, and commit campaign reward/unlocks plus checkpoint deletion as **one durable preferences transaction** to prevent replayable rewards.
+- [ ] Real Android app-process-kill/reboot automated instrumentation and interrupted-storage simulation; current tests simulate restart with a fresh game view and shared persisted preferences (Robolectric).
+- [ ] Full pixel-level mid-wave continuity is **not** supported: recovery intentionally restarts at wave start for deterministic safe game state. Eclipse Cave must have a separate special-boss recovery design.
 - [ ] Accessibility: scalable text and large hit targets, reduced-motion visuals, contrast, one-handed options and safe-area testing.
 
 ## D. Story, presentation and live art
