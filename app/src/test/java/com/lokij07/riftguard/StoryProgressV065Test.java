@@ -93,7 +93,15 @@ public final class StoryProgressV065Test {
         }
     }
     @Test public void scriptedBossLinesRespectTenWorlds(){
-        assertEquals(4,StoryScript.prologue("Aeron").length);
+        StoryScript.Line[] opening=StoryScript.prologue("Aeron");
+        assertTrue("Expanded prologue retains key story beats",opening.length>=4);
+        boolean tessa=false,cael=false,bantay=false;
+        for(StoryScript.Line line:opening){
+            if("OLD TESSA".equals(line.speaker)||"TESSA".equals(line.speaker))tessa=true;
+            if("CAEL".equals(line.speaker))cael=true;
+            if("BANTAY".equals(line.speaker))bantay=true;
+        }
+        assertTrue("Opening must retain Tessa, Cael and Bantay",tessa&&cael&&bantay);
         for(int world=0;world<10;world++){
             assertTrue(StoryScript.beforeWorldBoss(world).length>=2);
             assertTrue(StoryScript.afterWorldBoss(world).length>=2);
