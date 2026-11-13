@@ -178,6 +178,11 @@ public final class RiftGameView extends View {
     private boolean pendingMelee=false;
     private int pendingMeleeWeapon=-1;
     private float pendingMeleeFacing=0;
+    private float pendingMeleePower=1f;
+    private final WeaponComboV065 combo=new WeaponComboV065();
+    private WeaponComboV065.Hit activeComboHit;
+    private boolean attackGesture=false,chargeNext=false;
+    private float heldAttackSeconds=0f;
     private float walkClock;
     private int joyPointer=-1, attackPointer=-1;
     private float axisX=0, axisY=0;
@@ -404,6 +409,8 @@ public final class RiftGameView extends View {
                 260f+Campaign.world(s)*38f:0f;
         relicHp=relicMaxHp;
         focusedEnemy=null;focusedBossPart=BossAnatomyV065.ARMOR;
+        combo.reset();activeComboHit=null;chargeNext=false;attackGesture=false;
+        heldAttackSeconds=0f;pendingMeleePower=1f;
         revival.reset(difficultyMode);
         // First-play mission controls must stay unchanged; the illustrated
         // prologue is available explicitly in the Chronicle until the
@@ -532,7 +539,12 @@ public final class RiftGameView extends View {
                 WardenAnimationMachine.Event.ATTACK_CONTACT);
         if(pendingMelee&&contact)resolveMeleeHit();
         bufferedAttackTime=Math.max(0,bufferedAttackTime-dt);
-        if(!revival.isDown()&&(firing||bufferedAttackTime>0))fire();
+        if(attackGesture&&attackPointer>=0)
+            heldAttackSeconds+=dt;
+        // Legacy automated players still use the existing held-fire mechanic.
+        // Real touch input is gesture based: tap chains a hit, holding charges
+        // one follow-up attack released after the deliberate charge window.
+        if(!revival.isDown()&&(!attackGesture&&(firing||bufferedAttackTime>0)))fire();
         updateSkillObjects(dt);
         if (!waiting) {
             spawnTimer-=dt;
@@ -1140,6 +1152,8 @@ public final class RiftGameView extends View {
         if(target==null) {shotTimer=Math.min(.2f,weapon.cooldown);return;}
         heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
         if(!heroAnimation.attack(equippedWeapon))return;
+        activeComboHit=combo.attack(equippedWeapon,gameTime,chargeNext);
+        float comboPower=activeComboHit.multiplier;
         bufferedAttackTime=0;
         // Spawn the projectile precisely at the displayed weapon's rotating tip,
         // not at the center of the player sprite. This must use the same animation
@@ -1158,8 +1172,9 @@ public final class RiftGameView extends View {
             pendingMelee=true;
             pendingMeleeWeapon=equippedWeapon;
             pendingMeleeFacing=heroDir;
+            pendingMeleePower=comboPower;
         } else {
-            Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*
+            Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*comboPower*
                     ascension.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,target,false);
             shot.weaponId=equippedWeapon;
@@ -1167,7 +1182,10 @@ public final class RiftGameView extends View {
         }
         // Recoil and flash emerge from the held weapon; melee sparks are emitted
         // at the cutting edge instead of an unrelated circle around the hero.
-        puff(muzzleX,muzzleY,"MELEE".equals(weapon.type)?2:4,weapon.color);
+        puff(muzzleX,muzzleY,chargeNext?18:
+                activeComboHit.step==3?11:"MELEE".equals(weapon.type)?2:4,weapon.color);
+        if(chargeNext)announce(Progression.WEAPONS[equippedWeapon].name.toUpperCase()+
+                " • CHARGED STRIKE!");
     }
     private void resolveMeleeHit() {
         if(!pendingMelee)return;
@@ -1180,7 +1198,8 @@ public final class RiftGameView extends View {
             if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,
                     weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon),
                     e.x,e.y))continue;
-            float meleeDamage=weapon.damage*ascension.attackMultiplier()*
+            float meleeDamage=weapon.damage*pendingMeleePower*
+                    ascension.attackMultiplier()*
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
             e.hp-=meleeDamage*bossArmorMultiplier(e)*
                     SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
@@ -1196,13 +1215,17 @@ public final class RiftGameView extends View {
                     e.burnDps=30f;
                 }
             }
+            if(pendingMeleePower>1.5f){
+                e.slowTimer=Math.max(e.slowTimer,1.0f);
+                e.x=BattleRules.clamp(e.x+(float)Math.cos(pendingMeleeFacing)*32f,20,WORLD_W-20);
+            }
             e.hitReaction=.21f;
             combatFeel.onDamage(e.x,e.y-18,weapon.color,true,weapon.damage);
             puff(e.x,e.y-18,7,weapon.color);
             if(impacts.size()<64)
                 impacts.add(new Impact(e.x,e.y-18,weapon.color,32));
         }
-        pendingMeleeWeapon=-1;
+        pendingMeleeWeapon=-1;pendingMeleePower=1f;
     }
 
     /** Kept as the existing Arc Pulse control entry point for compatibility. */
@@ -2610,6 +2633,8 @@ public final class RiftGameView extends View {
                 617,50,26,INK,false);
         text(c,"GOLD  "+gold,618,83,21,GOLD,false);
         text(c,"KILLS "+kills,870,51,21,INK,false);
+        if(activeComboHit!=null)text(c,"COMBO "+activeComboHit.step+
+                (activeComboHit.charged?" • CHARGED":""),872,133,17,0xffeac98b,false);
         textFit(c,"ENEMY ORDER: "+SquadTacticsV065.name(squadPlan),
                 180,135,335,16,0xffffce9e,true);
         text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
@@ -4099,7 +4124,8 @@ public final class RiftGameView extends View {
                 advanceWave(true);
             else if(distance(x,y,stickHudX(),568)<150) {joyPointer=id;updateStick(x,y);}
             else if(distance(x,y,attackHudX(),560)<82) {
-                attackPointer=id;firing=true;bufferedAttackTime=.12f;fire();
+                attackPointer=id;attackGesture=true;heldAttackSeconds=0f;
+                firing=true;bufferedAttackTime=0f;chargeNext=false;fire();
             }
             else if(distance(x,y,pulseHudX(),593)<62) pulse();
             else if(distance(x,y,buildHudX(),589)<65) build();
@@ -4114,7 +4140,16 @@ public final class RiftGameView extends View {
             if(action==MotionEvent.ACTION_CANCEL) clearTouchControls();
             else {
                 if(id==joyPointer){joyPointer=-1;axisX=axisY=0;}
-                if(id==attackPointer){attackPointer=-1;firing=false;}
+                if(id==attackPointer){
+                    if(attackGesture&&heldAttackSeconds>=WeaponComboV065.CHARGE_SECONDS&&
+                            scene==Scene.PLAY&&!paused&&!storyOpen&&!revival.isDown()){
+                        // The initial tap has already been accounted for. The
+                        // release consumes a single held charge, not auto spam.
+                        chargeNext=true;shotTimer=0f;fire();chargeNext=false;
+                    }
+                    attackPointer=-1;firing=false;attackGesture=false;
+                    heldAttackSeconds=0f;
+                }
             }
         }
         invalidate();
