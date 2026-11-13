@@ -27,6 +27,7 @@ public final class EnemySpriteFrameCache {
             new LinkedHashMap<>(96,.75f,true);
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private int builds=0;
+    private int cacheLimit=MAX_CACHED_FRAMES;
     private boolean cacheDisabled=false;
 
     public EnemySpriteFrameCache(EnemyRig rig){
@@ -55,6 +56,11 @@ public final class EnemySpriteFrameCache {
         return k*10+frame;
     }
     public int cachedFrames(){return frames.size();}
+    public int cacheLimit(){return cacheLimit;}
+    public void setCacheLimit(int limit){
+        int bounded=Math.max(20,Math.min(MAX_CACHED_FRAMES,limit));
+        if(cacheLimit!=bounded){cacheLimit=bounded;clear();}
+    }
     public int frameBuilds(){return builds;}
     public void clear(){
         // Hardware-accelerated Canvas commands can still reference frames
@@ -97,7 +103,7 @@ public final class EnemySpriteFrameCache {
                 cacheDisabled=true;
                 return false; // prefer original sprite fallback on low-memory devices
             }
-            if(frames.size()>=MAX_CACHED_FRAMES){
+            if(frames.size()>=cacheLimit){
                 Iterator<Map.Entry<Integer,Bitmap>> it=frames.entrySet().iterator();
                 Map.Entry<Integer,Bitmap> eldest=it.next();
                 // Do not manually recycle: RenderThread may still reference
