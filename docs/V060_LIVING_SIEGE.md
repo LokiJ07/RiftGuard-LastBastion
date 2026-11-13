@@ -62,3 +62,22 @@ See https://craftpix.net/file-licenses/ (Freebie products section).
 original rig illustrations, **not** a bundled 210-frame image-sprite system.
 Original painted art/animation authoring and a genuinely textured
 asset pipeline remain the next visual-quality milestone.
+
+## dev4 — Runtime image frames for original detailed enemies
+
+RiftGuard now caches transparent 208 x 238 ARGB_8888 animation frames
+generated from its **own** detailed `EnemyRig` during runtime. The
+cache chooses one of ten movement/attack poses based on existing real
+`e.phase` and `e.attackAnim`. It is keyed by existing kind, biome,
+physical equipment variant, boss phase, hurt state and action frame;
+the boss simulation and hitboxes remain untouched.
+
+A strict LRU of 72 frames bounds live cached data to approximately 14 MB
+(72 x 208 x 238 x 4 bytes), and the prior rig / MotionArt fallback
+remains active if the cache cannot render. No hard recycle during a
+hardware-rendered Canvas frame, because Android RenderThread may still
+hold the image.
+
+`EnemySpriteFrameCacheV060Test` checks 10 nonwrapping attack poses, bitmap
+pixel reuse, memory cap, stage clearing and invalid-state fallback.
+Real Android emulator frame-time diagnostics are required before merge.
