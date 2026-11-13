@@ -105,6 +105,7 @@ public final class RiftGameView extends View {
 
     private final SharedPreferences prefs;
     private final DefenseLoadouts defenseLoadouts;
+    private final WardenRevivalV065 revival=new WardenRevivalV065();
     private int selectedLoadout=0;
     private final float[] towerHp=new float[TowerPadLayout.MAX];
     private final int[] towerTypes=new int[TowerPadLayout.MAX];
@@ -376,6 +377,7 @@ public final class RiftGameView extends View {
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
         focusedEnemy=null;
+        revival.reset(difficultyMode);
         // First-play mission controls must stay unchanged; the illustrated
         // prologue is available explicitly in the Chronicle until the
         // cinematic-first-launch flow has its own dedicated acceptance tests.
@@ -452,6 +454,13 @@ public final class RiftGameView extends View {
     }
 
     private void update(float dt) {
+        if(revival.tick(dt)){
+            heroHp=heroMaxHp()*.55f;heroAnimation.reset();
+            hurtCooldown=1.5f;
+            puff(heroX,heroY-28,25,0xffb8efff);
+            audio.play(GameAudio.EVOLUTION);
+            announce("WARDEN REVIVED • "+revival.remainingCharges()+" CHARGES LEFT");
+        }
         shotTimer-=dt; pulseCooldown=Math.max(0,pulseCooldown-dt);
         pulseFlash=Math.max(0,pulseFlash-dt);
         hurtCooldown=Math.max(0,hurtCooldown-dt);
@@ -464,7 +473,8 @@ public final class RiftGameView extends View {
         float activeDodgeStep=dashing?Math.min(dt,dodgeTime):0f;
         // Dash ignores movement slow but respects world walls and real towers.
         float speed=245f*ascension.moveMultiplier()*(hazardSlowTimer>0?.71f:1f);
-        float mx=dashing?dodgeDirX:axisX,my=dashing?dodgeDirY:axisY;
+        float mx=revival.isDown()?0:dashing?dodgeDirX:axisX;
+        float my=revival.isDown()?0:dashing?dodgeDirY:axisY;
         float movementTime=dashing?activeDodgeStep:dt;
         float movementSpeed=dashing?DodgeRules.SPEED:speed;
         float previousHeroX=heroX,previousHeroY=heroY;
@@ -494,7 +504,7 @@ public final class RiftGameView extends View {
                 WardenAnimationMachine.Event.ATTACK_CONTACT);
         if(pendingMelee&&contact)resolveMeleeHit();
         bufferedAttackTime=Math.max(0,bufferedAttackTime-dt);
-        if(firing||bufferedAttackTime>0)fire();
+        if(!revival.isDown()&&(firing||bufferedAttackTime>0))fire();
         updateSkillObjects(dt);
         if (!waiting) {
             spawnTimer-=dt;
@@ -607,8 +617,8 @@ public final class RiftGameView extends View {
                 e.shamanCooldown=3.8f;
                 e.attackAnim=.42f;
             }
-            boolean hunt=MovementRules.huntsHero(dHero,e.kind)||
-                    e.dashWindup>0||e.dashTime>0;
+            boolean hunt=!revival.isDown()&&(MovementRules.huntsHero(dHero,e.kind)||
+                    e.dashWindup>0||e.dashTime>0);
             // Follow the actual stage-specific painted lane, not a separate
             // invisible straight line. Hero aggro can temporarily interrupt it.
             boolean traveling=!hunt && e.x>LaneRules.CASTLE_GATE_X+120f;
@@ -684,6 +694,7 @@ public final class RiftGameView extends View {
                             if(t>=0)damageTower(t,55f*strength);
                         }
                         if(distance(e.x,e.y,heroX,heroY)<265&&
+                                !revival.isDown()&&hurtCooldown<=0&&
                                 !DodgeRules.invulnerable(dodgeTime)){
                             heroHp-=(tactic==0?24f:18f)*strength;
                             puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
@@ -695,16 +706,13 @@ public final class RiftGameView extends View {
                             e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.05f);
                             puff(e.x,e.y,14,0xff9fd7c8);
                         }
-                        if(baseHp<=0||heroHp<=0){
-                            baseHp=Math.max(0,baseHp);
-                            heroHp=Math.max(0,heroHp);
-                            markDefeat();return;
-                        }
+                        if(baseHp<=0){baseHp=0;markDefeat();return;}
+                        if(heroHp<=0){heroHp=0;handleWardenDown();return;}
                         announce(BossTactics.warning(stage)+"!");
                     }
                 }
             }
-            if(e.kind==6 && e.dashTime>0 &&
+            if(!revival.isDown() && e.kind==6 && e.dashTime>0 &&
                     distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0 &&
                     !DodgeRules.invulnerable(dodgeTime)){
                 heroHp-=29*DifficultyRules.enemyDamage(difficultyMode);
@@ -712,9 +720,9 @@ public final class RiftGameView extends View {
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
                 puff(heroX,heroY,14,0xffffb27b);
                 audio.play(GameAudio.HURT);
-                if(heroHp<=0){heroHp=0;markDefeat();return;}
+                if(heroHp<=0){heroHp=0;handleWardenDown();return;}
             }
-            if (distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0 &&
+            if (!revival.isDown() && distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0 &&
                     !DodgeRules.invulnerable(dodgeTime)) {
                 heroHp-=(e.kind==2?20:11)*
                         DifficultyRules.enemyDamage(difficultyMode);
@@ -723,7 +731,7 @@ public final class RiftGameView extends View {
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
                 puff(heroX,heroY,6,0xffff8086);
                 audio.play(GameAudio.HURT);
-                if(heroHp<=0){heroHp=0;markDefeat();return;}
+                if(heroHp<=0){heroHp=0;handleWardenDown();return;}
             }
             int siegeTower=(!hunt&&(e.kind==2||e.kind==4||e.kind==5))?
                     nearestBuiltTower(e.x,e.y,174f):-1;
@@ -880,12 +888,13 @@ public final class RiftGameView extends View {
             if(b.life<=0){bolts.remove();continue;}
             if(distance<22){
                 if(EnemySpecials.boltConnects(b.tx,b.ty,heroX,heroY-25)
-                        &&hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
+                        &&hurtCooldown<=0&&!revival.isDown()&&
+                        !DodgeRules.invulnerable(dodgeTime)){
                     heroHp-=17*DifficultyRules.enemyDamage(difficultyMode);
                     hurtCooldown=.65f;
                     audio.play(GameAudio.HURT);
                     puff(heroX,heroY-26,8,0xffcda5f3);
-                    if(heroHp<=0){heroHp=0;markDefeat();return;}
+                    if(heroHp<=0){heroHp=0;handleWardenDown();return;}
                 }
                 if(impacts.size()<64)impacts.add(new Impact(b.tx,b.ty,
                         0xffc7a1f2,32));
@@ -995,7 +1004,7 @@ public final class RiftGameView extends View {
         return pick;
     }
     private void fire() {
-        if (shotTimer>0 || scene!=Scene.PLAY) return;
+        if (shotTimer>0 || scene!=Scene.PLAY || revival.isDown()) return;
         if(heroAnimation.locked())return;
         Progression.Weapon weapon=Progression.WEAPONS[equippedWeapon];
         Enemy target=closest(heroX,heroY,
@@ -1070,7 +1079,7 @@ public final class RiftGameView extends View {
 
     /** Every equipable skill has a distinct actual combat effect and world state. */
     private void castSkill() {
-        if(pulseCooldown>0||scene!=Scene.PLAY||paused||briefingOpen||storyOpen||
+        if(pulseCooldown>0||scene!=Scene.PLAY||paused||briefingOpen||storyOpen||revival.isDown()||
                 heroAnimation.locked())return;
         if(!WardenSkills.unlocked(fortressRank,equippedSkill))return;
         int skill=equippedSkill;
@@ -1240,6 +1249,15 @@ public final class RiftGameView extends View {
         battleRecorded=true;
         kingdom.recordBattle(stage,difficultyMode,kills,battlePulses,
                 victory,System.currentTimeMillis());
+    }
+    private void handleWardenDown(){
+        if(revival.fall()){
+            heroAnimation.die();clearTouchControls();
+            announce("WARDEN DOWN • REVIVING IN "+
+                    (int)Math.ceil(revival.secondsLeft())+"s");
+            return;
+        }
+        markDefeat();
     }
     private void markDefeat() {
         recordBattleResult(false);
@@ -1530,7 +1548,7 @@ public final class RiftGameView extends View {
             }
             hazardTimers[i]=.86f;
             if(hit)puff(x,y,8,StageHazards.COLORS[StageHazards.kind(stage)]);
-            if(heroHp<=0) {heroHp=0;markDefeat();return;}
+            if(heroHp<=0) {heroHp=0;handleWardenDown();return;}
         }
     }
     /** Environmental systems are independent terrain elements, never poster pixels. */
@@ -2304,6 +2322,11 @@ public final class RiftGameView extends View {
 
     private void drawHud(Canvas c,int biome) {
         drawHudTop(c,biome);
+        if(revival.isDown()){
+            round(c,443,263,839,329,14,0xf01d303d);
+            text(c,"WARDEN DOWN • REVIVAL "+
+                    (int)Math.ceil(revival.secondsLeft())+"s",640,307,24,GOLD,true);
+        }
         if(focusedEnemy!=null&&focusedEnemy.hp>0&&enemies.contains(focusedEnemy)){
             float px=640+(focusedEnemy.x-LaneRules.VIEW_CENTER_X)*BATTLE_ZOOM;
             float py=360+(focusedEnemy.y-LaneRules.VIEW_CENTER_Y)*BATTLE_ZOOM;
@@ -3773,6 +3796,7 @@ public final class RiftGameView extends View {
                     paused=false;clearTouchControls();
                 }
             }else if(x>1138 && y<112) {paused=true;clearTouchControls();}
+            else if(revival.isDown()){clearTouchControls();}
             else if(waiting && x>452 && x<828 && y>216 && y<270)
                 advanceWave(true);
             else if(distance(x,y,stickHudX(),568)<150) {joyPointer=id;updateStick(x,y);}
@@ -3822,7 +3846,7 @@ public final class RiftGameView extends View {
     }
     /** Dash input is responsive but cannot be chained or used while paused. */
     private void triggerDodge(){
-        if(scene!=Scene.PLAY||paused||briefingOpen||storyOpen||
+        if(scene!=Scene.PLAY||paused||briefingOpen||storyOpen||revival.isDown()||
                 !DodgeRules.canStart(dodgeTime,dodgeCooldown))return;
         float dx=DodgeRules.normalized(axisX,axisY,true,heroDir);
         float dy=DodgeRules.normalized(axisX,axisY,false,heroDir);
