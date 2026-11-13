@@ -93,6 +93,8 @@ adb shell logcat -d -v threadtime > emulator-qa/logcat.txt
 # actual Android force-stop/new Activity, not just a Robolectric new View.
 # Run AFTER battle captures, so the combat screenshots remain unaltered.
 adb shell am force-stop "$PKG"
+# Keep recovery log isolated from the previous Activity instance.
+adb shell logcat -c || true
 adb shell am start -W -n "$PKG/.MainActivity" > emulator-qa/relaunch.txt
 sleep 4
 adb shell screencap -p /sdcard/rg-recovered-home.png
