@@ -2589,6 +2589,11 @@ public final class RiftGameView extends View {
         for(int i=0;i<4;i++)
             rect(c,x-36+i*22,y-22,x-24+i*22,y-12,0xffc0c5b9);
         if(tier==0) {
+            if(selectedTowerPad==slot){
+                circleStroke(c,x,y-10,50,0xfff0d18d,3);
+                text(c,destroyedTowerTier[slot]>0?"REBUILD":"BUILD HERE",
+                        x,y-64,17,GOLD,true);
+            }
             if(destroyedTowerTier[slot]>0){
                 for(int j=-2;j<=2;j++)circle(c,x+j*10,y+3+(j%2)*5,11,
                         j%2==0?0xff655451:0xff3c4046);
@@ -2688,6 +2693,12 @@ public final class RiftGameView extends View {
             line(c,x-22,top+12,x+4,top+29,0xff252c34,3);
             line(c,x+4,top+29,x-9,top+37,0xffe6c2a0,2);
             if(fraction<.32f)circle(c,x+23,top-36,8,0x55e4b0a6);
+        }
+        if(selectedTowerPad==slot){
+            circleStroke(c,x,top-16,58,0xffffcf82,3);
+            text(c,tier>=BattleRules.MAX_TOWER_TIER?"MAX LEVEL":
+                    "LV "+tier+"  >  LV "+(tier+1),
+                    x,top-89,19,GOLD,true);
         }
     }
     private void drawEnemy(Canvas c,Enemy e) {
@@ -4742,7 +4753,14 @@ public final class RiftGameView extends View {
         float worldX=(screenX-W*.5f)/BATTLE_ZOOM+LaneRules.VIEW_CENTER_X;
         float worldY=(screenY-H*.5f)/BATTLE_ZOOM+LaneRules.VIEW_CENTER_Y;
         for(int slot=0;slot<activeTowerCount;slot++){
-            if(distance(worldX,worldY,towerX[slot],towerY[slot])<59f){
+            float dx=worldX-towerX[slot],dy=worldY-towerY[slot];
+            // Visible raised gun assemblies are as clickable as their bases.
+            // Previously taps on a Lv3 cannon's muzzle missed the 59px pad
+            // and BUILD silently upgraded some unrelated empty space.
+            boolean hit=towers[slot]>0?
+                    Math.abs(dx)<65f&&dy>=-119f&&dy<=52f:
+                    Math.hypot(dx,dy)<59f;
+            if(hit){
                 if(selectedTowerPad==slot){
                     selectedTowerPad=-1;
                     announce("PAD "+(slot+1)+" DESELECTED • AUTO BUILD");
