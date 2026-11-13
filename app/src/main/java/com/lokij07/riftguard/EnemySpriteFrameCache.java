@@ -57,7 +57,10 @@ public final class EnemySpriteFrameCache {
     public int cachedFrames(){return frames.size();}
     public int frameBuilds(){return builds;}
     public void clear(){
-        for(Bitmap b:frames.values())if(!b.isRecycled())b.recycle();
+        // Hardware-accelerated Canvas commands can still reference frames
+        // while RenderThread is presenting the previous screen. Removing
+        // cache ownership is safe; Android releases the native bitmap after
+        // those references are truly gone. Never recycle during a draw pass.
         frames.clear();
     }
 
@@ -97,7 +100,8 @@ public final class EnemySpriteFrameCache {
             if(frames.size()>=MAX_CACHED_FRAMES){
                 Iterator<Map.Entry<Integer,Bitmap>> it=frames.entrySet().iterator();
                 Map.Entry<Integer,Bitmap> eldest=it.next();
-                if(!eldest.getValue().isRecycled())eldest.getValue().recycle();
+                // Do not manually recycle: RenderThread may still reference
+                // a bitmap after Canvas.drawBitmap has recorded its command.
                 it.remove();
             }
             frames.put(key,b);builds++;
