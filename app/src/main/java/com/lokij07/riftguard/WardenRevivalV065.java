@@ -11,6 +11,11 @@ public final class WardenRevivalV065 {
     private float remaining;
     public void reset(int difficulty){mode=DifficultyRules.safe(difficulty);revivalsUsed=0;remaining=0;}
     public int remainingCharges(){return Math.max(0,MAX[mode]-revivalsUsed);}
+    public int usedCharges(){return revivalsUsed;}
+    /** Wave retry restores the precise charges already spent, not free extra lives. */
+    public void restoreUsed(int used){
+        revivalsUsed=Math.max(0,Math.min(MAX[mode],used));remaining=0f;
+    }
     public boolean isDown(){return remaining>0;}
     public float secondsLeft(){return remaining;}
     public boolean canFall(){return !isDown()&&remainingCharges()>0;}
