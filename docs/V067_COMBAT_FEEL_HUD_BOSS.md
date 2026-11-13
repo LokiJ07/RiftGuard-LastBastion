@@ -1,8 +1,8 @@
-# RiftGuard 0.67.0-alpha1 — Combat Feel, Boss Fairness, HUD Clarity
+# RiftGuard 0.67.0-alpha2 — Combat Feel, Boss Fairness, HUD Clarity
 
 Development branch: `feature/v067-combat-feel-hud-boss-polish` forked from merged `main` 0.66.0-beta1.
 This branch must remain **DRAFT** until real Android emulators and all Robolectric tests pass.
-This is a targeted *first* v0.67 milestone, not the complete art/story/release overhaul.
+This is a targeted early v0.67 milestone, not the complete art/story/release overhaul.
 
 ## Improvements implemented in this pass
 
@@ -21,6 +21,11 @@ This is a targeted *first* v0.67 milestone, not the complete art/story/release o
   Coordinates match the current player-edited button positions. Rings do not
   intercept touches or render new obstructing panels; they disappear when no
   longer relevant.
+- **Cinematic story navigation**: a visible top-right **SKIP CHAPTER**
+  button clears queued opening scenes with a single touch. It works on
+  ultrawide screens and keeps permanent player progress; normal tapping
+  still advances one authored line at a time. Android 16 emulator can no
+  longer be held in story by a system-intercepted BACK key.
 - **Old HUD layout safety**: loaded invalid saved overlapping controls are
   replaced in memory with the original safe defaults. No permanent purchases,
   world progress or unrelated preferences are touched.
@@ -44,7 +49,7 @@ This is a targeted *first* v0.67 milestone, not the complete art/story/release o
 
 ## Loop engineering acceptance
 
-1. All existing plus new boss/hud/performance unit tests pass.
+1. All existing plus new boss/hud/performance/story skip unit tests pass.
 2. Real Android 16 emulator QA navigates through chapter screens and runs
    a real enemy battle with all five touch controls; force-stop / Continue
    restores a paused wave.
