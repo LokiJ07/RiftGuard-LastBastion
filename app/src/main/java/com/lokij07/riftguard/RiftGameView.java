@@ -89,6 +89,7 @@ public final class RiftGameView extends View {
     private static final int[] TOWER_ACCENTS={
             0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff};
     private final RenderBudgetV065 renderBudget=new RenderBudgetV065();
+    private final BattleViewportV066 combatViewport=new BattleViewportV066(950f,525f,1280f,720f,1f);
     private int graphicsMode=GraphicsProfileV065.BALANCED;
     private float lastCombatFps=0f;
     private final BattlePerfStatsV066 battlePerf=new BattlePerfStatsV066();
@@ -2133,8 +2134,8 @@ public final class RiftGameView extends View {
         // Only submit actors whose geometry intersects the world camera.
         // Their movement, collisions, damage and boss AI are still updated
         // independently; this avoids doing heavy skeletal drawing off-screen.
-        final BattleViewportV066 viewport=new BattleViewportV066(
-                camX,camY,W,H,sceneZoom);
+        final BattleViewportV066 viewport=combatViewport;
+        viewport.reset(camX,camY,W,H,sceneZoom);
         for(Enemy e:enemies)
             if(viewport.visible(e.x,e.y,e.boss?175f:145f))
                 layer(MONSTER,e.y+8,e,0);
