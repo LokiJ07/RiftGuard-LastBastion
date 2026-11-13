@@ -60,10 +60,16 @@ sleep 2
 # clears the authored chapter without modifying gameplay difficulty/saves.
 # Previously the "combat" shots were actually STORY 1/7 and STORY 5/7.
 adb shell input keyevent 4
-sleep 3
-# Frame telemetry must measure the actual playable battle rather than startup
-# splash, menus and cutscene layers.
+sleep 2
+# First wave has an 18-second in-game preparation timer. Launch it using
+# the same visible BEGIN WAVE 1 button a player must press; otherwise the
+# old QA proved controls in an *empty* map rather than enemy combat.
+adb shell input tap 640 243
+sleep 2
+# Frame telemetry must measure real active enemy waves, not chapter pages,
+# splash screens, the 18s intermission, or zero-enemy scenery.
 adb shell dumpsys gfxinfo "$PKG" reset >/dev/null || true
+sleep 8
 adb shell screencap -p /sdcard/rg-battle.png
 adb pull /sdcard/rg-battle.png emulator-qa/04-battle.png
 # Exercise all four major combat controls on an actual Android touchscreen emulator:
