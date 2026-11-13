@@ -75,6 +75,24 @@ public final class TowerUpgradeSelectionV065Test {
         tap(v,x,y-87);
         assertEquals(-1,get(v,"selectedTowerPad"));
     }
+    @Test public void lowerMountedWeaponCanBeTappedAboveJoysticksVisibleCircle()throws Exception{
+        Context context=RuntimeEnvironment.getApplication();
+        context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE)
+                .edit().clear().commit();
+        RiftGameView v=new RiftGameView(context);v.layout(0,0,1280,720);
+        run(v,"start",new Class<?>[]{int.class},0);
+        int[] towers=(int[])get(v,"towers");
+        float[] hp=(float[])get(v,"towerHp");
+        towers[2]=3;hp[2]=TowerDurability.maxHp(3,(Integer)get(v,"fortressRank"));
+        float[] xs=(float[])get(v,"towerX"),ys=(float[])get(v,"towerY");
+        float sx=640+(xs[2]-LaneRules.VIEW_CENTER_X)*1.1f;
+        float sy=360+(ys[2]-LaneRules.VIEW_CENTER_Y)*1.1f-95f;
+        tap(v,sx,sy);
+        assertEquals("Mounted weapon must be tappable above joystick",2,get(v,"selectedTowerPad"));
+        assertEquals(-1,get(v,"joyPointer"));
+        tap(v,sx,sy);
+        assertEquals(-1,get(v,"selectedTowerPad"));
+    }
     @Test public void cappedTowerNeverChargesGoldOrUpgradesBeyondFive()throws Exception{
         RiftGameView v=new RiftGameView(RuntimeEnvironment.getApplication());
         v.layout(0,0,1280,720);
