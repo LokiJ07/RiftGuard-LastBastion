@@ -55,7 +55,15 @@ sleep 2
 adb shell screencap -p /sdcard/rg-brief.png
 adb pull /sdcard/rg-brief.png emulator-qa/03-mission-briefing.png
 adb shell input tap 930 624
-sleep 4
+sleep 2
+# The opening story intercepts ALL touch input. Skipping it by Android BACK
+# clears the authored chapter without modifying gameplay difficulty/saves.
+# Previously the "combat" shots were actually STORY 1/7 and STORY 5/7.
+adb shell input keyevent 4
+sleep 3
+# Frame telemetry must measure the actual playable battle rather than startup
+# splash, menus and cutscene layers.
+adb shell dumpsys gfxinfo "$PKG" reset >/dev/null || true
 adb shell screencap -p /sdcard/rg-battle.png
 adb pull /sdcard/rg-battle.png emulator-qa/04-battle.png
 # Exercise all four major combat controls on an actual Android touchscreen emulator:
@@ -63,10 +71,14 @@ adb pull /sdcard/rg-battle.png emulator-qa/04-battle.png
 adb shell input swipe 180 570 280 570 500 || true
 adb shell input tap 729 590
 adb shell input tap 849 590
+adb shell input tap 974 593
 adb shell input tap 1118 590
 sleep 4
 adb shell screencap -p /sdcard/rg-combat.png
 adb pull /sdcard/rg-combat.png emulator-qa/05-touch-combat.png
+# Debug-only app diagnostics prove the screenshot was genuinely PLAY
+# and that the five gameplay controls received taps, not cutscene taps.
+adb shell logcat -d -v brief -s RiftGuardQA:I > emulator-qa/qa-state.txt
 adb shell dumpsys gfxinfo "$PKG" framestats > emulator-qa/gfxinfo-framestats.txt
 adb shell dumpsys meminfo "$PKG" > emulator-qa/memory.txt
 adb shell dumpsys activity processes > emulator-qa/processes.txt
