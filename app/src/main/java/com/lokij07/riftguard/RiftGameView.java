@@ -1704,12 +1704,7 @@ public final class RiftGameView extends View {
         return index;
     }
     private void build(){
-        int choice=selectedTowerPad;
-        if(choice<0||choice>=activeTowerCount){
-            choice=-1;
-            for(int i=0;i<activeTowerCount;i++)
-                if(choice==-1||towers[i]<towers[choice])choice=i;
-        }
+        int choice=buildTargetPad();
         if(choice<0){announce("NO TOWER SLOT AVAILABLE");return;}
         if(towers[choice]>0&&towerHp[choice]<
                 TowerDurability.maxHp(towers[choice],fortressRank)-.01f){
@@ -2882,21 +2877,27 @@ public final class RiftGameView extends View {
         circleStroke(c,stickX,stickHudY(),93,0x77d3ede6,3);
         circle(c,stickX+axisX*61,stickHudY()+axisY*61,45,0xbba3c4c6);
         circle(c,stickX+axisX*61,stickHudY()+axisY*61,26,0xff416578);
-        int nextTier=nextTowerTier();
+        int choice=buildTargetPad();
+        int nextTier=choice<0?BattleRules.MAX_TOWER_TIER:towers[choice];
         action(c,dodgeHudX(),dodgeHudY(),42,
                 dodgeTime>0?0xff66b8bc:0xff487d95,"DODGE",
                 dodgeCooldown>0?""+(int)Math.ceil(dodgeCooldown)+"s":"READY");
-        int chosen=selectedTowerPad;
-        boolean canRepair=chosen>=0&&chosen<activeTowerCount&&towers[chosen]>0&&
-                towerHp[chosen]<TowerDurability.maxHp(towers[chosen],fortressRank);
-        boolean rubble=chosen>=0&&chosen<activeTowerCount&&destroyedTowerTier[chosen]>0;
+        int chosen=choice;
+        boolean canRepair=chosen>=0&&towers[chosen]>0&&
+                towerHp[chosen]<TowerDurability.maxHp(towers[chosen],fortressRank)-.01f;
+        boolean rubble=chosen>=0&&destroyedTowerTier[chosen]>0&&towers[chosen]==0;
+        String buttonLabel=canRepair?"REPAIR":rubble?"REBUILD":
+                nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":
+                nextTier>0?"UPGRADE":"BUILD";
+        String buttonDetail;
+        if(chosen<0)buttonDetail="NO PAD";
+        else if(canRepair)buttonDetail=""+TowerDurability.repairCost(towerHp[chosen],
+                TowerDurability.maxHp(towers[chosen],fortressRank))+" GOLD";
+        else if(rubble)buttonDetail=""+TowerDurability.rebuildCost(destroyedTowerTier[chosen])+" GOLD";
+        else if(nextTier>=BattleRules.MAX_TOWER_TIER)buttonDetail="LV "+nextTier+" MAX";
+        else buttonDetail="LV "+(nextTier+1)+" • "+BattleRules.towerCost(nextTier);
         action(c,buildHudX(),buildHudY(),50,canRepair?0xff4d937d:0xff4c837d,
-                canRepair?"REPAIR":rubble?"REBUILD":"BUILD",
-                canRepair?""+TowerDurability.repairCost(towerHp[chosen],
-                        TowerDurability.maxHp(towers[chosen],fortressRank)):
-                        rubble?""+TowerDurability.rebuildCost(destroyedTowerTier[chosen]):
-                        nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":
-                        ""+BattleRules.towerCost(nextTier));
+                buttonLabel,buttonDetail);
         action(c,pulseHudX(),pulseHudY(),49,WardenSkills.SKILLS[equippedSkill].color,
                 WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
@@ -2961,10 +2962,19 @@ public final class RiftGameView extends View {
         return false;
     }
 
+    /** The selected defensive pad always owns the Build/Upgrade/Repair action.
+     * Only when selection is cleared do we fall back to auto-build mode. */
+    private int buildTargetPad(){
+        if(selectedTowerPad>=0&&selectedTowerPad<activeTowerCount)
+            return selectedTowerPad;
+        int best=-1;
+        for(int pad=0;pad<activeTowerCount;pad++)
+            if(best<0||towers[pad]<towers[best])best=pad;
+        return best;
+    }
     private int nextTowerTier() {
-        int tier=BattleRules.MAX_TOWER_TIER;
-        for(int pad=0;pad<activeTowerCount;pad++)tier=Math.min(tier,towers[pad]);
-        return tier;
+        int pad=buildTargetPad();
+        return pad<0?BattleRules.MAX_TOWER_TIER:towers[pad];
     }
     private void drawHudTop(Canvas c,int biome) {
         round(c,15,12,1250,102,22,0xee13252c);
@@ -4605,8 +4615,16 @@ public final class RiftGameView extends View {
         float worldY=(screenY-H*.5f)/BATTLE_ZOOM+LaneRules.VIEW_CENTER_Y;
         for(int slot=0;slot<activeTowerCount;slot++){
             if(distance(worldX,worldY,towerX[slot],towerY[slot])<59f){
-                selectedTowerPad=slot;
-                announce("PAD "+(slot+1)+" SELECTED • TAP BUILD");
+                if(selectedTowerPad==slot){
+                    selectedTowerPad=-1;
+                    announce("PAD "+(slot+1)+" DESELECTED • AUTO BUILD");
+                }else{
+                    selectedTowerPad=slot;
+                    int tier=towers[slot];
+                    announce("PAD "+(slot+1)+" LV "+tier+
+                            (tier>=BattleRules.MAX_TOWER_TIER?" • MAX":
+                            " • NEXT LV "+(tier+1)));
+                }
                 return;
             }
         }
