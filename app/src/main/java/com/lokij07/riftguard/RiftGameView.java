@@ -4110,14 +4110,17 @@ public final class RiftGameView extends View {
         if(storyLines==null||storyIndex<0||storyIndex>=storyLines.length)return;
         StoryScript.Line ln=storyLines[storyIndex];
         String who=ln.speaker;
-        boolean cael=who.equals("CAEL")||who.equals("TITAN")||
+        boolean cael=ln.shot==StoryScript.CAEL||who.equals("TITAN")||
                 who.equals("CAEL'S MEMORY");
-        boolean tessa=who.equals("TESSA");
-        boolean bantay=who.equals("BANTAY");
+        boolean tessa=ln.shot==StoryScript.TESSA||
+                who.equals("OLD TESSA")||who.equals("TESSA");
+        boolean bantay=ln.shot==StoryScript.BANTAY||who.equals("BANTAY");
+        boolean boss=ln.shot==StoryScript.BOSS;
         boolean memory=who.endsWith("MEMORY");
         float seconds=Math.max(0,gameTime-cinematicBeatStart);
         int world=Campaign.world(Math.max(0,Math.min(stage,299)));
-        cinematic.drawStage(c,world,memory,cael,storyIndex,seconds);
+        cinematic.drawStage(c,world,memory,cael||ln.shot==StoryScript.CAVE,
+                storyIndex,seconds);
 
         // Layered cast placement: opposing characters stay in the shot while
         // the speaking actor gains emphasis and subtle organic motion.
@@ -4139,12 +4142,21 @@ public final class RiftGameView extends View {
             cinematic.drawTreasure(c,1035,468,seconds,0);
         }else if(bantay){
             cinematic.drawBantay(c,910,380,1.1f,seconds);
+        }else if(boss){
+            c.save();
+            c.translate(975+(float)Math.sin(seconds*.8f)*3,529);
+            c.scale(1.95f,1.95f);
+            enemyRig.enemy(c,5,world,2,0,0,gameTime,true,-1,false,-1,true,2);
+            c.restore();
         }else if(memory) {
-            // The memory's focus object gives every recovered page a symbolic
-            // anchor. The authored memory text determines the scene content.
-            int treasure=((Campaign.level(stage)-1)%3);
+            int treasure=(Campaign.level(stage)-1)%3;
             cinematic.drawTreasure(c,925,354,seconds,treasure);
-        }else {
+        }else if(ln.shot==StoryScript.EMPTY_CUP){
+            cinematic.drawTreasure(c,940,374,seconds,0);
+        }else if(ln.shot==StoryScript.TREASURE){
+            cinematic.drawTreasure(c,942,373,seconds,
+                    world<3?0:world<7?1:2);
+        }else{
             cinematic.drawTreasure(c,953,365,seconds,
                     world<4?0:world<7?1:2);
         }
@@ -4441,6 +4453,22 @@ public final class RiftGameView extends View {
             } else if(action==MotionEvent.ACTION_DOWN && x>680 && x<1150 && y>570 && y<670) {
                 briefingOpen=false;
                 clearTouchControls();
+                // Play the authored chapter only after the player explicitly
+                // confirms Begin Battle. Never intercept the first-stage
+                // input during start(), upgrades or automated retries.
+                if(Campaign.map(stage)==0&&(Campaign.level(stage)-1)%10==0&&
+                        stage>=unlocked){
+                    int world=Campaign.world(stage);
+                    String key="story.v065.chapterSeen."+world;
+                    if(!prefs.getBoolean(key,false)){
+                        prefs.edit().putBoolean(key,true).commit();
+                        if(world==0&&!prefs.getBoolean("story.v065.prologueSeen",false)){
+                            prefs.edit().putBoolean("story.v065.prologueSeen",true).commit();
+                            openStory(StoryScript.prologue(storyProgress.wardenName()));
+                        }
+                        openStory(StoryScript.worldOpening(world,storyProgress.wardenName()));
+                    }
+                }
             } else if(action==MotionEvent.ACTION_DOWN && x>106 && x<364 && y>592 && y<656) {
                 briefingOpen=false;
                 scene=Scene.MAP;
