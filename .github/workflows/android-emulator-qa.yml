@@ -42,7 +42,9 @@ jobs:
       - name: Boot real Android virtual device and run smoke + gfxinfo QA
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          # Keep Android CI's API 29 smoke run for old-device coverage.
+          # This second runner checks targetSdk 36 runtime / edge-to-edge.
+          api-level: 36
           target: google_apis
           arch: x86_64
           profile: pixel_3a
