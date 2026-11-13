@@ -128,6 +128,37 @@ public final class PersistentWaveCheckpointV065Test {
         return RuntimeEnvironment.getApplication()
                 .getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
     }
+    @Test public void existingExpertWave17SaveIsMigratedInsteadOfDeleted()
+            throws Exception{
+        SharedPreferences prefs=reset();
+        PersistentWaveCheckpointV065 store=new PersistentWaveCheckpointV065(prefs);
+        int stage=299,mode=DifficultyRules.EXPERT;
+        int newFinal=DifficultyRules.waves(stage,mode);
+        assertEquals(14,newFinal);
+        assertEquals(17,SiegeBalanceV066.legacyWaveCeiling(stage,mode));
+        int[] tiers=new int[8],types=new int[8],rubble=new int[8];
+        float[] hp=new float[8];tiers[0]=3;hp[0]=300f;
+        WaveCheckpointV065.Snapshot snap=WaveCheckpointV065.capture(
+                stage,newFinal,900,120,4,0,0,7,true,145f,900f,0f,
+                950f,510f,tiers,types,rubble,hp);
+        assertTrue(store.save(snap,false,mode,0));
+        String key="battle.v065.recovery";
+        org.json.JSONObject legacy=new org.json.JSONObject(prefs.getString(key,"{}"));
+        legacy.put("wave",17);
+        assertTrue(prefs.edit().putString(key,legacy.toString()).commit());
+        PersistentWaveCheckpointV065.Recovery recovered=store.load(299);
+        assertNotNull("Legitimate old Expert checkpoint must not disappear",
+                recovered);
+        assertEquals(newFinal,recovered.snapshot.wave);
+        assertEquals(900,recovered.snapshot.gold);
+        assertEquals(3,recovered.snapshot.towerTier[0]);
+        assertEquals(300f,recovered.snapshot.towerHealth[0],.01f);
+        // Tampered waves beyond the old legal ceiling are still rejected.
+        legacy.put("wave",99);
+        prefs.edit().putString(key,legacy.toString()).commit();
+        assertNull(store.load(299));
+        assertFalse(prefs.contains(key));
+    }
     @Test public void victoriesAndRecordedDefeatsCannotBeReplayedAsSave()
             throws Exception{
         SharedPreferences prefs=reset();
