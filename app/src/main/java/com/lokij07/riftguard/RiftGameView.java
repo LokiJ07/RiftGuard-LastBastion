@@ -819,7 +819,8 @@ public final class RiftGameView extends View {
                 // Smaller formations must not bankrupt tower upgrades.
                 gold+=SiegeBalanceV066.killGold(stage,wave,difficultyMode,e.kind);
                 kills++;
-                if(pickups.size()<28 && random.nextFloat()<.22f)
+                if(pickups.size()<28 && random.nextFloat()<
+                        SiegeBalanceV066.pickupChance(stage,wave,difficultyMode))
                     pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
                 puff(e.x,e.y,9,GLOWS[Campaign.world(stage)]);
                 if(deaths.size()<32){
