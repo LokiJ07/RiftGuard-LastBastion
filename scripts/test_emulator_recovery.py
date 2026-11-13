@@ -34,6 +34,24 @@ class RecoveryGateTest(unittest.TestCase):
         return subprocess.run([sys.executable,str(HERE/"analyze_emulator_qa.py"),
                                str(root)],capture_output=True,text=True)
 
+    def test_force_stop_happens_before_slow_live_diagnostics(self):
+        # A live unattended Warden can be killed while CI dumps graphics,
+        # process and memory state. Then defeat CORRECTLY deletes Continue.
+        # Prevent accidentally reordering slow diagnostic commands ahead of
+        # the actual force-stop/recovery acceptance test again.
+        script=(HERE/"run_emulator_qa.sh").read_text()
+        wave=script.index("emulator-qa/04-battle.png")
+        force=script.index('adb shell am force-stop "$PKG"')
+        paused=script.index("emulator-qa/qa-recovery-state.txt")
+        resume=script.index("adb shell input tap 640 280")
+        combat=script.index("adb shell input swipe 180 570")
+        diagnostics=script.index('adb shell dumpsys meminfo "$PKG"')
+        self.assertLess(wave,force)
+        self.assertLess(force,paused)
+        self.assertLess(paused,resume)
+        self.assertLess(resume,combat)
+        self.assertLess(combat,diagnostics)
+
     def test_valid_force_stop_continue_required(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); self.prepare(root)
