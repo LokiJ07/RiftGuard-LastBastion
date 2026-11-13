@@ -87,6 +87,8 @@ public final class RiftGameView extends View {
     private int graphicsMode=GraphicsProfileV065.BALANCED;
     private float lastCombatFps=0f;
     private Shader gutterShader;
+    private final Shader hudGradient=new LinearGradient(0,510,0,H,
+            0x00112631,0xe8172b37,Shader.TileMode.CLAMP);
     private int gutterShaderW=-1,gutterShaderH=-1;
     private final PaintedArt painted;
     private final CharacterArt characterArt;
@@ -300,10 +302,16 @@ public final class RiftGameView extends View {
         biomeProps=new BiomeProps(context);
         resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
+        // A public game must work across Android brands. Memory class is a
+        // safer first-run hint than a hardcoded model. Once selected, a
+        // player's chosen preset continues to take priority across upgrades.
+        android.app.ActivityManager am=(android.app.ActivityManager)
+                context.getSystemService(Context.ACTIVITY_SERVICE);
+        int heap=am==null?128:am.getMemoryClass();
+        boolean lowRam=am!=null&&am.isLowRamDevice();
         graphicsMode=GraphicsProfileV065.safe(prefs.getInt(
                 GraphicsProfileV065.SAVE_KEY,
-                GraphicsProfileV065.recommended(
-                        android.os.Build.MANUFACTURER,android.os.Build.MODEL)));
+                GraphicsProfileV065.recommended(heap,lowRam)));
         storyProgress=new StoryProgress(prefs);
         defenseLoadouts=new DefenseLoadouts(prefs);
         hudLayout=new HudLayoutV065(prefs);
@@ -3090,8 +3098,7 @@ public final class RiftGameView extends View {
             textFit(c,"FOCUS: "+focusName,px,py-92,200,16,0xffffe1a2,true);
         }else if(focusedEnemy!=null)focusedEnemy=null;
         // Separate safe-area panel keeps game props behind—not over—touch controls.
-        p.setShader(new LinearGradient(0,510,0,H,0x00112631,0xe8172b37,
-                Shader.TileMode.CLAMP));
+        p.setShader(hudGradient);
         c.drawRect(0,516,W,H,p);
         p.setShader(null);
         boolean bossActive=drawBossHud(c);
