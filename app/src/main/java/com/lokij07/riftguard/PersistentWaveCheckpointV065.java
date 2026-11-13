@@ -153,5 +153,16 @@ public final class PersistentWaveCheckpointV065 {
             return null;
         }
     }
+    /**
+     * The completion boundary is one atomic preferences transaction:
+     * permanent earned supplies/unlocks and deletion of the recoverable wave.
+     * A process death cannot leave "reward granted" and "retry checkpoint"
+     * both committed on disk.
+     */
+    public boolean commitVictory(int unlocked,int supplies){
+        if(unlocked<0||unlocked>Campaign.STAGES||supplies<0)return false;
+        return prefs.edit().putInt("unlocked",unlocked)
+                .putInt("supplies",supplies).remove(KEY).commit();
+    }
     public void clear(){prefs.edit().remove(KEY).commit();}
 }
