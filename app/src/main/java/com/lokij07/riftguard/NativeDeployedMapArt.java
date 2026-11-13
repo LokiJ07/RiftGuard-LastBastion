@@ -57,6 +57,7 @@ public final class NativeDeployedMapArt {
     private Bitmap cached;
     private int stage=-1, builds=0;
     private final LinkedHashMap<Integer,Bitmap> thumbnails=new LinkedHashMap<>(12,.75f,true);
+    private final RectF thumbnailRect=new RectF();
 
     public int preparedStage(){return stage;}
     public int cacheBuilds(){return builds;}
@@ -466,6 +467,9 @@ public final class NativeDeployedMapArt {
             }
         }
         fill(c,Color.WHITE);
-        c.drawBitmap(b,null,new RectF(left,top,left+width,top+height),P);
+        // Canvas accepts primitive bounds in drawBitmap's matrix route;
+        // reuse one destination rectangle for all map thumbnails.
+        thumbnailRect.set(left,top,left+width,top+height);
+        c.drawBitmap(b,null,thumbnailRect,P);
     }
 }
