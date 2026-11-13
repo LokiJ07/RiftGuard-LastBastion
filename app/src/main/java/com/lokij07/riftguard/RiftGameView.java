@@ -132,6 +132,8 @@ public final class RiftGameView extends View {
     }
 
     private final SharedPreferences prefs;
+    private final PersistentWaveCheckpointV065 durableBattle;
+    private PersistentWaveCheckpointV065.Recovery savedWave;
     private final DefenseLoadouts defenseLoadouts;
     private final HudLayoutV065 hudLayout;
     private boolean hudEditing=false;
@@ -302,6 +304,7 @@ public final class RiftGameView extends View {
         biomeProps=new BiomeProps(context);
         resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
+        durableBattle=new PersistentWaveCheckpointV065(prefs);
         // A public game must work across Android brands. Memory class is a
         // safer first-run hint than a hardcoded model. Once selected, a
         // player's chosen preset continues to take priority across upgrades.
@@ -329,6 +332,7 @@ public final class RiftGameView extends View {
         audio=new GameAudio(context,prefs);
         combatFeel.setReducedMotion(prefs.getBoolean("reduced_motion",false));
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
+        savedWave=durableBattle.load(unlocked);
         supplies=Math.max(0,prefs.getInt("supplies",0));
         fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
         equippedWeapon=prefs.getInt("weapon",0);
@@ -343,6 +347,9 @@ public final class RiftGameView extends View {
     private void startEclipseCave(){
         if(!storyProgress.caveUnlocked())return;
         start(299);caveMode=true;trial=null;trialPassed=false;trialAwarded=false;
+        // Eclipse Cave has separate boss/outro rules; never offer a fake
+        // regular-wave recovery point for that unique confrontation.
+        clearSavedWave();
         terrain=null;focusedTerrain=null;pendingMeleeTerrain=null;terrainBolts.clear();
         remaining=1;wave=1;waiting=false;firstWavePending=false;spawnTimer=1.8f;
         openStory(StoryScript.eclipseCaveOpening(storyProgress.wardenName()));
@@ -391,6 +398,7 @@ public final class RiftGameView extends View {
         if (scene==Scene.PLAY && briefingOpen) {
             briefingOpen=false;
             scene=Scene.MAP;
+            clearSavedWave();
             clearTouchControls();
             return true;
         }
@@ -1211,6 +1219,52 @@ public final class RiftGameView extends View {
                 towersDestroyedInBattle,battlePulses,defeatedElite,
                 Math.max(0,heroHp),Math.max(0,baseHp),Math.max(0,relicHp),
                 heroX,heroY,towers,towerTypes,destroyedTowerTier,towerHp);
+        // Persist only at deterministic wave boundaries. Never serialize
+        // enemies/projectiles or write flash storage each rendered frame.
+        if(!caveMode){
+            durableBattle.save(waveCheckpoint,firstWavePending,
+                    difficultyMode,waveRetriesUsed);
+            savedWave=durableBattle.load(unlocked);
+        }
+    }
+    private void clearSavedWave(){
+        durableBattle.clear();
+        savedWave=null;
+    }
+    /** Explicit opt-in recovery from HOME after Android killed the process. */
+    private void continueSavedWave(){
+        PersistentWaveCheckpointV065.Recovery rec=durableBattle.load(unlocked);
+        if(rec==null){savedWave=null;announce("NO RECOVERABLE BATTLE");return;}
+        WaveCheckpointV065.Snapshot snap=rec.snapshot;
+        // The stage is restarted cleanly before deterministic data is restored.
+        // Active enemies and uncommitted damage are intentionally replayed.
+        difficultyMode=rec.difficulty;
+        start(snap.stage);
+        snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
+        gold=snap.gold;wave=snap.wave;kills=snap.kills;
+        missionBuilds=snap.built;battlePulses=snap.pulses;
+        towersDestroyedInBattle=snap.destroyedCount;
+        defeatedElite=snap.defeatedElite;
+        heroHp=snap.heroHp;baseHp=snap.coreHp;relicHp=snap.relicHp;
+        heroX=snap.heroX;heroY=snap.heroY;
+        revival.restoreUsed(snap.revivalsUsed);
+        waveRetriesUsed=rec.retriesUsed;
+        remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
+        squadPlan=SquadTacticsV065.plan(stage,wave,
+                countArmedTowers(),difficultyMode);
+        firstWavePending=rec.firstWavePending;
+        waiting=rec.firstWavePending;
+        spawnTimer=rec.firstWavePending?2f:DifficultyRules.spawnInterval(
+                stage,difficultyMode);
+        intermission=rec.firstWavePending?
+                WavePacingV065.seconds(difficultyMode,false):0f;
+        bossSpawnWarned=false;bossWarningCountdown=0f;
+        waveCheckpoint=snap;paused=true;briefingOpen=false;
+        clearTouchControls();heroAnimation.reset();
+        durableBattle.save(snap,firstWavePending,difficultyMode,waveRetriesUsed);
+        savedWave=durableBattle.load(unlocked);
+        announce("RECOVERED STAGE "+Campaign.title(stage)+" • WAVE "+wave+
+                " • RESUME TO CONTINUE");
     }
     private boolean canRetryWave(){
         return !caveMode&&scene==Scene.LOSE&&wave>1&&waveCheckpoint!=null&&
@@ -1237,6 +1291,8 @@ public final class RiftGameView extends View {
         bossSpawnWarned=false;bossWarningCountdown=0f;
         spawnTimer=2f;intermission=0;waiting=false;
         waveCheckpoint=snap;
+        durableBattle.save(snap,false,difficultyMode,waveRetriesUsed);
+        savedWave=durableBattle.load(unlocked);
         clearTouchControls();heroAnimation.reset();
         announce("WAVE "+wave+" RETRY • "+(WaveCheckpointV065.retries(difficultyMode)-used)+" LEFT");
     }
@@ -1867,6 +1923,7 @@ public final class RiftGameView extends View {
     }
     private void markDefeat() {
         if(scene==Scene.OUTRO||scene==Scene.LOSE)return;
+        clearSavedWave(); // No ghost resume after a recorded failed run.
         recordBattleResult(false);
         audio.play(GameAudio.HURT);
         outro=new BattleOutroV065(stage,false,heroX,heroY);
@@ -1877,6 +1934,9 @@ public final class RiftGameView extends View {
     }
     private void complete() {
         if(scene==Scene.OUTRO||scene==Scene.WIN)return;
+        // Delete the unfinished checkpoint BEFORE permanent rewards/unlocks.
+        // A process killed between writes must never replay the clear for cash.
+        clearSavedWave();
         recordBattleResult(true);
         outro=new BattleOutroV065(stage,true,heroX,heroY);
         scene=Scene.OUTRO;paused=false;
@@ -3270,6 +3330,12 @@ public final class RiftGameView extends View {
         // Campaign art in the main menu changes with saved progression.
         roundedPanel(c,644,66,1222,646);
         drawLiveMenuScene(c,656,80,553,548,false);
+        if(savedWave!=null){
+            int recoveredStage=savedWave.snapshot.stage;
+            button(c,682,309,1189,375,
+                    "CONTINUE  •  "+Campaign.title(recoveredStage)+
+                    "  /  WAVE "+savedWave.snapshot.wave,0xff468675);
+        }
         button(c,667,455,1198,508,"KINGDOM HUB  /  QUESTS + SHOP",0xff805f40);
         button(c,676,385,1184,447,storyProgress.caveUnlocked()?
                 "ECLIPSE CAVE  •  FINAL CONFRONTATION":"ECLIPSE CAVE  •  SEALED",
@@ -4839,6 +4905,7 @@ public final class RiftGameView extends View {
             } else if(action==MotionEvent.ACTION_DOWN && x>106 && x<364 && y>592 && y<656) {
                 briefingOpen=false;
                 scene=Scene.MAP;
+                clearSavedWave();
                 clearTouchControls();
             }
             invalidate();
@@ -4849,7 +4916,7 @@ public final class RiftGameView extends View {
             if(scene!=Scene.PLAY) { tapMenu(x,y);invalidate();return true; }
             if(paused) {
                 if(x>450 && x<830 && y>245 && y<322) { paused=false;clearTouchControls(); }
-                else if(x>450 && x<830 && y>332 && y<406) {scene=Scene.MAP;paused=false;clearTouchControls();}
+                else if(x>450 && x<830 && y>332 && y<406) {scene=Scene.MAP;paused=false;clearSavedWave();clearTouchControls();}
                 else if(x>450 && x<830 && y>415 && y<495){
                     defenseLoadouts.save(selectedLoadout,towers,towerTypes,activeTowerCount);
                     announce("FORMATION "+(selectedLoadout+1)+" SAVED");
@@ -4987,7 +5054,10 @@ public final class RiftGameView extends View {
     }
     private void tapMenu(float x,float y) {
         if(scene==Scene.HOME) {
-            if(x>670 && x<1190 && y>385 && y<450){
+            if(savedWave!=null&&x>682&&x<1189&&y>309&&y<375){
+                continueSavedWave();
+            }
+            else if(x>670 && x<1190 && y>385 && y<450){
                 if(storyProgress.caveUnlocked())startEclipseCave();
                 else announce("DEFEAT ALL TEN WORLD BOSSES TO OPEN THE CAVE");
             }
