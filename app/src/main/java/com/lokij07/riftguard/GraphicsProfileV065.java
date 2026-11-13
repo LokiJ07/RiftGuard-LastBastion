@@ -56,6 +56,17 @@ public final class GraphicsProfileV065 {
      * Android will schedule a future VSYNC from this delay; input invalidates
      * remain immediate, independent of the cosmetic frame loop.
      */
+    /**
+     * Static/paused menus do not need the same 60 FPS render loop as active
+     * combat. Touch actions still invalidate immediately, independent of
+     * this optional background-animation cadence.
+     */
+    public static long idleFrameDelayMs(float screenHz){
+        if(!Float.isFinite(screenHz)||screenHz<20f)return 18L;
+        float displayInterval=1000f/screenHz;
+        float frameTarget=1000f/30f;
+        return Math.max(0L,(long)Math.ceil(frameTarget-displayInterval+1f));
+    }
     public static long nextFrameDelayMs(int mode,float screenHz){
         if(!Float.isFinite(screenHz)||screenHz<88f)return 0;
         float displayInterval=1000f/screenHz;
