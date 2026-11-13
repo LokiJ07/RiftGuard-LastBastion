@@ -104,6 +104,12 @@ public final class RiftGameView extends View {
     }
 
     private final SharedPreferences prefs;
+    private final DefenseLoadouts defenseLoadouts;
+    private int selectedLoadout=0;
+    private final float[] towerHp=new float[TowerPadLayout.MAX];
+    private final int[] towerTypes=new int[TowerPadLayout.MAX];
+    private final int[] destroyedTowerTier=new int[TowerPadLayout.MAX];
+    private Enemy focusedEnemy;
     private final StoryProgress storyProgress;
     private final KingdomMeta kingdom;
     private final AscensionTree ascension;
@@ -242,6 +248,8 @@ public final class RiftGameView extends View {
         resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         storyProgress=new StoryProgress(prefs);
+        defenseLoadouts=new DefenseLoadouts(prefs);
+        selectedLoadout=Math.max(0,Math.min(2,prefs.getInt("fort.v065.active",0)));
         kingdom=new KingdomMeta(prefs);
         ascension=new AscensionTree(prefs);
         weaponMastery=new WeaponMastery(prefs);
@@ -367,6 +375,7 @@ public final class RiftGameView extends View {
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
+        focusedEnemy=null;
         // First-play mission controls must stay unchanged; the illustrated
         // prologue is available explicitly in the Chronicle until the
         // cinematic-first-launch flow has its own dedicated acceptance tests.
@@ -403,10 +412,18 @@ public final class RiftGameView extends View {
         deaths.clear();impacts.clear();
         for (int i=0;i<towers.length;i++){
             towers[i]=0;towerTimers[i]=0;towerRecoil[i]=0;
-            towerAim[i]=0;
+            towerAim[i]=0;towerHp[i]=0;destroyedTowerTier[i]=0;
+            towerTypes[i]=TowerPadLayout.family(i);
         }
         int initial=DifficultyRules.initialTowers(fortressRank,difficultyMode);
-        for(int i=0;i<initial;i++)towers[i]=1;
+        for(int i=0;i<initial;i++){
+            towers[i]=1;towerHp[i]=TowerDurability.maxHp(1,fortressRank);
+        }
+        // Blueprints spend actual battle gold; no free structures or upgrades.
+        gold-=defenseLoadouts.deploy(selectedLoadout,towers,towerTypes,
+                activeTowerCount,gold);
+        for(int i=0;i<activeTowerCount;i++)if(towers[i]>0)
+            towerHp[i]=TowerDurability.maxHp(towers[i],fortressRank);
         Random r=new Random(Campaign.seed(stage));
         // Scatter environmental art with deliberate negative space around the keep.
         // Poisson-like rejection prevents overlapping forests and improves combat readability.
@@ -490,27 +507,27 @@ public final class RiftGameView extends View {
         for (int i=0;i<activeTowerCount;i++) {
             towerTimers[i]-=dt;
             towerRecoil[i]=Math.max(0,towerRecoil[i]-dt);
-            if (towers[i]>0 && towerTimers[i]<=0) {
+            if (towers[i]>0 && towerHp[i]>0 && towerTimers[i]<=0) {
                 Enemy target=closest(towerX[i],towerY[i],280+towers[i]*35);
                 if (target!=null) {
                     float[] modifiers={1f,1.50f,.77f,1.13f};
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*modifiers[TowerPadLayout.family(i)]*
+                            BattleRules.towerDamage(towers[i])*modifiers[towerFamily(i)]*
                                     kingdom.towerDamageMultiplier()*ascension.towerMultiplier()*
                                     FortressEvolutionArt.damageBonus(arsenalTier()),
-                            TowerPadLayout.family(i)==1?550:750,target,true);
+                            towerFamily(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
-                    int family=TowerPadLayout.family(i);
+                    int family=towerFamily(i);
                     audio.play(family==1?GameAudio.TOWER_CANNON:
                             family==2?GameAudio.TOWER_FROST:
                             family==3?GameAudio.TOWER_ARC:GameAudio.SHOT);
                     towerAim[i]=(float)Math.atan2(target.y-towerY[i],target.x-towerX[i]);
                     towerRecoil[i]=.20f;
-                    towerTimers[i]=Math.max(.25f,(TowerPadLayout.family(i)==1?1.35f:
-                             TowerPadLayout.family(i)==2?1.02f:.92f)
+                    towerTimers[i]=Math.max(.25f,(towerFamily(i)==1?1.35f:
+                             towerFamily(i)==2?1.02f:.92f)
                             -towers[i]*.11f);
-                    puff(towerX[i],towerY[i]-38,6,towerColor(TowerPadLayout.family(i)));
+                    puff(towerX[i],towerY[i]-38,6,towerColor(towerFamily(i)));
                 }
             }
         }
@@ -1844,12 +1861,13 @@ public final class RiftGameView extends View {
         EvolutionEffects.fortressBranches(c,BASE_X,BASE_Y,
                 coreForm(),treasuryForm());
     }
+    private int towerFamily(int slot){return towerTypes[slot];}
     private static int towerColor(int slot) {
         return new int[]{0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff}[slot];
     }
     /** Four distinctive functional fortress-mounted weapons. No generic sticks. */
     private void drawTower(Canvas c,float x,float y,int tier,int slot,int biome) {
-        final int accent=towerColor(TowerPadLayout.family(slot));
+        final int accent=towerColor(towerFamily(slot));
         float recoil=towerRecoil[slot]/.20f;
         oval(c,x-43,y+17,x+43,y+41,0x99091218);
         // Load-bearing parapet joins the tower to the castle structure.
@@ -1860,6 +1878,13 @@ public final class RiftGameView extends View {
         for(int i=0;i<4;i++)
             rect(c,x-36+i*22,y-22,x-24+i*22,y-12,0xffc0c5b9);
         if(tier==0) {
+            if(destroyedTowerTier[slot]>0){
+                for(int j=-2;j<=2;j++)circle(c,x+j*10,y+3+(j%2)*5,11,
+                        j%2==0?0xff655451:0xff3c4046);
+                line(c,x-23,y-17,x+16,y+8,0xffc38b70,5);
+                if((int)(gameTime*3+slot)%3==0)circle(c,x-4,y-27,7,0x66545a5d);
+                return;
+            }
             round(c,x-26,y-10,x+26,y+11,9,0xff293b46);
             circleStroke(c,x,y-4,18,0xff89a6a7,3);
             text(c,"+",x,y+3,20,GOLD,true);
@@ -1875,14 +1900,14 @@ public final class RiftGameView extends View {
         c.translate(x,top-12);
         c.rotate((float)Math.toDegrees(towerAim[slot]));
         float back=recoil*13;
-        if(TowerPadLayout.family(slot)==0) { // Mounted ballista: twin limbs and visible bow string.
+        if(towerFamily(slot)==0) { // Mounted ballista: twin limbs and visible bow string.
             rect(c,-20-back,-8,30-back,8,0xff9a7858);
             polygon(c,new float[]{-14,0,-36,-30,-47,-22,-32,4},0xffcda877);
             polygon(c,new float[]{-14,0,-36,30,-47,22,-32,-4},0xffcda877);
             line(c,-44,-23,30,0,0xfff6d6a0,2);
             line(c,-44,23,30,0,0xfff6d6a0,2);
             polygon(c,new float[]{47-back,0,27-back,-7,27-back,7},0xffdbe9ec);
-        } else if(TowerPadLayout.family(slot)==1) { // Siege cannon: blackened iron barrel and orange vent.
+        } else if(towerFamily(slot)==1) { // Siege cannon: blackened iron barrel and orange vent.
             round(c,-25-back,-15,38-back,15,5,0xff414852);
             round(c,-11-back,-19,27-back,19,4,0xff6f747a);
             rect(c,29-back,-20,43-back,20,0xffa8a9a4);
@@ -1890,7 +1915,7 @@ public final class RiftGameView extends View {
             circle(c,43-back,0,6,0xffce6d48);
             for(int bolt=-1;bolt<=1;bolt++)
                 circle(c,bolt*14-back,-14,3,0xffecc27c);
-        } else if(TowerPadLayout.family(slot)==2) { // Frost launcher: icy prongs and rotating crystal.
+        } else if(towerFamily(slot)==2) { // Frost launcher: icy prongs and rotating crystal.
             polygon(c,new float[]{-22,-18,8,-18,37-back,0,8,18,-22,18},
                     0xff8cb8ca);
             polygon(c,new float[]{48-back,0,18-back,-18,-1,-2,18-back,18},
@@ -1942,6 +1967,16 @@ public final class RiftGameView extends View {
         if(recoil>0) {
             circle(c,x,top-12,25+recoil*14,accent&0x55ffffff);
             circle(c,x,top-12,6+recoil*7,accent);
+        }
+        float fraction=Math.max(0,Math.min(1,towerHp[slot]/
+                TowerDurability.maxHp(tier,fortressRank)));
+        rect(c,x-29,y+37,x+29,y+43,0xff23323b);
+        rect(c,x-27,y+38,x-27+54*fraction,y+42,
+                fraction>.5?0xff82d7a9:fraction>.25?0xfff2ba6a:0xffee7770);
+        if(fraction<.6f){
+            line(c,x-22,top+12,x+4,top+29,0xff252c34,3);
+            line(c,x+4,top+29,x-9,top+37,0xffe6c2a0,2);
+            if(fraction<.32f)circle(c,x+23,top-36,8,0x55e4b0a6);
         }
     }
     private void drawEnemy(Canvas c,Enemy e) {
