@@ -60,6 +60,8 @@ public final class RiftGameView extends View {
     private boolean caveMode=false;
     private boolean caveWinRecorded=false;
     private int caveEnding=StoryProgress.ENDING_NONE;
+    private float caveChoiceCutAt=-100f;
+    private float caveEndingCutAt=-100f;
     private boolean storyOpen=false;
     private StoryScript.Line[] storyLines;
     private int storyIndex;
@@ -4458,6 +4460,7 @@ public final class RiftGameView extends View {
     private void completeEclipseCave(){
         if(caveWinRecorded)return;
         caveWinRecorded=true;recordBattleResult(true);
+        caveChoiceCutAt=gameTime;
         scene=Scene.CAVE_CHOICE;paused=false;clearTouchControls();
         announce("THE FIRST WARDEN FALLS • MAKE YOUR CHOICE");
     }
@@ -4473,6 +4476,7 @@ public final class RiftGameView extends View {
     private void chooseCaveEnding(int ending){
         if(!storyProgress.saveEnding(ending))return;
         caveEnding=ending;scene=Scene.CAVE_END;paused=false;
+        caveEndingCutAt=gameTime;
         openStory(StoryScript.eclipseEnding(ending));
     }
     private void drawCaveChoice(Canvas c){
@@ -4493,6 +4497,8 @@ public final class RiftGameView extends View {
         button(c,101,526,1174,600,"LEAVE THE CAVE • RIFT UNRESOLVED",0xff594f75);
         text(c,"Ending choices are saved. Replay the Cave to revisit.",
                 640,641,18,0xff9fafbf,true);
+        // Reveal the final moral choice as the arena darkens and settles.
+        cinematic.drawCutOverlay(c,Math.max(0f,gameTime-caveChoiceCutAt),false,true);
     }
     private void drawCaveEnding(Canvas c){
         rect(c,0,0,W,H,0xd5071220);
@@ -4511,6 +4517,7 @@ public final class RiftGameView extends View {
                 640,430,19,0xffa9c7c2,true);
         button(c,153,522,619,613,"REPLAY ECLIPSE CAVE",0xff77614c);
         button(c,650,522,1125,613,"RETURN TO BASTION",0xff4e6672);
+        cinematic.drawCutOverlay(c,Math.max(0f,gameTime-caveEndingCutAt),false,true);
     }
     private void drawEclipseCaveArena(Canvas c){
         // Cave-specific arena terrain: crystal vault and Rift stalactites.
