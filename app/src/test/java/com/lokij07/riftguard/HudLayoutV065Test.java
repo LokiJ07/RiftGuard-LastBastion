@@ -93,4 +93,57 @@ public final class HudLayoutV065Test {
         assertEquals(153,h.x(HudLayoutV065.MOVE),.1);
         assertFalse((Boolean)field(v,"hudEditing"));
     }
+
+    @Test public void everyMovedButtonRemainsClickableOnlyAtItsNewPosition(){
+        SharedPreferences p=RuntimeEnvironment.getApplication().getSharedPreferences(
+                "hud_all_moved_v065",Context.MODE_PRIVATE);
+        p.edit().clear().commit();
+        HudLayoutV065 h=new HudLayoutV065(p);
+        int[] controls={HudLayoutV065.MOVE,HudLayoutV065.DODGE,
+                HudLayoutV065.BUILD,HudLayoutV065.SKILL,HudLayoutV065.ATTACK};
+        float[][] positions={{310,370},{585,355},{805,355},{1020,340},{1130,490}};
+        for(int i=0;i<controls.length;i++){
+            // Move one control at a time to an independent accessible space.
+            // Other controls must still retain their original hit areas.
+            h.move(controls[i],positions[i][0],positions[i][1]);
+        }
+        for(int i=0;i<controls.length;i++){
+            assertEquals(controls[i],h.hitControl(
+                    h.x(controls[i]),h.y(controls[i])));
+        }
+        h.save();
+        HudLayoutV065 restored=new HudLayoutV065(p);
+        for(int i=0;i<controls.length;i++){
+            assertEquals(h.x(controls[i]),restored.x(controls[i]),.001f);
+            assertEquals(h.y(controls[i]),restored.y(controls[i]),.001f);
+            assertEquals(controls[i],restored.hitControl(
+                    restored.x(controls[i]),restored.y(controls[i])));
+        }
+    }
+    @Test public void overlappingOrWaveButtonPlacementsCannotHideControls(){
+        SharedPreferences p=RuntimeEnvironment.getApplication().getSharedPreferences(
+                "hud_no_overlaps_v065",Context.MODE_PRIVATE);
+        p.edit().clear().commit();
+        HudLayoutV065 h=new HudLayoutV065(p);
+        float originalX=h.x(HudLayoutV065.ATTACK),originalY=h.y(HudLayoutV065.ATTACK);
+        h.move(HudLayoutV065.ATTACK,h.x(HudLayoutV065.SKILL),
+                h.y(HudLayoutV065.SKILL));
+        assertEquals(originalX,h.x(HudLayoutV065.ATTACK),.001f);
+        assertEquals(originalY,h.y(HudLayoutV065.ATTACK),.001f);
+        h.move(HudLayoutV065.MOVE,500,220);
+        assertTrue("Controls must stay clear of Next Wave shortcut",
+                h.y(HudLayoutV065.MOVE)>=290f);
+    }
+    @Test public void editorResetCanBeCancelledWithoutErasingSavedLayout(){
+        SharedPreferences p=RuntimeEnvironment.getApplication().getSharedPreferences(
+                "hud_cancel_reset_v065",Context.MODE_PRIVATE);
+        p.edit().clear().commit();
+        HudLayoutV065 h=new HudLayoutV065(p);
+        h.move(HudLayoutV065.ATTACK,1030,405);
+        h.save();
+        h.previewDefaults();
+        assertEquals(1130,h.x(HudLayoutV065.ATTACK),.01);
+        h.reload();
+        assertEquals(1030,h.x(HudLayoutV065.ATTACK),.01);
+    }
 }
