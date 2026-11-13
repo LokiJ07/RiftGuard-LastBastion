@@ -88,6 +88,7 @@ public final class RiftGameView extends View {
     private final Path reusablePolygonPath=new Path();
     private static final int[] TOWER_ACCENTS={
             0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff};
+    private static final float[] TOWER_FAMILY_DAMAGE={1f,1.50f,.77f,1.13f};
     private final RenderBudgetV065 renderBudget=new RenderBudgetV065();
     private final BattleViewportV066 combatViewport=new BattleViewportV066(950f,525f,1280f,720f,1f);
     private int graphicsMode=GraphicsProfileV065.BALANCED;
@@ -756,9 +757,9 @@ public final class RiftGameView extends View {
             if (towers[i]>0 && towerHp[i]>0 && towerTimers[i]<=0) {
                 Enemy target=closest(towerX[i],towerY[i],280+towers[i]*35);
                 if (target!=null) {
-                    float[] modifiers={1f,1.50f,.77f,1.13f};
+                    // Static family coefficients: no per-shot Java array allocation.
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*modifiers[towerFamily(i)]*
+                            BattleRules.towerDamage(towers[i])*TOWER_FAMILY_DAMAGE[towerFamily(i)]*
                                     kingdom.towerDamageMultiplier()*ascension.towerMultiplier()*
                                     FortressEvolutionArt.damageBonus(arsenalTier()),
                             towerFamily(i)==1?550:750,target,true);
