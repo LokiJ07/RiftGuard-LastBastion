@@ -9,9 +9,17 @@ package com.lokij07.riftguard;
  * The same camera/zoom is used for regular battle and moving outros.
  */
 public final class BattleViewportV066 {
-    private final float left,top,right,bottom;
+    private float left,top,right,bottom;
     public BattleViewportV066(float cameraX,float cameraY,
                               float width,float height,float zoom){
+        reset(cameraX,cameraY,width,height,zoom);
+    }
+    /**
+     * Recalculate the moving camera without allocating another viewport
+     * every displayed frame. Instance belongs to a single game view.
+     */
+    public void reset(float cameraX,float cameraY,
+                      float width,float height,float zoom){
         if(!Float.isFinite(cameraX)||!Float.isFinite(cameraY)||
                 !Float.isFinite(width)||!Float.isFinite(height)||
                 !Float.isFinite(zoom)||width<=0f||height<=0f||zoom<=0f)
