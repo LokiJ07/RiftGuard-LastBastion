@@ -313,8 +313,12 @@ public final class RiftGameView extends View {
         attackPointer=-1;
         axisX=axisY=0;
         firing=false;
+        attackGesture=false;
+        heldAttackSeconds=0f;
+        chargeNext=false;
         bufferedAttackTime=0;
         dodgeTime=0;
+        pendingMeleeTerrain=null;
     }
     public void setActive(boolean value) {
         active=value;
