@@ -151,7 +151,19 @@ public final class FortressShowcaseV051Test {
         assertTrue("Real purchase must show visible reveal",reveal.getFloat(game)>0);
         Bitmap unlocked=frame(game);
         save(unlocked,"105-v051-workshop-upgrade-reveal.png");
-        current.recycle();preview.recycle();unlocked.recycle();
+        // Temporarily remove only the celebration. The fortress rank,
+        // supplies, selected preview and static screen remain identical.
+        reveal.setFloat(game,0f);
+        Bitmap afterReveal=frame(game);
+        for(int[] point:new int[][]{{795,185},{899,245},{1080,515},{1050,655}}){
+            assertEquals("Reveal must NOT cover supplies, cost or action buttons",
+                    afterReveal.getPixel(point[0],point[1]),
+                    unlocked.getPixel(point[0],point[1]));
+        }
+        assertNotEquals("Celebration is still visibly present in the safe header",
+                afterReveal.getPixel(906,77),unlocked.getPixel(906,77));
+        save(afterReveal,"106-v051-workshop-clear-reveal.png");
+        current.recycle();preview.recycle();unlocked.recycle();afterReveal.recycle();
     }
     private static String sceneName(RiftGameView game)throws Exception{
         Field field=game.getClass().getDeclaredField("scene");
