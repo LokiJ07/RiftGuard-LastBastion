@@ -194,6 +194,11 @@ public final class EnemyRig {
      */
     private void drawVariantSilhouette(int kind,float time){
         if(variant<=0)return;
+        // The baseline species remain the dominant silhouette. Gear must
+        // augment the existing anatomy, not become a screen-obscuring crown.
+        cv.save();
+        final float gearScale=kind==5?.78f:.73f;
+        cv.scale(gearScale,gearScale,0f,-48f);
         final int metal=t.armor, edge=t.accent;
         final float sway=(float)Math.sin(time*2.6f)*3f;
         if(kind==6){
@@ -299,6 +304,7 @@ public final class EnemyRig {
             }
         }
         p.setStyle(Paint.Style.FILL);p.setAlpha(255);
+        cv.restore();
     }
 
     /** Distinct boss-stage anatomy, driven exclusively by real combat phase. */
