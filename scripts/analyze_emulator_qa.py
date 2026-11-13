@@ -9,36 +9,8 @@ shots=sorted(folder.glob("*.png"))
 if len(shots)<5 or any(f.stat().st_size<2000 for f in shots):
     raise SystemExit("FAIL: Required real Android emulator screenshot(s) missing")
 gfx=(folder/"gfxinfo-framestats.txt").read_text(errors="replace")
-frames=[]
-inside=False
-indices=None
-for line in gfx.splitlines():
-    stripped=line.strip()
-    if stripped=="---PROFILEDATA---":
-        inside=not inside
-        indices=None
-        continue
-    if not inside or not stripped:
-        continue
-    parts=[part.strip() for part in stripped.split(",")]
-    # Android 10 uses legacy field ordering; Android 16 adds a
-    # FrameTimelineVsyncId and extra CPU/GPU columns. Resolve by the
-    # CSV column *names*, never hardcoded offsets.
-    if "IntendedVsync" in parts and "FrameCompleted" in parts:
-        indices=(parts.index("IntendedVsync"),parts.index("FrameCompleted"))
-        continue
-    if indices is None or not parts[0].isdigit():
-        continue
-    try:
-        i,j=indices
-        if len(parts)<=max(i,j):
-            continue
-        intended=int(parts[i]);completed=int(parts[j])
-        if intended>0 and completed>intended:
-            ms=(completed-intended)/1_000_000
-            if 0<ms<5000: frames.append(ms)
-    except ValueError:
-        continue
+from gfxinfo_parser import frame_times_ms
+frames=frame_times_ms(gfx)
 log=(folder/"logcat.txt").read_text(errors="replace")
 # A fatal in unrelated Android services must not be misreported as our app.
 fatal=bool(re.search(r"FATAL EXCEPTION:[\s\S]{0,800}Process:\s*com\.lokij07\.riftguard",log))
