@@ -2274,7 +2274,22 @@ public final class RiftGameView extends View {
     }
     private void drawEvolutionReveal(Canvas c){
         float t=evolutionRevealTimer/2.35f;
-        float spread=(1f-t)*18f;
+        float spread=(1f-t)*8f;
+        // Keep purchase celebrations clear of SUPPLIES, current/next models,
+        // the upgrade cost and all four bottom buttons in the Workshop.
+        // The top-right header strip is intentionally unoccupied there.
+        if(scene==Scene.FORTRESS){
+            round(c,712-spread,45,1210+spread,136,18,0xf118414b);
+            border(c,713-spread,46,1209+spread,135,18,0xfff5d18d,3);
+            circle(c,738,91,12+(float)Math.sin(gameTime*7)*2,
+                    0xffe3c580);
+            textFit(c,evolutionRevealTitle,972,83,436,23,GOLD,true);
+            textFit(c,evolutionRevealDescription,972,111,436,16,
+                    0xffc2e6df,true);
+            return;
+        }
+        // Other tree screens have different headers, so preserve their
+        // established centered celebration position.
         round(c,329-spread,142,951+spread,232,19,0xf118414b);
         border(c,330-spread,143,950+spread,231,19,0xfff5d18d,3);
         circle(c,369,188,16+(float)Math.sin(gameTime*7)*3,0xffe3c580);
