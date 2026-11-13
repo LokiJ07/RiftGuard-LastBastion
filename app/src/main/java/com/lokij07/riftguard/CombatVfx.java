@@ -23,9 +23,17 @@ public final class CombatVfx {
     private static void circle(Canvas c,float x,float y,float r,int col){
         p.setStyle(Paint.Style.FILL);p.setColor(col);c.drawCircle(x,y,r,p);
     }
-    private static void poly(Canvas c,int col,float...v){
-        polygonPath.reset();polygonPath.moveTo(v[0],v[1]);
-        for(int i=2;i<v.length;i+=2)polygonPath.lineTo(v[i],v[i+1]);
+    private static void poly(Canvas c,int col,
+                             float a,float b,float d,float e,float f,float g){
+        polygonPath.reset();polygonPath.moveTo(a,b);
+        polygonPath.lineTo(d,e);polygonPath.lineTo(f,g);
+        polygonPath.close();p.setStyle(Paint.Style.FILL);p.setColor(col);
+        c.drawPath(polygonPath,p);
+    }
+    private static void poly(Canvas c,int col,float a,float b,float d,float e,
+                             float f,float g,float h,float i){
+        polygonPath.reset();polygonPath.moveTo(a,b);
+        polygonPath.lineTo(d,e);polygonPath.lineTo(f,g);polygonPath.lineTo(h,i);
         polygonPath.close();p.setStyle(Paint.Style.FILL);p.setColor(col);
         c.drawPath(polygonPath,p);
     }
