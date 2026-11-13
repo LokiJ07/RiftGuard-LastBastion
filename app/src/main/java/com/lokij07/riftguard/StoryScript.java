@@ -184,6 +184,17 @@ public final class StoryScript {
             l("WARDEN","Not alone. Not anymore.",WARDEN),
             l("NARRATOR","The Eclipse Seal is restored. Beneath the Citadel, the quiet Eclipse Cave opens.",CAVE)
         };
+        // Shadowfall's ally is the Warden's OWN SHADOW for a single chapter,
+        // not a ninth permanent recruit. Avoid indexing the eight ally arcs.
+        if(world==8)return new Line[]{
+            l("SHADOW REVENANT",BOSS_LAST[world],BOSS),
+            l("NARRATOR","The captain of the First Warden lowers his weapon and falls into the shadow.",BOSS),
+            l("CAEL","How many Wardens came before you? Enough.",CAEL),
+            l("NARRATOR","For one night, the Warden's own shadow fights beside him. It does not follow him home.",ALLY),
+            l("WARDEN","I am scared.",WARDEN),
+            l("NARRATOR","The Bastion's fire burns beside Tessa's untouched cup. Nobody laughs.",EMPTY_CUP),
+            l("NARRATOR",REWARDS[world]+" RECOVERED. Bantay's trail now leads toward the Citadel.",TREASURE)
+        };
         Line boss=l(BOSS_NAMES[world],BOSS_LAST[world],BOSS);
         Line ally=l(ALLY_NAMES[world],ALLY_JOIN[world],ALLY);
         Line reward=l("NARRATOR",REWARDS[world]+" RECOVERED. A defender joins the Last Bastion.",TREASURE);
