@@ -62,6 +62,7 @@ public final class RiftGameView extends View {
     // replacing the v0.51 combat engine or any purchased-upgrade save keys.
     private final WardenRig wardenRig=new WardenRig();
     private final EnemyRig enemyRig=new EnemyRig();
+    private final EnemySpriteFrameCache enemyFrames=new EnemySpriteFrameCache(enemyRig);
     // Independent, reversible switches for per-species visual QA.
     private static final boolean USE_VECTOR_WARDEN=true;
     private static final boolean USE_VECTOR_ENEMIES=true;
@@ -259,7 +260,7 @@ public final class RiftGameView extends View {
         if(active)audio.prepare();
         if (active) postInvalidateOnAnimation();
     }
-    public void releaseAudio(){audio.release();}
+    public void releaseAudio(){audio.release();enemyFrames.clear();}
     public boolean handleBack() {
         if (scene==Scene.PLAY && briefingOpen) {
             briefingOpen=false;
@@ -358,6 +359,7 @@ public final class RiftGameView extends View {
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         // Full Java version of deployed-map-generator.html. No old scenery.
         deployedMap.prepare(s);
+        enemyFrames.clear(); // release previous realm's rasterized animation clips
         walkClock=0;heroMoving=false;
         heroAnimation.reset();
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
@@ -1947,10 +1949,15 @@ public final class RiftGameView extends View {
             float jerk=(float)Math.sin(t*Math.PI*2f)*11f*t;
             c.rotate(jerk,e.x,e.y-48);
         }
-        boolean painted=(USE_VECTOR_ENEMIES&&enemyRig.enemy(c,e.kind,
-                Campaign.world(stage),e.variant,e.x,e.y,e.phase,e.moving,
-                attack,e.hitReaction>0||e.hp<e.maxHp*.20f,e.faceX,
-                e.boss,e.bossPhase))
+        boolean painted=(USE_VECTOR_ENEMIES &&
+                (enemyFrames.draw(c,e.kind,Campaign.world(stage),e.variant,
+                        e.x,e.y,e.phase,e.moving,attack,
+                        e.hitReaction>0||e.hp<e.maxHp*.20f,
+                        e.faceX,e.boss,e.bossPhase)
+                ||enemyRig.enemy(c,e.kind,
+                        Campaign.world(stage),e.variant,e.x,e.y,e.phase,e.moving,
+                        attack,e.hitReaction>0||e.hp<e.maxHp*.20f,e.faceX,
+                        e.boss,e.bossPhase)))
                 ||motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,
                         attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
                 ||characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,
