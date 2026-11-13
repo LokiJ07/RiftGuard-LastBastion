@@ -68,6 +68,21 @@ public final class SiegeBalanceV066Test {
             }
         }
     }
+    @Test public void fewerEnemiesStillGiveComparableHealthAndSupplyDrops(){
+        for(int stage=0;stage<Campaign.STAGES;stage++){
+            for(int mode=0;mode<=3;mode++){
+                for(int wave=1;wave<=DifficultyRules.waves(stage,mode);wave++){
+                    float chance=SiegeBalanceV066.pickupChance(stage,wave,mode);
+                    assertTrue(chance>=.22f&&chance<=.48f);
+                    int before=SiegeBalanceV066.originalFormationSize(stage,wave,mode);
+                    int now=DifficultyRules.enemies(stage,wave,mode);
+                    // Expected item opportunities stay within ~one pickup.
+                    assertTrue("Less healing from lower mob count stage "+stage,
+                            now*chance>=before*.22f-.5f);
+                }
+            }
+        }
+    }
     @Test public void bossesAndSignatureEnemyAbilitiesStayOnTheMap(){
         for(int realm=0;realm<10;realm++){
             int stage=Campaign.stage((realm+1)*10,2);
