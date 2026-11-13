@@ -20,7 +20,7 @@ Simultaneously active ordinary enemies: Easy 13, Normal 16, Hard 19, Expert 22. 
 
 Enemy HP still increases sharply with campaign level via the existing `BattleRules.enemyHealth(stage,type)`. A modest **+2% per additional wave, max +22%** adds late-wave tension. Nightmare difficulty is no longer a flat 3.85× HP multiplier: Easy .68×, Normal 1.0×, Hard 1.75×, Expert 2.55×, plus real boss abilities and phases. Hard/Expert still differ through damage, speed, elite encounters, incoming wave count and spawn gap.
 
-Gold *per kill* increases in inverse proportion to the reduced wave population, preserving approximately the earlier wave-wide upgrade budget. This is battle gold only: permanent victory supplies, story progression, fortress purchasing, tower/weapon art and user saves retain the same semantics. Expert starting gold rises slightly from 70 to 85 to avoid early one-tower softlocks.
+Gold *per kill* increases in inverse proportion to the reduced wave population, preserving approximately the earlier wave-wide upgrade budget. Healing/supply-cache drop chances similarly increase in proportion to fewer opponents so the player is not accidentally starved of recovery opportunities. This is battle gold only: permanent victory supplies, story progression, fortress purchasing, tower/weapon art and user saves retain the same semantics. Expert starting gold rises slightly from 70 to 85 to avoid early one-tower softlocks.
 
 Existing beta checkpoints in old Hard/Expert waves 15–17 are migrated to the highest current final wave, retaining towers, HP and battle gold; fake/corrupted waves beyond the previous legal cap are rejected.
 
