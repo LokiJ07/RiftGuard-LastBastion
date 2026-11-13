@@ -56,11 +56,24 @@ public final class NativeDeployedMapArt {
     private static final Paint P=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG|Paint.DITHER_FLAG);
     private Bitmap cached;
     private int stage=-1, builds=0;
+    private int graphicsQuality=GraphicsProfileV065.HIGH;
+    private final RectF worldRect=new RectF(0,0,W,H);
     private final LinkedHashMap<Integer,Bitmap> thumbnails=new LinkedHashMap<>(12,.75f,true);
     private final RectF thumbnailRect=new RectF();
 
     public int preparedStage(){return stage;}
     public int cacheBuilds(){return builds;}
+    public int cacheWidth(){return cached==null?0:cached.getWidth();}
+    public int cacheHeight(){return cached==null?0:cached.getHeight();}
+    public int graphicsQuality(){return graphicsQuality;}
+    /** Graphics quality only changes the static image, never the world. */
+    public synchronized void setGraphicsQuality(int mode){
+        int chosen=GraphicsProfileV065.safe(mode);
+        if(graphicsQuality==chosen)return;
+        graphicsQuality=chosen;
+        if(cached!=null&&!cached.isRecycled())cached.recycle();
+        cached=null;stage=-1;
+    }
     public int thumbnailCount(){return thumbnails.size();}
     public static int world(int stage){return Campaign.world(stage);}
     public static int groundColor(int stage){return GROUND[world(stage)];}
@@ -157,10 +170,28 @@ public final class NativeDeployedMapArt {
         Campaign.checkStage(selected);
         if(stage==selected&&cached!=null&&!cached.isRecycled())return;
         if(cached!=null&&!cached.isRecycled())cached.recycle();
-        cached=Bitmap.createBitmap(W,H,Bitmap.Config.RGB_565);
-        Canvas c=new Canvas(cached);
-        paintScene(c,selected);
-        stage=selected;builds++;
+        cached=null;stage=-1;
+        // Retry with a smaller static BACKGROUND if bitmap allocation fails.
+        // The Warden, enemies, towers and lane physics remain native size.
+        int preferredW=TerrainQualityV066.width(graphicsQuality);
+        int preferredH=TerrainQualityV066.height(graphicsQuality);
+        int[] widths={preferredW,Math.round(W*.52f),Math.round(W*.35f)};
+        int[] heights={preferredH,Math.round(H*.52f),Math.round(H*.35f)};
+        for(int attempt=0;attempt<widths.length;attempt++){
+            Bitmap image=null;
+            try{
+                image=Bitmap.createBitmap(widths[attempt],heights[attempt],
+                        Bitmap.Config.RGB_565);
+                Canvas art=new Canvas(image);
+                art.scale(widths[attempt]/(float)W,heights[attempt]/(float)H);
+                paintScene(art,selected);
+                cached=image;stage=selected;builds++;
+                return;
+            }catch(OutOfMemoryError oom){
+                if(image!=null&&!image.isRecycled())image.recycle();
+                if(attempt==widths.length-1)throw oom;
+            }
+        }
     }
     public synchronized void release(){
         if(cached!=null&&!cached.isRecycled())cached.recycle();
@@ -425,14 +456,23 @@ public final class NativeDeployedMapArt {
     }
     public synchronized void draw(Canvas c,int chosen,float time,
                                   boolean reducedMotion,boolean lean){
+        draw(c,chosen,time,reducedMotion,graphicsQuality,lean);
+    }
+    /** Distinct High / Balanced / Performance resolution and ambience. */
+    public synchronized void draw(Canvas c,int chosen,float time,
+                                  boolean reducedMotion,int quality,boolean lean){
+        setGraphicsQuality(quality);
         prepare(chosen);
-        fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
+        fill(c,Color.WHITE);
+        c.drawBitmap(cached,null,worldRect,P);
         int col=GLOW[world(chosen)];
-        // Cached stage terrain remains fully detailed. Only animated,
-        // non-interactive particles scale with device frame-time budget.
-        if(!lean)KingdomSetPieces.animate(c,chosen,time,reducedMotion);
+        // Preserve static kingdom details on all quality modes.
+        // Only noninteractive animation/ambience scales back.
+        if(!lean&&graphicsQuality!=GraphicsProfileV065.PERFORMANCE)
+            KingdomSetPieces.animate(c,chosen,time,reducedMotion);
         if(reducedMotion)time=0;
-        for(int i=0;i<(lean?9:23);i++){
+        int motes=TerrainQualityV066.ambientMotes(graphicsQuality,lean);
+        for(int i=0;i<motes;i++){
             float x=((i*137+Campaign.seed(chosen)%97)+time*11)%W;
             float y=270+(i*113)%530+(float)Math.sin(time*.9f+i)*8;
             oval(c,x,y,2,2,alpha(col,65+i%3*28));
@@ -444,7 +484,8 @@ public final class NativeDeployedMapArt {
         prepare(chosen);
         c.save();c.translate(left,top);c.clipRect(0,0,width,height);
         c.scale(width/1150f,height/655f);c.translate(-690,-121);
-        fill(c,Color.WHITE);c.drawBitmap(cached,0,0,P);
+        fill(c,Color.WHITE);
+        c.drawBitmap(cached,null,worldRect,P);
         fort(c,950,510,1,0,1);
         c.restore();
     }
