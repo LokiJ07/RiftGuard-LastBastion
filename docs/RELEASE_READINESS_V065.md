@@ -2,6 +2,17 @@
 
 Status: **development / draft PR #23**. This document is an acceptance checklist, not a declaration of release readiness.
 
+## v0.66.0-alpha1 combat-render / boss telegraph pass
+
+- [x] Render-only `BattleViewportV066` matches the live combat / moving victory camera and zoom; prune off-camera projectile, shaman bolt, death echo, impact and spark drawing. Actual projectile simulation, enemy AI, hitboxes and saved progression remain unchanged.
+- [x] Replace per-frame `Path` creation across actor polygon rendering, projectile lightning/shards and crystal weather with reusable native drawing objects, plus 76 direct polygon array allocations removed from fortress and other screens.
+- [x] Reuse background and hero-contact primitives; omit one redundant full-screen opaque fill; menus/pause run at a 30 FPS cosmetic redraw target while combat/cinematics seek 60 FPS and touch input invalidates immediately.
+- [x] Add ground-bound boss threat indicator tied to the existing 265-unit hero impact radius, 445-unit fortress siege range, actual boss countdown, kingdom color and reduced-motion preference. No gameplay balance changes.
+- [x] Robolectric tests exercise viewport geometry, moving/outro camera visibility, repeated effects, all ten kingdom boss telegraph colors and accurate warning countdown.
+- [ ] Compare **repeatable GPU frame pacing and 30-minute thermals on actual low/mid/high Android phones**; improvements to allocations do not guarantee FPS. The software Canvas/JVM benchmark and virtualized Android emulator are diagnostic only.
+- [ ] Profile heap allocations, graphics overdraw, GPU draw calls and long-session GC under heavy waves.
+- [ ] Confirm boss danger circles don't obstruct important scene art on a real handset.
+
 ## A. Android build / distribution
 - [x] Android 16 API 36 compile/target configuration and supported AGP/Gradle build tooling.
 - [x] Android manifest declares appCategory=game; landscape-only, fullscreen gameplay remains.
