@@ -18,6 +18,7 @@ import android.graphics.Shader;
 public final class StoryCinematicV065 {
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private Bitmap backdrop;
+    private Shader riftVignette,wardenVignette,letterboxGrade;
     private int cachedBiome=-1,cachedVariant=-1;
     private static final int GOLD=0xffe9c68e,INK=0xfff4ece0;
     private static int grade(int world,boolean memory){
@@ -73,13 +74,21 @@ public final class StoryCinematicV065 {
         c.restore();
         rect(c,0,0,1280,720,grade(biome,memory));
         // Aperture/vignette and world-specific glow are intentionally subtle.
-        p.setShader(new RadialGradient(cael?900:460,205,660,
-                new int[]{0x007a5770,0x440d1826,0xd20a101c},null,
-                Shader.TileMode.CLAMP));
+        // Reuse the full-screen cinema shaders instead of allocating two
+        // large gradients for every subtitle frame.
+        if(riftVignette==null){
+            int[] stops={0x007a5770,0x440d1826,0xd20a101c};
+            riftVignette=new RadialGradient(900,205,660,stops,null,
+                    Shader.TileMode.CLAMP);
+            wardenVignette=new RadialGradient(460,205,660,stops,null,
+                    Shader.TileMode.CLAMP);
+            letterboxGrade=new LinearGradient(0,0,0,720,
+                    new int[]{0x95080f1b,0x00182232,0x120a1019,0xf10b1421},
+                    new float[]{0f,.23f,.58f,1f},Shader.TileMode.CLAMP);
+        }
+        p.setShader(cael?riftVignette:wardenVignette);
         c.drawRect(0,0,1280,720,p);p.setShader(null);
-        p.setShader(new LinearGradient(0,0,0,720,
-                new int[]{0x95080f1b,0x00182232,0x120a1019,0xf10b1421},
-                new float[]{0f,.23f,.58f,1f},Shader.TileMode.CLAMP));
+        p.setShader(letterboxGrade);
         c.drawRect(0,0,1280,720,p);p.setShader(null);
         if(cael || biome>=8)drawRift(c,963,160,seconds);
         if(memory) {
