@@ -56,18 +56,18 @@ adb shell screencap -p /sdcard/rg-brief.png
 adb pull /sdcard/rg-brief.png emulator-qa/03-mission-briefing.png
 adb shell input tap 930 624
 sleep 2
-# Android 16 can show the *system-owned* "Viewing full screen" coach
-# again when a new immersive screen appears, even when the earlier secure
-# settings flag was written successfully. Its "Got it" button sits near
-# 928,284 on the CI 1280x720 landscape emulator. Dismiss it BEFORE BACK.
-# A tap outside that OS dialog only advances a story panel, which BACK
-# subsequently skips; no combat state or progression is altered.
+# Android 16 sometimes displays the *system-owned* fullscreen coach;
+# dismiss it first. Then use the real visible SKIP CHAPTER button.
+# A physical BACK key can be intercepted by that system coach and leave
+# the authored story open, producing fake "combat" screenshots.
 adb shell input tap 927 284 || true
 sleep 1
-# The opening story intercepts ALL touch input. Skipping it by Android BACK
-# clears the authored chapter without modifying gameplay difficulty/saves.
-# Previously the "combat" shots were actually STORY 1/7 and STORY 5/7.
-adb shell input keyevent 4
+adb shell input tap 1130 76
+sleep 1
+# A second identical tap is harmless after the chapter closes (its
+# location is outside Pause and all live action controls), but makes
+# the test robust when Android consumed the first tap as system coaching.
+adb shell input tap 1130 76
 sleep 2
 # First wave has an 18-second in-game preparation timer. Launch it using
 # the same visible BEGIN WAVE 1 button a player must press; otherwise the
