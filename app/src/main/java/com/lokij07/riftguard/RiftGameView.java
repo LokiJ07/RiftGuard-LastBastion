@@ -58,9 +58,13 @@ public final class RiftGameView extends View {
     private final PaintedArt painted;
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
-    // v0.60 runtime actor rig; keep MotionArt as a safe non-destructive fallback.
-    private final LivingRigArt livingRig=new LivingRigArt();
-    private static final boolean USE_LIVING_RIG=true;
+    // The user's original skeletal actor implementations, extended without
+    // replacing the v0.51 combat engine or any purchased-upgrade save keys.
+    private final WardenRig wardenRig=new WardenRig();
+    private final EnemyRig enemyRig=new EnemyRig();
+    // Independent, reversible switches for per-species visual QA.
+    private static final boolean USE_VECTOR_WARDEN=true;
+    private static final boolean USE_VECTOR_ENEMIES=true;
     private final BiomeProps biomeProps;
     private final LivingBattlefield livingWorld=new LivingBattlefield();
     private final NativeDeployedMapArt deployedMap=new NativeDeployedMapArt();
@@ -189,6 +193,8 @@ public final class RiftGameView extends View {
         final int kind;
         int variant=0;
         float faceX=-1f;
+        boolean boss=false;
+        int bossPhase=1;
         float life=.64f;
         DeathEcho(float x,float y,int kind,float phase){
             this.x=x;this.y=y;this.kind=kind;this.phase=phase;
@@ -524,6 +530,7 @@ public final class RiftGameView extends View {
                 if(deaths.size()<32){
                     DeathEcho echo=new DeathEcho(e.x,e.y,e.kind,e.phase);
                     echo.variant=e.variant;echo.faceX=e.faceX;
+                    echo.boss=e.boss;echo.bossPhase=e.bossPhase;
                     deaths.add(echo);
                 }
                 if(impacts.size()<64)impacts.add(new Impact(e.x,e.y,
@@ -1248,8 +1255,9 @@ public final class RiftGameView extends View {
             c.save();
             c.rotate(70f*progress,d.x,d.y);
             int layer=c.saveLayerAlpha(d.x-100,d.y-150,d.x+100,d.y+40,alpha);
-            if(!USE_LIVING_RIG || !livingRig.enemy(c,d.kind,Campaign.world(stage),
-                    d.variant,d.x,d.y+progress*22f,d.phase,false,-1,true,d.faceX))
+            if(!USE_VECTOR_ENEMIES || !enemyRig.enemy(c,d.kind,Campaign.world(stage),
+                    d.variant,d.x,d.y+progress*22f,d.phase,false,-1,true,
+                    d.faceX,d.boss,d.bossPhase))
                 motionArt.enemy(c,d.kind,d.x,d.y+progress*22f,d.phase,
                         false,-1,true);
             c.restoreToCount(layer);
@@ -1930,9 +1938,10 @@ public final class RiftGameView extends View {
             float jerk=(float)Math.sin(t*Math.PI*2f)*11f*t;
             c.rotate(jerk,e.x,e.y-48);
         }
-        boolean painted=(USE_LIVING_RIG&&livingRig.enemy(c,e.kind,
+        boolean painted=(USE_VECTOR_ENEMIES&&enemyRig.enemy(c,e.kind,
                 Campaign.world(stage),e.variant,e.x,e.y,e.phase,e.moving,
-                attack,e.hitReaction>0||e.hp<e.maxHp*.20f,e.faceX))
+                attack,e.hitReaction>0||e.hp<e.maxHp*.20f,e.faceX,
+                e.boss,e.bossPhase))
                 ||motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,
                         attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
                 ||characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,
@@ -2073,11 +2082,12 @@ public final class RiftGameView extends View {
             castProgress=1-pulseFlash/.55f;
         float deathProgress=heroAnimation.state()==WardenAnimationMachine.State.DEATH
                 ?heroAnimation.deathProgress():-1f;
-        if(USE_LIVING_RIG&&livingRig.hero(c,heroX,heroY,
+        if(USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
                 heroMoving?walkClock:gameTime,heroDir,heroMoving,
                 attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,
-                equippedWeapon,weaponForm(equippedWeapon),deathProgress))return;
+                equippedWeapon,weaponMastery.count(equippedWeapon),
+                weaponForm(equippedWeapon),armorForm(),deathProgress))return;
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
