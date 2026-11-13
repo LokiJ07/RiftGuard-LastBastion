@@ -59,11 +59,22 @@ public final class SiegeBalanceV066 {
         int bonus=new int[]{-2,0,5,11}[DifficultyRules.safe(mode)];
         return Math.max(3,base+bonus);
     }
-    public static int killGold(int stage,int wave,int mode,int enemyKind){
+    private static float populationRatio(int stage,int wave,int mode){
         int previous=originalFormationSize(stage,wave,mode);
         int current=DifficultyRules.enemies(stage,wave,mode);
-        float ratio=Math.min(2.6f,Math.max(1f,previous/(float)current));
-        return Math.max(1,Math.round(BattleRules.killCoins(enemyKind)*ratio));
+        return Math.min(2.6f,Math.max(1f,previous/(float)current));
+    }
+    public static int killGold(int stage,int wave,int mode,int enemyKind){
+        return Math.max(1,Math.round(BattleRules.killCoins(enemyKind)*
+                populationRatio(stage,wave,mode)));
+    }
+    /**
+     * Fewer stronger foes must still deliver roughly the same number of
+     * heal/supply-cache opportunities. Does not spawn extra world props,
+     * remove scenery or change any item art.
+     */
+    public static float pickupChance(int stage,int wave,int mode){
+        return Math.min(.48f,.22f*populationRatio(stage,wave,mode));
     }
 
     /** A full wave is never replaced by an empty trickle. */
