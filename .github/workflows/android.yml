@@ -58,6 +58,8 @@ jobs:
             -storepass android -alias androiddebugkey >/dev/null
       - name: Verify public downloadable resources
         run: python3 scripts/verify_resource_pack.py
+      - name: Test Android 10/16 graphics telemetry parser
+        run: python3 -m unittest discover -s scripts -p 'test_gfxinfo_parser.py'
       - name: Build and test
         run: gradle --no-daemon --info :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
       - name: Upload JUnit and HTML test reports
