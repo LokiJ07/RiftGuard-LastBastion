@@ -24,7 +24,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Use runner Android SDK and install API 35
+      - name: Use runner Android SDK and install API 36
         shell: bash
         run: |
           set -e
@@ -32,10 +32,10 @@ jobs:
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
           if [ -z "$SDKMANAGER" ]; then echo 'sdkmanager not found'; exit 1; fi
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '8.11.1'
       # Development-only signing. Cache persists the same debug identity across CI builds.
       # Production releases must use a separate protected signing secret.
       - name: Reuse stable debug signing key
@@ -58,8 +58,10 @@ jobs:
             -storepass android -alias androiddebugkey >/dev/null
       - name: Verify public downloadable resources
         run: python3 scripts/verify_resource_pack.py
+      - name: Test Android 10/16 graphics telemetry parser
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Build and test
-        run: gradle --no-daemon --info :app:testDebugUnitTest :app:assembleDebug
+        run: gradle --no-daemon --info :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
       - name: Upload JUnit and HTML test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -79,7 +81,7 @@ jobs:
       - name: Report APK signing certificate
         if: success()
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs \
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs \
             app/build/outputs/apk/debug/app-debug.apk
       - name: Upload debug APK
         if: success()
@@ -87,6 +89,16 @@ jobs:
         with:
           name: RiftGuard-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # Build output is UNSIGNED until production keystore is supplied securely.
+      # Keep it an internal CI diagnostic; do NOT submit this bundle to Play.
+      - name: Upload unsigned release AAB for package validation
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RiftGuard-UNSIGNED-release-bundle
+          path: app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
       - name: Upload software Canvas benchmark measurements

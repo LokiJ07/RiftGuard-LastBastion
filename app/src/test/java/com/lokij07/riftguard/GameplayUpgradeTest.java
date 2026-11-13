@@ -84,6 +84,7 @@ public final class GameplayUpgradeTest {
         assertTrue((Boolean)get(boss,"boss"));
         float expected=BattleRules.enemyHealth(bossStage,5)*
                 DifficultyRules.health(DifficultyRules.EXPERT)*
+                SiegeBalanceV066.waveHealth(finalWave)*
                 DifficultyRules.finalBossMultiplier(bossStage);
         assertEquals(expected,(Float)get(boss,"hp"),.01f);
         assertTrue(get(v,"notice").toString().contains("THORNHIDE CHIEF"));

@@ -27,22 +27,24 @@ jobs:
           else
             echo "::warning::No /dev/kvm; emulator may run slowly. Hardware FPS estimates are not valid."
           fi
-      - name: Android SDK 35 and build tools
+      - name: Android SDK 36 and build tools
         shell: bash
         run: |
           set -e
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '8.11.1'
       - name: Build real debug APK for emulator
         run: gradle --no-daemon :app:assembleDebug
       - name: Boot real Android virtual device and run smoke + gfxinfo QA
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          # Keep Android CI's API 29 smoke run for old-device coverage.
+          # This second runner checks targetSdk 36 runtime / edge-to-edge.
+          api-level: 36
           target: google_apis
           arch: x86_64
           profile: pixel_3a

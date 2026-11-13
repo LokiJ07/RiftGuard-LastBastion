@@ -55,7 +55,29 @@ sleep 2
 adb shell screencap -p /sdcard/rg-brief.png
 adb pull /sdcard/rg-brief.png emulator-qa/03-mission-briefing.png
 adb shell input tap 930 624
-sleep 4
+sleep 2
+# Android 16 can show the *system-owned* "Viewing full screen" coach
+# again when a new immersive screen appears, even when the earlier secure
+# settings flag was written successfully. Its "Got it" button sits near
+# 928,284 on the CI 1280x720 landscape emulator. Dismiss it BEFORE BACK.
+# A tap outside that OS dialog only advances a story panel, which BACK
+# subsequently skips; no combat state or progression is altered.
+adb shell input tap 927 284 || true
+sleep 1
+# The opening story intercepts ALL touch input. Skipping it by Android BACK
+# clears the authored chapter without modifying gameplay difficulty/saves.
+# Previously the "combat" shots were actually STORY 1/7 and STORY 5/7.
+adb shell input keyevent 4
+sleep 2
+# First wave has an 18-second in-game preparation timer. Launch it using
+# the same visible BEGIN WAVE 1 button a player must press; otherwise the
+# old QA proved controls in an *empty* map rather than enemy combat.
+adb shell input tap 640 243
+sleep 2
+# Frame telemetry must measure real active enemy waves, not chapter pages,
+# splash screens, the 18s intermission, or zero-enemy scenery.
+adb shell dumpsys gfxinfo "$PKG" reset >/dev/null || true
+sleep 8
 adb shell screencap -p /sdcard/rg-battle.png
 adb pull /sdcard/rg-battle.png emulator-qa/04-battle.png
 # Exercise all four major combat controls on an actual Android touchscreen emulator:
@@ -63,12 +85,32 @@ adb pull /sdcard/rg-battle.png emulator-qa/04-battle.png
 adb shell input swipe 180 570 280 570 500 || true
 adb shell input tap 729 590
 adb shell input tap 849 590
+adb shell input tap 974 593
 adb shell input tap 1118 590
 sleep 4
 adb shell screencap -p /sdcard/rg-combat.png
 adb pull /sdcard/rg-combat.png emulator-qa/05-touch-combat.png
+# Debug-only app diagnostics prove the screenshot was genuinely PLAY
+# and that the five gameplay controls received taps, not cutscene taps.
+adb shell logcat -d -v brief -s RiftGuardQA:I > emulator-qa/qa-state.txt
 adb shell dumpsys gfxinfo "$PKG" framestats > emulator-qa/gfxinfo-framestats.txt
 adb shell dumpsys meminfo "$PKG" > emulator-qa/memory.txt
 adb shell dumpsys activity processes > emulator-qa/processes.txt
 adb shell logcat -d -v threadtime > emulator-qa/logcat.txt
+# Process-death acceptance: the wave-boundary checkpoint must survive an
+# actual Android force-stop/new Activity, not just a Robolectric new View.
+# Run AFTER battle captures, so the combat screenshots remain unaltered.
+adb shell am force-stop "$PKG"
+# Keep recovery log isolated from the previous Activity instance.
+adb shell logcat -c || true
+adb shell am start -W -n "$PKG/.MainActivity" > emulator-qa/relaunch.txt
+sleep 4
+adb shell screencap -p /sdcard/rg-recovered-home.png
+adb pull /sdcard/rg-recovered-home.png emulator-qa/06-relaunch-with-continue.png
+# The continue affordance has its own hit region at 682..1189 x 309..375.
+adb shell input tap 950 338
+sleep 4
+adb shell screencap -p /sdcard/rg-recovered-wave.png
+adb pull /sdcard/rg-recovered-wave.png emulator-qa/07-restored-wave-paused.png
+adb shell logcat -d -v brief -s RiftGuardQA:I > emulator-qa/qa-recovery-state.txt
 python3 scripts/analyze_emulator_qa.py emulator-qa

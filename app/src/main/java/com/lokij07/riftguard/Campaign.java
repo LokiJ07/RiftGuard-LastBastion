@@ -45,7 +45,7 @@ public final class Campaign {
     }
     public static int enemies(int stage, int wave) {
         if (wave < 1) throw new IllegalArgumentException("Wave must be positive");
-        return Math.min(55, 4 + stage / 14 + 2 * wave + (map(stage) == 2 ? 3 : 0));
+        return SiegeBalanceV066.formationSize(stage,wave);
     }
     /** 0 = first stage, 300 = entire campaign completed. */
     public static int unlockedAfter(int currentUnlocked, int completedStage) {

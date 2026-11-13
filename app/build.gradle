@@ -4,14 +4,14 @@ plugins {
 
 android {
     namespace 'com.lokij07.riftguard'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.lokij07.riftguard'
         minSdk 24
-        targetSdk 35
-        versionCode 51
-        versionName '0.60.0-dev4'
+        targetSdk 36
+        versionCode 63
+        versionName '0.66.0-beta1'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     buildTypes {

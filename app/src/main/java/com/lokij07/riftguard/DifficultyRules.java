@@ -15,14 +15,15 @@ public final class DifficultyRules {
         "Veteran assault  /  elite reinforcement",
         "RIFT NIGHTMARE  /  relentless elites"
     };
-    private static final float[] HEALTH={.58f,1f,2.10f,3.85f};
-    private static final float[] DAMAGE={.46f,1f,1.78f,2.95f};
-    private static final float[] SPEED={.84f,1f,1.20f,1.40f};
-    private static final float[] SPAWN={1.36f,1f,.72f,.46f};
-    private static final int[] WAVE_BONUS={-1,0,2,5};
-    private static final int[] ENEMY_BONUS={-2,0,5,11};
+    // Higher settings are tactical, not simply 4x HP + an extra crowd.
+    private static final float[] HEALTH={.68f,1f,1.75f,2.55f};
+    private static final float[] DAMAGE={.58f,1f,1.50f,2.20f};
+    private static final float[] SPEED={.88f,1f,1.12f,1.24f};
+    private static final float[] SPAWN={1.25f,1f,.88f,.72f};
+    private static final int[] WAVE_BONUS={-1,0,1,2};
+    private static final int[] ENEMY_BONUS={-2,0,3,5};
     private static final float[] REWARD_BONUS={0f,0f,.43f,1.18f};
-    private static final int[] GOLD={250,150,115,70};
+    private static final int[] GOLD={250,150,115,85};
     private static final float[] HERO_HP={1.30f,1f,.91f,.78f};
     private static final float[] HAZARD={.40f,1f,1.7f,2.55f};
 
@@ -41,11 +42,12 @@ public final class DifficultyRules {
         return Math.max(3,Campaign.waves(stage)+bonusWaves(mode));
     }
     public static int enemies(int stage,int wave,int mode){
-        return Math.max(3,Campaign.enemies(stage,wave)+bonusEnemies(mode));
+        return Math.min(34,Math.max(4,Campaign.enemies(stage,wave)+bonusEnemies(mode)));
     }
-    /** Expert spawns in roughly half the normal time, even on early stages. */
+    /** Controlled enemy arrival; harder modes shorten the gaps but still
+     * obey the concurrent enemy limit and never drop queued enemies. */
     public static float spawnInterval(int stage,int mode){
-        return Math.max(.12f,Math.max(.23f,1.1f-stage*.0016f)*SPAWN[safe(mode)]);
+        return Math.max(.42f,Math.max(.75f,1.12f-stage*.0012f)*SPAWN[safe(mode)]);
     }
     public static float betweenWaves(int mode){
         return new float[]{4f,2.5f,1.85f,.9f}[safe(mode)];
@@ -69,7 +71,7 @@ public final class DifficultyRules {
     }
     public static float eliteMultiplier(int stage,int wave,int mode){
         if(eliteFinalWave(stage,wave,mode))return finalBossMultiplier(stage);
-        return mode==EXPERT?4.5f:mode==HARD?3.2f:1f;
+        return mode==EXPERT?3.4f:mode==HARD?2.7f:1f;
     }
     /** Every C map finishes with an elite; every tenth level has a world boss. */
     public static boolean worldBoss(int stage){

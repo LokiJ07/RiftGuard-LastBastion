@@ -52,6 +52,14 @@ sleep 2
 # The dialog's real Android "Got it" button is at (800,304) on 1280x720.
 adb shell input tap 800 304
 sleep 1
+# First-time v0.65 players now receive a real seven-shot prologue followed
+# by a Greenhaven chapter. The emulator must acknowledge each authored beat
+# before validating actual battle controls, not mistake the story for a crash.
+take "05-story-prologue"
+for scene_beat in $(seq 1 12); do
+  adb shell input tap 1100 645
+done
+sleep 1
 take "05-battle-start"
 # Reset Android's hardware frame timeline, then issue actual movement/touch.
 adb shell dumpsys gfxinfo "$APP" reset >/dev/null || true

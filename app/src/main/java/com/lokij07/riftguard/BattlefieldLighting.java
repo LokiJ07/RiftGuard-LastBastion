@@ -87,15 +87,15 @@ public final class BattlefieldLighting {
         P.setShader(null);
         P.setStyle(Paint.Style.FILL);
         P.setColor(0x770c1922);
-        c.drawOval(new RectF(heroX-38,heroY-4,heroX+38,heroY+11),P);
+        c.drawOval(heroX-38,heroY-4,heroX+38,heroY+11,P);
         // TWO foot contacts follow the independently timed planted greaves.
         // One shifts forward as the other settles behind, creating visible
         // weight transfer rather than an identical oval for every frame.
         P.setColor(0x99425857);
-        c.drawOval(new RectF(heroX-35+leftStep*16,heroY-6+leftStep*3,
-                heroX-4+leftStep*16,heroY+10+leftStep*3),P);
-        c.drawOval(new RectF(heroX+4+rightStep*16,heroY-6+rightStep*3,
-                heroX+35+rightStep*16,heroY+10+rightStep*3),P);
+        c.drawOval(heroX-35+leftStep*16,heroY-6+leftStep*3,
+                heroX-4+leftStep*16,heroY+10+leftStep*3,P);
+        c.drawOval(heroX+4+rightStep*16,heroY-6+rightStep*3,
+                heroX+35+rightStep*16,heroY+10+rightStep*3,P);
         // Low-cost foot-contact falloff; no per-frame radial-shader upload.
         int light=AMBIENT[Math.max(0,Math.min(9,biome))];
         P.setShader(null);P.setColor(withAlpha(light,21));
