@@ -3047,7 +3047,10 @@ public final class RiftGameView extends View {
                     680,221,20,INK,true);
         }
         if(waveNotice>0 && !bossActive && bossWarningCountdown<=0){
-            String text=waiting?"WAVE CLEARED!  +25 GOLD":"WAVE "+wave+"  •  DEFEND THE CORE";
+            String text=waiting?
+                    (firstWavePending?"PREPARE THE FORTRESS":
+                            "WAVE CLEARED!  +25 GOLD"):
+                    "WAVE "+wave+"  •  DEFEND THE CORE";
             text(c,text,640,159,34,0xfff2e4bf,true);
         }
         if(noticeTimer>0 && !bossActive && bossWarningCountdown<=0)
