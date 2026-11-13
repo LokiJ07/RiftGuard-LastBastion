@@ -18,6 +18,7 @@ public final class BiomeAtmosphere {
     public static final int FOREST=0, HOLLOW=1, SWAMP=2, ASH=3, SNOW=4,
             IRON=5, CRYSTAL=6, TEMPEST=7, SHADOW=8, ECLIPSE=9;
     private static final Paint P=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private static final Path shardPath=new Path();
     private static final float[] SEED=new float[64],X=new float[64],Y=new float[64];
     private static int preparedStage=Integer.MIN_VALUE;
     /** The seeded particle locations never change during an individual stage. */
@@ -124,14 +125,14 @@ public final class BiomeAtmosphere {
                     c.drawLine(x,y+8,x+5,y-4,P);
                 }
             }else if(id==CRYSTAL){
-                Path shard=new Path();
-                shard.moveTo(x,y-size*2);
-                shard.lineTo(x+size,y);
-                shard.lineTo(x,y+size*2);
-                shard.lineTo(x-size,y);
-                shard.close();
+                shardPath.reset();
+                shardPath.moveTo(x,y-size*2);
+                shardPath.lineTo(x+size,y);
+                shardPath.lineTo(x,y+size*2);
+                shardPath.lineTo(x-size,y);
+                shardPath.close();
                 P.setStyle(Paint.Style.FILL);
-                P.setColor(tint(color,95));c.drawPath(shard,P);
+                P.setColor(tint(color,95));c.drawPath(shardPath,P);
             }else if(id==SWAMP){
                 oval(c,x,y,size*3,size,tint(color,40));
                 if(seed>.75f)oval(c,x,y-5,size*.8f,size*.8f,0x8869e7a3);
