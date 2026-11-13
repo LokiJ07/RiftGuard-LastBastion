@@ -97,7 +97,7 @@ public final class RiftGameView extends View {
     private volatile int resourcePercent=0;
     private volatile String resourceMessage="The bundled base art works without internet.";
     private static final float BATTLE_ZOOM=1.10f;
-    private static final int DECOR=0, KEEP=1, TOWER=2, MONSTER=3, DROP=4, WARDEN=5;
+    private static final int DECOR=0, KEEP=1, TOWER=2, MONSTER=3, DROP=4, WARDEN=5, TERRAIN=6;
     private static final class DepthItem {
         float depth;
         int type,slot;
@@ -138,6 +138,9 @@ public final class RiftGameView extends View {
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
     private final List<Shot> shots=new ArrayList<>();
+    private final List<TerrainBolt> terrainBolts=new ArrayList<>();
+    private DestructibleTerrainV065 terrain;
+    private DestructibleTerrainV065.Prop focusedTerrain,pendingMeleeTerrain;
     private final List<HostileBolt> hostileBolts=new ArrayList<>();
     private final List<Spark> sparks=new ArrayList<>();
     private final List<DeathEcho> deaths=new ArrayList<>();
@@ -213,6 +216,16 @@ public final class RiftGameView extends View {
         Shot(float x,float y,float damage,float speed,Enemy target,boolean tower) {
             this.x=x; this.y=y; this.damage=damage; this.speed=speed; this.target=target;
             this.tower=tower; this.life=2.8f;
+        }
+    }
+    private static final class TerrainBolt {
+        float x,y,damage,speed,life=2.8f;
+        int weapon;
+        final DestructibleTerrainV065.Prop target;
+        TerrainBolt(float x,float y,float damage,float speed,int weapon,
+                    DestructibleTerrainV065.Prop target){
+            this.x=x;this.y=y;this.damage=damage;this.speed=speed;
+            this.weapon=weapon;this.target=target;
         }
     }
     private static final class HostileBolt {
@@ -291,6 +304,7 @@ public final class RiftGameView extends View {
     private void startEclipseCave(){
         if(!storyProgress.caveUnlocked())return;
         start(299);caveMode=true;trial=null;trialPassed=false;trialAwarded=false;
+        terrain=null;focusedTerrain=null;pendingMeleeTerrain=null;terrainBolts.clear();
         remaining=1;wave=1;waiting=false;spawnTimer=1.8f;
         openStory(StoryScript.eclipseCaveOpening(storyProgress.wardenName()));
     }
@@ -415,6 +429,8 @@ public final class RiftGameView extends View {
                 260f+Campaign.world(s)*38f:0f;
         relicHp=relicMaxHp;
         focusedEnemy=null;focusedBossPart=BossAnatomyV065.ARMOR;
+        focusedTerrain=null;pendingMeleeTerrain=null;
+        terrain=new DestructibleTerrainV065(s);terrainBolts.clear();
         combo.reset();activeComboHit=null;chargeNext=false;attackGesture=false;
         heldAttackSeconds=0f;pendingMeleePower=1f;
         revival.reset(difficultyMode);
@@ -556,6 +572,7 @@ public final class RiftGameView extends View {
         // one follow-up attack released after the deliberate charge window.
         if(!revival.isDown()&&(!attackGesture&&(firing||bufferedAttackTime>0)))fire();
         updateSkillObjects(dt);
+        updateTerrainBolts(dt);
         updateAllySupport(dt);
         if (!waiting) {
             spawnTimer-=dt;
@@ -687,6 +704,7 @@ public final class RiftGameView extends View {
                     LaneRules.stageWaypointX(e.x,stage):BASE_X;
             float ty=hunt?heroY:traveling?
                     LaneRules.stageWaypointY(e.x,stage):BASE_Y;
+            if(traveling&&terrain!=null)ty+=terrain.waypointOffset(e.x,e.y);
             float d=distance(e.x,e.y,tx,ty);
             // Final fortress boundary, not each intermediate lane sample,
             // determines how close monsters may stop to attack.
@@ -697,6 +715,7 @@ public final class RiftGameView extends View {
                 float speedFactor=(e.kind==3?1.15f:1f)*
                         DifficultyRules.enemySpeed(difficultyMode)*
                         SquadTacticsV065.speed(e.squadRole,squadPlan,commanderAlive)*
+                        (terrain==null?1f:terrain.rubbleSlow(e.x,e.y))*
                         (e.slowTimer>0?.64f:1f)*
                         EnemySpecials.mobilityMultiplier(e.dashWindup,e.dashTime);
                 float step=Math.min(d-stop,BattleRules.enemySpeed(e.kind)*speedFactor*dt);
@@ -735,6 +754,10 @@ public final class RiftGameView extends View {
                         }
                     }
                     e.bossPhase=newPhase;
+                    if(terrain!=null){
+                        int broken=terrain.splash(e.x,e.y,275,135f);
+                        if(broken>0)announce("BOSS COLLAPSED "+broken+" LANDMARKS!");
+                    }
                     if(caveMode){
                         if(newPhase==2)openStory(StoryScript.eclipsePhaseTwo());
                         if(newPhase==3)openStory(StoryScript.eclipsePhaseThree());
@@ -885,6 +908,8 @@ public final class RiftGameView extends View {
                     }
                 }
                 if(shot.tower && TowerPadLayout.family(shot.towerSlot)==1) {
+                    if(terrain!=null)terrain.splash(shot.target.x,shot.target.y,
+                            126,shot.damage*.7f);
                     // Cannon shells hit clustered enemies around the impact point.
                     for(Enemy nearby:enemies)
                         if(nearby!=shot.target && nearby.hp>0 &&
@@ -1230,6 +1255,125 @@ public final class RiftGameView extends View {
         }
     }
 
+    private void damageTerrainProp(DestructibleTerrainV065.Prop prop,float amount){
+        if(prop==null||prop.broken())return;
+        if(prop.damage(amount)){
+            puff(prop.x,prop.y,27,0xffecc59d);
+            if(impacts.size()<64)impacts.add(new Impact(prop.x,prop.y,0xffe8b488,82));
+            announce(DestructibleTerrainV065.NAMES[prop.type]+" COLLAPSED • ROUTE OPEN");
+            if(focusedTerrain==prop)focusedTerrain=null;
+        }else puff(prop.x,prop.y-12,5,0xffd2b5a1);
+    }
+    private void updateTerrainBolts(float dt){
+        Iterator<TerrainBolt> it=terrainBolts.iterator();
+        while(it.hasNext()){
+            TerrainBolt b=it.next();b.life-=dt;
+            if(b.life<=0||b.target.broken()){it.remove();continue;}
+            float d=distance(b.x,b.y,b.target.x,b.target.y-15);
+            if(d<24){
+                damageTerrainProp(b.target,b.damage);
+                it.remove();
+            }else{
+                float move=Math.min(d,b.speed*dt);
+                b.x+=(b.target.x-b.x)/Math.max(d,1)*move;
+                b.y+=(b.target.y-15-b.y)/Math.max(d,1)*move;
+            }
+        }
+    }
+    private void drawTerrainProp(Canvas c,DestructibleTerrainV065.Prop prop){
+        float x=prop.x,y=prop.y;
+        int type=prop.type;
+        float damage=1f-prop.fraction();
+        oval(c,x-46,y-10,x+46,y+20,0x7709121d);
+        if(prop.broken()){
+            for(int i=0;i<5;i++){
+                int base=type==3?0xff8c7464:type==4?0xffb3d8ee:
+                        type==6?0xffab83d6:0xff8a7361;
+                polygon(c,new float[]{x-40+i*17,y+4,x-34+i*17,y-15-(i%2)*7,
+                        x-23+i*17,y+8},base);
+            }
+            return;
+        }
+        switch(type){
+            case 0: // Wooden barricade
+                for(int i=-2;i<=2;i++){
+                    rect(c,x+i*16-6,y-91,x+i*16+7,y+3,0xff79543a);
+                    line(c,x+i*16-5,y-82,x+i*16+7,y-79,0xffd4a578,2);
+                }
+                line(c,x-47,y-61,x+46,y-52,0xffc89c64,10);
+                line(c,x-47,y-18,x+46,y-8,0xffbf9268,9);
+                break;
+            case 1: // Creeping knot
+                polygon(c,new float[]{x-34,y,x-39,y-84,x-11,y-111,x+18,y-61,
+                        x+47,y-113,x+25,y+1},0xff405c3a);
+                circle(c,x,y-55,25,0xff779563);
+                for(int i=0;i<5;i++)line(c,x+i*11-23,y-22,x+i*17-35,y+25,
+                        0xff738e60,7);
+                break;
+            case 2: // Poison pod
+                oval(c,x-40,y-79,x+39,y-7,0xff527d5a);
+                oval(c,x-22,y-68,x+18,y-28,0xffa0c36b);
+                for(int i=0;i<4;i++)circle(c,x-30+i*16,y-40+(i%2)*13,7,0xffb7c879);
+                break;
+            case 3: // Falling rock
+                polygon(c,new float[]{x-46,y-6,x-43,y-62,x-10,y-94,
+                        x+40,y-69,x+47,y-5},0xff877568);
+                polygon(c,new float[]{x-34,y-61,x-10,y-89,x+24,y-64,x-8,y-50},
+                        0xffb59a81);
+                break;
+            case 4: // Ice pillar
+                polygon(c,new float[]{x-41,y-2,x-27,y-94,x,y-139,x+29,y-89,
+                        x+42,y-1},0xff91cce9);
+                polygon(c,new float[]{x-15,y-13,x-8,y-107,x+8,y-119,x+23,y-11},
+                        0xffd5f4fd);
+                break;
+            case 5: // Iron machine
+                circle(c,x,y-50,43,0xff586577);
+                circleStroke(c,x,y-50,36,0xffa2aab3,8);
+                for(int i=0;i<8;i++){
+                    float a=(float)(i*Math.PI/4);
+                    line(c,x+(float)Math.cos(a)*14,y-50+(float)Math.sin(a)*14,
+                            x+(float)Math.cos(a)*43,y-50+(float)Math.sin(a)*43,
+                            0xffd5b88a,6);
+                }
+                circle(c,x,y-50,13,0xff2e3b4b);
+                break;
+            case 6: // Crystal obelisk
+                polygon(c,new float[]{x-35,y,x-30,y-68,x,y-142,x+32,y-68,x+35,y},
+                        0xff73649b);
+                polygon(c,new float[]{x-13,y-7,x-4,y-104,x+12,y-83,x+15,y-10},
+                        0xffbc9ef1);
+                break;
+            case 7: // Storm conduit
+                rect(c,x-23,y-94,x+24,y+4,0xff65788c);
+                for(int i=0;i<3;i++)circleStroke(c,x,y-85+i*34,27,
+                        0xffafd6f5,5);
+                circle(c,x,y-120,14+(float)Math.sin(gameTime*3)*3,0xffe2f5ff);
+                break;
+            case 8: // Shadow stone
+                polygon(c,new float[]{x-33,y,x-23,y-112,x,y-147,x+29,y-108,x+34,y},
+                        0xff47405d);
+                polygon(c,new float[]{x-11,y-93,x,y-114,x+11,y-93,x,y-72},
+                        0xffaa86b4);
+                break;
+            default: // Rift shard
+                polygon(c,new float[]{x-40,y,x-24,y-105,x+5,y-158,x+36,y-87,
+                        x+44,y},0xff613e79);
+                polygon(c,new float[]{x-14,y-10,x-9,y-100,x+8,y-138,x+15,y-10},
+                        0xffba81e1);
+        }
+        if(damage>.25f){
+            line(c,x-12,y-70,x+9,y-38,0xff272b36,4);
+            line(c,x+9,y-38,x-6,y-12,0xffe3bcaa,2);
+        }
+        if(focusedTerrain==prop){
+            circleStroke(c,x,y-54,64,0xffffd69c,3);
+            bar(c,x-41,y-119,82,7,prop.fraction(),0xffb3d8a2);
+            text(c,"BREAKABLE • "+DestructibleTerrainV065.NAMES[type],
+                    x,y-135,17,GOLD,true);
+        }
+    }
+
     private float bossArmorMultiplier(Enemy e){
         return e.boss&&e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
     }
@@ -1299,10 +1443,17 @@ public final class RiftGameView extends View {
         if (shotTimer>0 || scene!=Scene.PLAY || revival.isDown()) return;
         if(heroAnimation.locked())return;
         Progression.Weapon weapon=Progression.WEAPONS[equippedWeapon];
-        Enemy target=closest(heroX,heroY,
-                weapon.range+weaponMastery.bonusRange(equippedWeapon));
-        if(target==null) {shotTimer=Math.min(.2f,weapon.cooldown);return;}
-        heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
+        float range=weapon.range+weaponMastery.bonusRange(equippedWeapon);
+        DestructibleTerrainV065.Prop prop=focusedTerrain!=null&&
+                !focusedTerrain.broken()&&
+                distance(heroX,heroY,focusedTerrain.x,focusedTerrain.y)<=range?
+                focusedTerrain:null;
+        Enemy target=prop!=null?null:closest(heroX,heroY,range);
+        if(target==null&&prop==null){
+            shotTimer=Math.min(.2f,weapon.cooldown);return;
+        }
+        float aimX=prop!=null?prop.x:target.x,aimY=prop!=null?prop.y:target.y;
+        heroDir=(float)Math.atan2(aimY-heroY,aimX-heroX);
         if(!heroAnimation.attack(equippedWeapon))return;
         activeComboHit=combo.attack(equippedWeapon,gameTime,chargeNext);
         float comboPower=activeComboHit.multiplier*
@@ -1326,7 +1477,13 @@ public final class RiftGameView extends View {
             pendingMeleeWeapon=equippedWeapon;
             pendingMeleeFacing=heroDir;
             pendingMeleePower=comboPower;
-        } else {
+            pendingMeleeTerrain=prop;
+        } else if(prop!=null){
+            terrainBolts.add(new TerrainBolt(muzzleX,muzzleY,
+                    weapon.damage*comboPower*ascension.attackMultiplier()*
+                    weaponMastery.damageMultiplier(equippedWeapon),
+                    equippedWeapon==4?900:730,equippedWeapon,prop));
+        }else{
             Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*comboPower*
                     ascension.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,target,false);
@@ -1346,6 +1503,16 @@ public final class RiftGameView extends View {
         if(pendingMeleeWeapon<0||pendingMeleeWeapon>=Progression.WEAPONS.length)
             return;
         Progression.Weapon weapon=Progression.WEAPONS[pendingMeleeWeapon];
+        if(pendingMeleeTerrain!=null){
+            DestructibleTerrainV065.Prop prop=pendingMeleeTerrain;
+            if(!prop.broken()&&distance(heroX,heroY,prop.x,prop.y)<
+                    weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon))
+                damageTerrainProp(prop,weapon.damage*pendingMeleePower*
+                        ascension.attackMultiplier()*
+                        weaponMastery.damageMultiplier(pendingMeleeWeapon));
+            pendingMeleeTerrain=null;pendingMeleeWeapon=-1;pendingMeleePower=1f;
+            return;
+        }
         for(Enemy e:enemies) {
             if(e.hp<=0)continue;
             if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,
@@ -1659,6 +1826,10 @@ public final class RiftGameView extends View {
             if(Math.abs(drop.x-camX)<=actorHalfW && Math.abs(drop.y-camY)<=actorHalfH)
                 layer(DROP,drop.y+12,drop,0);
         layer(WARDEN,heroY+9,null,0);
+        if(terrain!=null)for(int i=0;i<terrain.count();i++){
+            DestructibleTerrainV065.Prop prop=terrain.at(i);
+            layer(TERRAIN,prop.y+5,prop,i);
+        }
         drawQueue.sort((a,b)->Float.compare(a.depth,b.depth));
         for(DepthItem entry:drawQueue) {
             if(entry.type==DECOR)drawDecor(c,(Decor)entry.entity,biome);
@@ -1679,6 +1850,8 @@ public final class RiftGameView extends View {
                 c.restore();
             }
             else if(entry.type==MONSTER)drawEnemy(c,(Enemy)entry.entity);
+            else if(entry.type==TERRAIN)
+                drawTerrainProp(c,(DestructibleTerrainV065.Prop)entry.entity);
             else if(entry.type==DROP)drawPickup(c,(Pickup)entry.entity);
             else if(entry.type==WARDEN){
                 BattlefieldLighting.drawHeroContact(c,heroX,heroY,heroMoving,
@@ -1691,6 +1864,9 @@ public final class RiftGameView extends View {
             CombatVfx.projectile(c,s.x,s.y,s.target.x,s.target.y-10,
                     s.weaponId,s.tower?s.towerSlot:-1,gameTime);
         }
+        for(TerrainBolt b:terrainBolts)
+            CombatVfx.projectile(c,b.x,b.y,b.target.x,b.target.y-15,
+                    b.weapon,-1,gameTime);
         // Enemy shaman bolts are animated physical objects with fixed targets.
         for(HostileBolt b:hostileBolts){
             float a=(float)Math.atan2(b.ty-b.y,b.tx-b.x);
@@ -4341,8 +4517,19 @@ public final class RiftGameView extends View {
                 focusedBossPart=part>=0?part:BossAnatomyV065.CORE;
                 announce("FOCUS FIRE • "+e.anatomy.name(focusedBossPart));
             }else announce("FOCUS FIRE • MARKED ENEMY");
-            focusedEnemy=e;selectedTowerPad=-1;
+            focusedEnemy=e;focusedTerrain=null;selectedTowerPad=-1;
             return;
+        }
+        if(terrain!=null)for(int i=0;i<terrain.count();i++){
+            DestructibleTerrainV065.Prop prop=terrain.at(i);
+            if(!prop.broken()&&distance(worldX,worldY,prop.x,prop.y-25)<76){
+                focusedTerrain=prop;focusedEnemy=null;selectedTowerPad=-1;
+                announce("TARGET LANDMARK • "+DestructibleTerrainV065.NAMES[prop.type]);
+                return;
+            }
+        }
+        if(focusedTerrain!=null){
+            focusedTerrain=null;announce("LANDMARK TARGET CLEARED");return;
         }
         if(focusedEnemy!=null){focusedEnemy=null;announce("FOCUS FIRE CLEARED");}
     }
