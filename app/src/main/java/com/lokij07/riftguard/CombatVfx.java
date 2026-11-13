@@ -12,6 +12,10 @@ import android.graphics.RectF;
 public final class CombatVfx {
     private CombatVfx(){}
     private static final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+    // Android Canvas paints already live on the UI thread. Avoid building
+    // new native Path objects for each visible projectile and every hit shard.
+    private static final Path polygonPath=new Path();
+    private static final Path lightningPath=new Path();
     private static void line(Canvas c,float a,float b,float d,float e,int col,float size){
         p.setStyle(Paint.Style.STROKE);p.setColor(col);p.setStrokeWidth(size);
         p.setStrokeCap(Paint.Cap.ROUND);c.drawLine(a,b,d,e,p);p.setStyle(Paint.Style.FILL);
@@ -20,9 +24,10 @@ public final class CombatVfx {
         p.setStyle(Paint.Style.FILL);p.setColor(col);c.drawCircle(x,y,r,p);
     }
     private static void poly(Canvas c,int col,float...v){
-        Path path=new Path();path.moveTo(v[0],v[1]);
-        for(int i=2;i<v.length;i+=2)path.lineTo(v[i],v[i+1]);
-        path.close();p.setStyle(Paint.Style.FILL);p.setColor(col);c.drawPath(path,p);
+        polygonPath.reset();polygonPath.moveTo(v[0],v[1]);
+        for(int i=2;i<v.length;i+=2)polygonPath.lineTo(v[i],v[i+1]);
+        polygonPath.close();p.setStyle(Paint.Style.FILL);p.setColor(col);
+        c.drawPath(polygonPath,p);
     }
     public static void projectile(Canvas c,float x,float y,float tx,float ty,
                                   int weaponId,int turretSlot,float seconds){
@@ -65,14 +70,15 @@ public final class CombatVfx {
             }
         }else if(slot==3 || (!turret&&w==3)){ // Stepped lightning.
             float jitter=(float)Math.sin(seconds*45)*6;
-            Path bolt=new Path();bolt.moveTo(-39,-3);
-            bolt.lineTo(-24,7+jitter);bolt.lineTo(-12,-8);
-            bolt.lineTo(0,8-jitter);bolt.lineTo(17,-5);bolt.lineTo(33,0);
+            lightningPath.reset();lightningPath.moveTo(-39,-3);
+            lightningPath.lineTo(-24,7+jitter);lightningPath.lineTo(-12,-8);
+            lightningPath.lineTo(0,8-jitter);lightningPath.lineTo(17,-5);
+            lightningPath.lineTo(33,0);
             p.setColor(0x88a792ff);p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(13);p.setStrokeJoin(Paint.Join.ROUND);
-            c.drawPath(bolt,p);
+            c.drawPath(lightningPath,p);
             p.setColor(0xffedfaff);p.setStrokeWidth(4);
-            c.drawPath(bolt,p);p.setStyle(Paint.Style.FILL);
+            c.drawPath(lightningPath,p);p.setStyle(Paint.Style.FILL);
             circle(c,33,0,8,0x7795dffe);
             circle(c,33,0,4,0xffffffff);
             if(slot==3) {
