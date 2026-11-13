@@ -933,7 +933,8 @@ public final class RiftGameView extends View {
                 }
                 e.specialTimer-=dt;
                 if(e.specialCharge<=0&&e.specialTimer<=0&&
-                        distance(e.x,e.y,BASE_X,BASE_Y)<440f){
+                        distance(e.x,e.y,BASE_X,BASE_Y)<
+                                BossThreatV066.CORE_ATTACK_RANGE){
                     e.specialCharge=BossTactics.chargeTime(stage,e.bossPhase);
                     e.specialTimer=BossTactics.interval(stage,e.bossPhase);
                     audio.play(GameAudio.BOSS_WARN);
@@ -944,24 +945,36 @@ public final class RiftGameView extends View {
                                 BossTactics.damageMultiplier(e.bossPhase)*
                                 e.anatomy.siegeMultiplier();
                         int tactic=BossTactics.tactic(stage);
-                        if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
+                        if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
                             baseHp-=(tactic==1?20f:28f)*strength;
                             puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
                             // Telegraphed boss siege impacts can destroy artillery.
                             int t=nearestBuiltTower(BASE_X,BASE_Y,365f);
                             if(t>=0)damageTower(t,55f*strength);
                         }
-                        if(distance(e.x,e.y,heroX,heroY)<265&&
-                                !revival.isDown()&&hurtCooldown<=0&&
-                                !DodgeRules.invulnerable(dodgeTime)){
-                            heroHp-=(tactic==0?24f:18f)*strength;
+                        if(BossAssaultV067.heroInRange(stage,e.bossPhase,
+                                e.x,e.y,heroX,heroY)&&!revival.isDown()&&
+                                hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
+                            float bossDamage=(tactic==0?24f:18f)*strength;
+                            heroHp-=bossDamage;
+                            // Boss strikes now produce the same authoritative
+                            // hurt-state/invulnerability window as normal hits.
+                            // Without this, a single siege frame could stack
+                            // another mob hit before the Warden reacts.
+                            hurtCooldown=.8f;
+                            heroAnimation.hurt();
+                            pendingMelee=false;pendingMeleeWeapon=-1;
+                            combatFeel.onDamage(heroX,heroY-18,
+                                    tactic==2?0xffa1eeae:0xffe5a0fa,true,bossDamage);
                             puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
+                            audio.play(GameAudio.HURT);
                             if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
                         }
                         if(tactic==1){
-                            // Sustain bosses can recover health but not exceed
-                            // their original maximum; interrupt by killing fast.
-                            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.05f);
+                            // Sustain has its own real phase scaling, not
+                            // the seismic damage pattern with a new color.
+                            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*
+                                    BossAssaultV067.healFraction(stage,e.bossPhase));
                             puff(e.x,e.y,14,0xff9fd7c8);
                         }
                         if(baseHp<=0){baseHp=0;markDefeat();return;}
@@ -2129,7 +2142,8 @@ public final class RiftGameView extends View {
                         threat.specialCharge,
                         BossTactics.chargeTime(stage,threat.bossPhase),
                         BossTactics.tactic(stage),threat.bossPhase,
-                        combatFeel.reducedMotion());
+                        combatFeel.reducedMotion(),
+                        BossAssaultV067.heroRadius(stage,threat.bossPhase));
         }
         drawPlacedSkills(c);
         if(trial!=null&&trial.type==MemoryTrial.RELIC)drawMemoryRelic(c);
