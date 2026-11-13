@@ -1934,9 +1934,6 @@ public final class RiftGameView extends View {
     }
     private void complete() {
         if(scene==Scene.OUTRO||scene==Scene.WIN)return;
-        // Delete the unfinished checkpoint BEFORE permanent rewards/unlocks.
-        // A process killed between writes must never replay the clear for cash.
-        clearSavedWave();
         recordBattleResult(true);
         outro=new BattleOutroV065(stage,true,heroX,heroY);
         scene=Scene.OUTRO;paused=false;
@@ -1950,7 +1947,11 @@ public final class RiftGameView extends View {
         supplies+=reward+DifficultyRules.supplyBonus(difficultyMode,reward)
                 +objectiveBonus;
         unlocked=Campaign.unlockedAfter(unlocked,stage);
-        prefs.edit().putInt("unlocked",unlocked).putInt("supplies",supplies).apply();
+        // Money, progression and recovery invalidation must land together
+        // in the same durable commit; never grant supplies then leave a
+        // replayable unfinished-wave checkpoint behind.
+        durableBattle.commitVictory(unlocked,supplies);
+        savedWave=null;
         trialPassed=MemoryTrial.evaluate(trial,missionBuilds,kills,
                 baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
                 defeatedElite,relicMaxHp>0?relicHp/relicMaxHp:0f,
