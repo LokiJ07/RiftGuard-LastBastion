@@ -4711,7 +4711,7 @@ public final class RiftGameView extends View {
             else if(revival.isDown()){clearTouchControls();}
             else if(waiting && x>452 && x<828 && y>216 && y<270)
                 advanceWave(true);
-            else if(hudLayout.hit(HudLayoutV065.MOVE,x,y,56)) {joyPointer=id;updateStick(x,y);}
+            else if(hudLayout.hit(HudLayoutV065.MOVE,x,y,12)) {joyPointer=id;updateStick(x,y);}
             else if(hudLayout.hit(HudLayoutV065.ATTACK,x,y,12)) {
                 attackPointer=id;attackGesture=true;heldAttackSeconds=0f;
                 firing=true;bufferedAttackTime=0f;chargeNext=false;fire();
