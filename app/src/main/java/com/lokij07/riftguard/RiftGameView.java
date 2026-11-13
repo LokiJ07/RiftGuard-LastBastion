@@ -61,6 +61,7 @@ public final class RiftGameView extends View {
     // The user's original skeletal actor implementations, extended without
     // replacing the v0.51 combat engine or any purchased-upgrade save keys.
     private final WardenRig wardenRig=new WardenRig();
+    private boolean firstBattleActorDiag=false;
     private final EnemyRig enemyRig=new EnemyRig();
     private final EnemySpriteFrameCache enemyFrames=new EnemySpriteFrameCache(enemyRig);
     // Independent, reversible switches for per-species visual QA.
@@ -2098,12 +2099,23 @@ public final class RiftGameView extends View {
             castProgress=1-pulseFlash/.55f;
         float deathProgress=heroAnimation.state()==WardenAnimationMachine.State.DEATH
                 ?heroAnimation.deathProgress():-1f;
-        if(USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
+        final boolean rigRendered=USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
                 heroMoving?walkClock:gameTime,heroDir,heroMoving,
                 attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,
                 equippedWeapon,weaponMastery.count(equippedWeapon),
-                weaponForm(equippedWeapon),armorForm(),deathProgress))return;
+                weaponForm(equippedWeapon),armorForm(),deathProgress);
+        if(!firstBattleActorDiag && scene==Scene.PLAY) {
+            firstBattleActorDiag=true;
+            android.util.Log.i("RiftGuardVisual",
+                    "hero-rig="+rigRendered+" weapon="+equippedWeapon+
+                    " form="+weaponForm(equippedWeapon)+
+                    " armor="+armorForm()+" facing="+heroDir+
+                    " clock="+(heroMoving?walkClock:gameTime)+
+                    " style="+WardenVisualStyles.name(
+                            WardenVisualStyles.forWeapon(equippedWeapon)));
+        }
+        if(rigRendered)return;
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
