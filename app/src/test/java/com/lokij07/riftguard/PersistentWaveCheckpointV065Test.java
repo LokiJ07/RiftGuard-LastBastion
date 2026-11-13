@@ -70,6 +70,13 @@ public final class PersistentWaveCheckpointV065Test {
         assertEquals(2,recovered.snapshot.towerTier[1]);
         assertEquals(240f,recovered.snapshot.towerHealth[1],.01f);
         assertEquals(79f,recovered.snapshot.heroHp,.01f);
+        // Permanent reward fields and the resume record are committed
+        // together, never as two independently crashable operations.
+        assertTrue(store.commitVictory(39,460));
+        assertEquals(39,p.getInt("unlocked",-1));
+        assertEquals(460,p.getInt("supplies",-1));
+        assertNull(store.load(39));
+        assertFalse(p.contains("battle.v065.recovery"));
         assertFalse(recovered.firstWavePending);
         assertEquals(DifficultyRules.NORMAL,recovered.difficulty);
     }
