@@ -50,8 +50,8 @@ public final class TowerUpgradeSelectionV065Test {
         float y=360+(ys[0]-LaneRules.VIEW_CENTER_Y)*1.1f;
         tap(v,x,y);
         assertEquals(0,get(v,"selectedTowerPad"));
-        assertEquals(0,get(v,"buildTargetPad"));
-        assertEquals(3,get(v,"nextTowerTier"));
+        assertEquals(0,run(v,"buildTargetPad",new Class<?>[0]));
+        assertEquals(3,run(v,"nextTowerTier",new Class<?>[0]));
         int before=(Integer)get(v,"gold");
         tap(v,849,589);
         assertEquals(4,towers[0]);
@@ -79,7 +79,7 @@ public final class TowerUpgradeSelectionV065Test {
         towers[1]=BattleRules.MAX_TOWER_TIER;
         hp[1]=TowerDurability.maxHp(towers[1],(Integer)get(v,"fortressRank"));
         set(v,"selectedTowerPad",1);set(v,"gold",500);
-        assertEquals(BattleRules.MAX_TOWER_TIER,get(v,"nextTowerTier"));
+        assertEquals(BattleRules.MAX_TOWER_TIER,run(v,"nextTowerTier",new Class<?>[0]));
         run(v,"build",new Class<?>[0]);
         assertEquals(BattleRules.MAX_TOWER_TIER,towers[1]);
         assertEquals(500,get(v,"gold"));
