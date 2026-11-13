@@ -444,7 +444,8 @@ public final class RiftGameView extends View {
                 heroAnimation.advance(animationDelta,false);
             }
         }
-        canvas.drawColor(0xff101e22);
+        // The following opaque background gradient completely covers the
+        // screen. A preceding drawColor() did one redundant full-screen pass.
         // Portrait/notch/ultrawide letterbox gutters now extend the scene palette
         // instead of leaving distracting black pillars. The 16:9 touch layout is
         // preserved without stretching/cropping gameplay or critical controls.
@@ -456,6 +457,7 @@ public final class RiftGameView extends View {
             gutterShader=new LinearGradient(0,0,gutterShaderW,gutterShaderH,
                     0xff284c52,0xff10252f,Shader.TileMode.CLAMP);
         }
+        p.setStyle(Paint.Style.FILL);p.setAlpha(255);
         p.setShader(gutterShader);
         canvas.drawRect(0,0,getWidth(),getHeight(),p);
         p.setShader(null);
