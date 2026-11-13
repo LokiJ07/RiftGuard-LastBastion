@@ -63,6 +63,8 @@ public final class RiftGameView extends View {
     private boolean storyOpen=false;
     private StoryScript.Line[] storyLines;
     private int storyIndex;
+    // Chronicle flashbacks belong to their OWN world, not the last battle.
+    private int chronicleMemoryStage=-1;
     private final List<StoryScript.Line[]> pendingStory=new ArrayList<>();
     private boolean bossIntroSeen=false;
     private boolean bossSpawnWarned=false;
@@ -4284,7 +4286,8 @@ public final class RiftGameView extends View {
     }
     private void nextStoryBlock(){
         if(pendingStory.isEmpty()){
-            storyOpen=false;storyLines=null;storyIndex=0;return;
+            storyOpen=false;storyLines=null;storyIndex=0;
+            chronicleMemoryStage=-1;return;
         }
         storyLines=pendingStory.remove(0);
         storyIndex=0;storyOpen=true;cinematicBeatStart=gameTime;clearTouchControls();
@@ -4296,6 +4299,7 @@ public final class RiftGameView extends View {
     }
     private void dismissStory(){
         pendingStory.clear();storyOpen=false;storyLines=null;storyIndex=0;
+        chronicleMemoryStage=-1;
         clearTouchControls();
     }
     /** Story is staged as a full-bleed moving world shot, not an opaque modal.
@@ -4315,7 +4319,9 @@ public final class RiftGameView extends View {
         boolean dramatic=cael||boss||ln.shot==StoryScript.CAVE||
                 ln.shot==StoryScript.EMPTY_CUP;
         float seconds=Math.max(0,gameTime-cinematicBeatStart);
-        int world=Campaign.world(Math.max(0,Math.min(stage,299)));
+        int memoryStage=scene==Scene.CHRONICLE&&chronicleMemoryStage>=0?
+                chronicleMemoryStage:stage;
+        int world=Campaign.world(Math.max(0,Math.min(memoryStage,299)));
         cinematic.drawStage(c,world,memory,cael||ln.shot==StoryScript.CAVE,
                 storyIndex,seconds);
         float leftEntrance=CinematicDirectionV065.actorEntrance(seconds,false,dramatic);
@@ -4349,7 +4355,7 @@ public final class RiftGameView extends View {
             enemyRig.enemy(c,5,world,2,0,0,gameTime,true,-1,false,-1,true,2);
             c.restore();
         }else if(memory) {
-            int treasure=(Campaign.level(stage)-1)%3;
+            int treasure=(Campaign.level(memoryStage)-1)%3;
             cinematic.drawTreasure(c,925,354,seconds,treasure);
         }else if(ln.shot==StoryScript.EMPTY_CUP){
             cinematic.drawTreasure(c,940,374,seconds,0);
@@ -4427,8 +4433,10 @@ public final class RiftGameView extends View {
             if(row<0||row>=5)return;
             int level=chronicleWorld*10+row*2+col+1;
             int stageId=Campaign.stage(level,2);
-            if(storyProgress.hasMemory(stageId))
+            if(storyProgress.hasMemory(stageId)){
+                chronicleMemoryStage=stageId;
                 openStory(StoryScript.memory(KeyMemories.forStage(stageId)));
+            }
         }
     }
     private void editWardenName(){
