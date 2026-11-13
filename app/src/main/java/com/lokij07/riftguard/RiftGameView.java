@@ -92,6 +92,10 @@ public final class RiftGameView extends View {
     private int graphicsMode=GraphicsProfileV065.BALANCED;
     private float lastCombatFps=0f;
     private final BattlePerfStatsV066 battlePerf=new BattlePerfStatsV066();
+    // Debug-only Android emulator diagnostics. No production analytics,
+    // developer controls or hidden test bypasses are included.
+    private final boolean qaDebugEnabled;
+    private long lastQaStateLogNs=0L;
     private BattlePerfStatsV066.Snapshot pausedPerfSnapshot;
     private Shader gutterShader;
     private final Shader hudGradient=new LinearGradient(0,510,0,H,
@@ -304,6 +308,8 @@ public final class RiftGameView extends View {
 
     public RiftGameView(Context context) {
         super(context);
+        qaDebugEnabled=(context.getApplicationInfo().flags&
+                android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0;
         setLayerType(View.LAYER_TYPE_HARDWARE,null);
         painted=new PaintedArt(context);
         characterArt=new CharacterArt(context.getResources());
@@ -497,6 +503,13 @@ public final class RiftGameView extends View {
             drawEvolutionReveal(canvas);
         }
         canvas.restore();
+        if(qaDebugEnabled&&(now-lastQaStateLogNs>1500000000L)){
+            lastQaStateLogNs=now;
+            android.util.Log.i("RiftGuardQA","scene="+scene+
+                    " story="+storyOpen+" paused="+paused+
+                    " briefing="+briefingOpen+" stage="+stage+
+                    " wave="+wave+" enemies="+enemies.size());
+        }
         float cpuDrawMs=(System.nanoTime()-now)/1000000f;
         renderBudget.sample(cpuDrawMs,frameGapMs);
         // Actual frame cadence, not an invented FPS estimate from the CPU-only
@@ -4839,6 +4852,11 @@ public final class RiftGameView extends View {
         text(c,label,(l+r)/2,(t+b)/2+size*.34f,size,0xfff8f5e9,true);
     }
 
+    private void qaControlAccepted(String control){
+        if(qaDebugEnabled)
+            android.util.Log.i("RiftGuardQA","control="+control+
+                    " scene="+scene+" story="+storyOpen);
+    }
     @Override public boolean onTouchEvent(MotionEvent ev) {
         int action=ev.getActionMasked(),index=ev.getActionIndex(),id=ev.getPointerId(index);
         float scale=Math.min(getWidth()/W,getHeight()/H);
@@ -4970,13 +4988,18 @@ public final class RiftGameView extends View {
                 int control=hudLayout.hitControl(x,y);
                 switch(control){
                     case HudLayoutV065.MOVE:
-                        joyPointer=id;updateStick(x,y);break;
+                        joyPointer=id;updateStick(x,y);
+                        qaControlAccepted("MOVE");break;
                     case HudLayoutV065.ATTACK:
                         attackPointer=id;attackGesture=true;heldAttackSeconds=0f;
-                        firing=true;bufferedAttackTime=0f;chargeNext=false;fire();break;
-                    case HudLayoutV065.SKILL:pulse();break;
-                    case HudLayoutV065.BUILD:build();break;
-                    case HudLayoutV065.DODGE:triggerDodge();break;
+                        firing=true;bufferedAttackTime=0f;chargeNext=false;fire();
+                        qaControlAccepted("ATTACK");break;
+                    case HudLayoutV065.SKILL:
+                        pulse();qaControlAccepted("SKILL");break;
+                    case HudLayoutV065.BUILD:
+                        build();qaControlAccepted("BUILD");break;
+                    case HudLayoutV065.DODGE:
+                        triggerDodge();qaControlAccepted("DODGE");break;
                     default:selectTowerPadAt(x,y);
                 }
             }
