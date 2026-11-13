@@ -4522,7 +4522,7 @@ public final class RiftGameView extends View {
                     hudLayout.save();hudEditing=false;hudDragPointer=-1;hudDragControl=-1;
                     announce("CUSTOM HUD POSITIONS SAVED");
                 }else if(x>=861&&x<=1034){
-                    hudLayout.reset();hudDragPointer=-1;hudDragControl=-1;
+                    hudLayout.previewDefaults();hudDragPointer=-1;hudDragControl=-1;
                 }else if(x>=1043&&x<=1218){
                     hudLayout.reload();hudEditing=false;hudDragPointer=-1;hudDragControl=-1;
                 }
