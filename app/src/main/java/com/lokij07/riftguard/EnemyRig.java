@@ -201,7 +201,7 @@ public final class EnemyRig {
             path.reset();path.moveTo(-35,-37);path.lineTo(-22,-51);
             path.lineTo(7,-56);path.lineTo(27,-37);path.lineTo(23,-22);
             path.lineTo(-31,-21);path.close();
-            fill(path,variant==1?0xff654e3d:metal,true);
+            done(variant==1?0xff654e3d:metal,true);
             p.setColor(tint(edge));p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(2.2f);cv.drawLine(-27,-32,21,-32,p);
             if(variant>=2){
@@ -209,14 +209,14 @@ public final class EnemyRig {
                     float xx=-24+i*19;
                     path.reset();path.moveTo(xx,-41);path.lineTo(xx+7,-62);
                     path.lineTo(xx+13,-40);path.close();
-                    fill(path,t.bone,true);
+                    done(t.bone,true);
                 }
             }
             if(variant>=3){
                 capsule(-38,-43,-47,-61,5f,0xff584139);
                 path.reset();path.moveTo(-49,-66);
                 path.lineTo(-67+sway,-60);path.lineTo(-50+sway,-42);
-                path.close();fill(path,t.accent,true);
+                path.close();done(t.accent,true);
             }
         }else if(kind==3){
             // Flying elites have physically larger armored wing edges.
@@ -224,11 +224,11 @@ public final class EnemyRig {
                 path.reset();path.moveTo(side*12,-59);
                 path.lineTo(side*43,-91-sway*.5f);
                 path.lineTo(side*33,-55);path.lineTo(side*16,-43);
-                path.close();fill(path,metal,true);
+                path.close();done(metal,true);
                 if(variant>=2){
                     path.reset();path.moveTo(side*33,-74);
                     path.lineTo(side*52,-91);path.lineTo(side*46,-65);
-                    path.close();fill(path,t.bone,true);
+                    path.close();done(t.bone,true);
                 }
             }
             if(variant>=3){
@@ -236,7 +236,7 @@ public final class EnemyRig {
                 for(int side=-1;side<=1;side+=2){
                     path.reset();path.moveTo(side*6,-68);
                     path.lineTo(side*15,-88);path.lineTo(side*15,-66);
-                    path.close();fill(path,t.glow,true);
+                    path.close();done(t.glow,true);
                 }
             }
         }else{
@@ -249,12 +249,12 @@ public final class EnemyRig {
                 path.lineTo(-7,sh+16);path.lineTo(5,sh+17);
                 path.lineTo(shoulder+13,sh+25-sway);
                 path.lineTo(shoulder+7,sh+1);path.close();
-                fill(path,t.armorD,true);
+                done(t.armorD,true);
                 for(int side=-1;side<=1;side+=2){
                     path.reset();path.moveTo(side*(shoulder-5),sh-5);
                     path.lineTo(side*(shoulder+14),sh-13);
                     path.lineTo(side*(shoulder+13),sh+7);
-                    path.close();fill(path,metal,true);
+                    path.close();done(metal,true);
                 }
             }else{
                 // Variant 2 - forged armored shock troop; new outline.
@@ -263,11 +263,11 @@ public final class EnemyRig {
                     path.lineTo(side*(shoulder+16),sh-18);
                     path.lineTo(side*(shoulder+22),sh+1);
                     path.lineTo(side*(shoulder+7),sh+12);
-                    path.close();fill(path,metal,true);
+                    path.close();done(metal,true);
                     path.reset();path.moveTo(side*(shoulder+3),sh-13);
                     path.lineTo(side*(shoulder+13),sh-28);
                     path.lineTo(side*(shoulder+16),sh-8);
-                    path.close();fill(path,t.bone,true);
+                    path.close();done(t.bone,true);
                 }
                 if(variant>=3){
                     // Variant 3 - royal / corrupted elite with battle standard
@@ -276,12 +276,12 @@ public final class EnemyRig {
                     path.reset();path.moveTo(-shoulder-12,sh-42);
                     path.lineTo(-shoulder-35+sway,sh-37);
                     path.lineTo(-shoulder-20+sway,sh-22);
-                    path.close();fill(path,t.accent,true);
+                    path.close();done(t.accent,true);
                     for(int side=-1;side<=1;side+=2){
                         path.reset();path.moveTo(side*10,sh-30);
                         path.lineTo(side*18,sh-47);
                         path.lineTo(side*19,sh-22);
-                        path.close();fill(path,t.glow,true);
+                        path.close();done(t.glow,true);
                     }
                 }
             }
@@ -292,7 +292,7 @@ public final class EnemyRig {
                 path.reset();path.moveTo(-11,head+3);
                 path.lineTo(-9,head-10);path.lineTo(0,head-16);
                 path.lineTo(12,head-8);path.lineTo(13,head+3);
-                path.close();fill(path,metal,true);
+                path.close();done(metal,true);
                 p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2f);
                 p.setColor(tint(t.glow));
                 cv.drawLine(-8,head,10,head,p);
