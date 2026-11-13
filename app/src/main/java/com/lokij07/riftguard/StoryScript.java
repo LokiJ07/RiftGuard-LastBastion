@@ -70,6 +70,47 @@ public final class StoryScript {
                 "I will stand for them.":"I will find the truth.")
         };
     }
+    /** The separate unnumbered finale, grounded in the supplied Eclipse Cave draft. */
+    public static Line[] eclipseCaveOpening(String name){
+        return new Line[]{
+            l("NARRATOR","The last seal falls. Beneath the citadel, a quiet sanctuary waits."),
+            l("NARRATOR","On a table: a cup of kape, a familiar sword, and Bantay's collar."),
+            l("CAEL","Ten seals. Ten worlds. You really did it."),
+            l("WARDEN","Where is my friend?"),
+            l("CAEL","Safe. Safer than you will be."),
+            l("WARDEN","Then stop talking.")
+        };
+    }
+    public static Line[] eclipsePhaseTwo(){
+        return new Line[]{l("CAEL","I was a Warden too, you know."),
+                l("WARDEN","Then you know I will not stop.")};
+    }
+    public static Line[] eclipsePhaseThree(){
+        return new Line[]{l("NARRATOR","The Titan's armor cracks. Beneath it stands Cael, the First Warden."),
+                l("CAEL","I only wanted to keep them safe."),
+                l("WARDEN","You can still let them go.")};
+    }
+    public static Line[] eclipseEnding(int ending){
+        if(ending==StoryProgress.ENDING_TRUE)return new Line[]{
+            l("CAEL","I only wanted to keep them safe..."),
+            l("BANTAY","(A joyful bark. Bantay races into the Warden's arms.)"),
+            l("WARDEN","There you are. Kape time."),
+            l("CAEL","...Save a cup for me."),
+            l("NARRATOR","On the Bastion wall, three companions share coffee beside Tessa's empty cup.")
+        };
+        if(ending==StoryProgress.ENDING_PARTIAL)return new Line[]{
+            l("BANTAY","(A faint bark.)"),
+            l("WARDEN","We made it out. But something is still missing."),
+            l("CAEL","The Rift is not done with you."),
+            l("NARRATOR","Another Rift opens beyond the farthest sea.")
+        };
+        return new Line[]{
+            l("NARRATOR","Chada ends the Titan. The Rift closes."),
+            l("WARDEN","No one should drink alone."),
+            l("NARRATOR","The Warden returns home with Bantay, Chada, and kape."),
+            l("NARRATOR","He always pours a second cup for Cael. No one ever drinks it.")
+        };
+    }
     public static Line[] memory(KeyMemories.Memory m){
         if(m==null)return null;
         return new Line[]{l(m.fromCael?"CAEL'S MEMORY":"WARDEN'S MEMORY",m.text)};
