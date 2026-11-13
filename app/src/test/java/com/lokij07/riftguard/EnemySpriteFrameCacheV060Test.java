@@ -71,9 +71,9 @@ public class EnemySpriteFrameCacheV060Test {
         try {
             for(int kind=0;kind<7;kind++)
                 for(int variant=0;variant<4;variant++)
-                    for(int frame=0;frame<4;frame++)
+                    for(int frame=0;frame<8;frame++)
                         assertTrue(cache.draw(c,kind,2,variant,175,265,
-                                frame*.61f,true,-1,false,1,false,1));
+                                frame*.61f,true,(frame+.5f)/10f,false,1,false,1));
             assertTrue("Frames must remain bounded",
                     cache.cachedFrames()<=EnemySpriteFrameCache.MAX_CACHED_FRAMES);
             assertTrue("Actually exercised LRU capacity",
