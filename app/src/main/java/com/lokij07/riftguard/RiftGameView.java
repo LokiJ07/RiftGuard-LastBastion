@@ -2492,6 +2492,9 @@ public final class RiftGameView extends View {
         roundedPanel(c,644,66,1222,646);
         drawLiveMenuScene(c,656,80,553,548,false);
         button(c,667,455,1198,508,"KINGDOM HUB  /  QUESTS + SHOP",0xff805f40);
+        button(c,676,385,1184,447,storyProgress.caveUnlocked()?
+                "ECLIPSE CAVE  •  FINAL CONFRONTATION":"ECLIPSE CAVE  •  SEALED",
+                storyProgress.caveUnlocked()?0xff795479:0xff3c414e);
         rect(c,656,522,1209,630,0xd0142b33);
         text(c,"GREENHAVEN  /  THE LAST BASTION",679,563,24,GOLD,false);
         text(c,"A kingdom in danger. Your fortress grows with every victory.",
@@ -3496,7 +3499,8 @@ public final class RiftGameView extends View {
         rect(c,0,0,W,H,0xb900131b);
         round(c,348,164,932,624,32,0xff1b343e);
         border(c,348,164,932,624,32,GOLD,3);
-        text(c,scene==Scene.WIN?"FORTRESS SECURED":"THE CORE HAS FALLEN",
+        text(c,scene==Scene.WIN?"FORTRESS SECURED":
+                caveMode?"THE CAVE HAS FALLEN":"THE CORE HAS FALLEN",
                 640,249,42,scene==Scene.WIN?GOLD:0xffff9f8c,true);
         text(c,Campaign.title(stage)+"   •   "+Campaign.worldName(stage),640,298,26,INK,true);
         text(c,scene==Scene.WIN?"Campaign progress saved!":"Upgrade your defenses and try again.",
@@ -3701,6 +3705,96 @@ public final class RiftGameView extends View {
                 .setNegativeButton("CANCEL",null).show();
     }
 
+
+    private void completeEclipseCave(){
+        if(caveWinRecorded)return;
+        caveWinRecorded=true;recordBattleResult(true);
+        scene=Scene.CAVE_CHOICE;paused=false;clearTouchControls();
+        announce("THE FIRST WARDEN FALLS • MAKE YOUR CHOICE");
+    }
+    private void tapCaveChoice(float x,float y){
+        if(y>=405&&y<=502&&x>=110&&x<610)
+            chooseCaveEnding(StoryProgress.ENDING_GOOD);
+        else if(y>=405&&y<=502&&x>=648&&x<1170&&
+                storyProgress.trueEndingUnlocked())
+            chooseCaveEnding(StoryProgress.ENDING_TRUE);
+        else if(y>=522&&y<=601&&x>=110&&x<1170)
+            chooseCaveEnding(StoryProgress.ENDING_PARTIAL);
+    }
+    private void chooseCaveEnding(int ending){
+        if(!storyProgress.saveEnding(ending))return;
+        caveEnding=ending;scene=Scene.CAVE_END;paused=false;
+        openStory(StoryScript.eclipseEnding(ending));
+    }
+    private void drawCaveChoice(Canvas c){
+        rect(c,0,0,W,H,0xd3050c1a);
+        round(c,66,52,1213,666,24,0xff171c35);
+        border(c,66,52,1213,666,24,0xffc9a777,3);
+        text(c,"THE FIRST WARDEN • THE FINAL CHOICE",640,131,40,GOLD,true);
+        textFit(c,"Cael's armor lies broken. Chada waits beside an untouched cup.",
+                640,210,1034,25,INK,true);
+        textFit(c,"Do you end the Titan, or offer what he lost?",640,270,980,28,
+                0xffc9dfdd,true);
+        text(c,"MEMORIES RECOVERED  "+storyProgress.total()+" / 100",
+                640,339,22,0xffd7c38c,true);
+        button(c,102,405,608,502,"USE CHADA • END THE TITAN",0xff85624e);
+        button(c,651,405,1174,502,storyProgress.trueEndingUnlocked()?
+                "OFFER KAPE • SAVE CAEL":"OFFER KAPE • LOCKED (100 KEYS)",
+                storyProgress.trueEndingUnlocked()?0xff5f8c76:0xff424a55);
+        button(c,101,526,1174,600,"LEAVE THE CAVE • RIFT UNRESOLVED",0xff594f75);
+        text(c,"Ending choices are saved. Replay the Cave to revisit.",
+                640,641,18,0xff9fafbf,true);
+    }
+    private void drawCaveEnding(Canvas c){
+        rect(c,0,0,W,H,0xd5071220);
+        round(c,125,92,1155,658,27,0xff202d3c);
+        border(c,125,92,1155,658,27,GOLD,3);
+        text(c,caveEnding==StoryProgress.ENDING_TRUE?"THE RIFT IS HEALED":
+                caveEnding==StoryProgress.ENDING_PARTIAL?"THE RIFT REMAINS":
+                "THE RIFT IS CLOSED",640,201,46,GOLD,true);
+        String epilogue=caveEnding==StoryProgress.ENDING_TRUE?
+                "Cael is freed. Kape waits beside Tessa's cup.":
+                caveEnding==StoryProgress.ENDING_PARTIAL?
+                "The Warden survives. Another Rift opens in the distance.":
+                "The Warden returns home. One cup remains untouched.";
+        drawStoryParagraph(c,epilogue,195,291,883,27,45,INK);
+        text(c,"ENDING RECORDED IN THE WARDEN'S CHRONICLE",
+                640,430,19,0xffa9c7c2,true);
+        button(c,153,522,619,613,"REPLAY ECLIPSE CAVE",0xff77614c);
+        button(c,650,522,1125,613,"RETURN TO BASTION",0xff4e6672);
+    }
+    private void drawEclipseCaveArena(Canvas c){
+        // Cave-specific arena terrain: crystal vault and Rift stalactites.
+        rect(c,0,0,WORLD_W,WORLD_H,0x66301846);
+        for(int i=0;i<11;i++){
+            float x=80+i*190,y=126+(i%3)*35;
+            polygon(c,new float[]{x-55,0,x+75,0,x+25,y+110},
+                    i%2==0?0x99404a63:0x995d4969);
+            polygon(c,new float[]{x-13,0,x+32,0,x+12,y*1.65f},
+                    i%2==0?0x667b70b6:0x668977ba);
+        }
+        for(int i=0;i<12;i++){
+            float x=120+i*152,y=WORLD_H-55;
+            polygon(c,new float[]{x-37,y,x,y-55-(i%4)*24,x+43,y},
+                    i%2==0?0xff546983:0xff6a5886);
+            circle(c,x,y-32-(i%4)*10,7+(float)Math.sin(gameTime*2+i)*2,
+                    0x88c3aeff);
+        }
+    }
+    private void drawEclipseSanctum(Canvas c){
+        oval(c,BASE_X-168,BASE_Y+83,BASE_X+168,BASE_Y+153,0x99090e1f);
+        round(c,BASE_X-138,BASE_Y-53,BASE_X+138,BASE_Y+90,20,0xff434057);
+        round(c,BASE_X-99,BASE_Y-92,BASE_X+99,BASE_Y+49,17,0xff625870);
+        polygon(c,new float[]{BASE_X-122,BASE_Y-93,BASE_X,BASE_Y-231,
+                BASE_X+122,BASE_Y-93},0xff58536c);
+        circle(c,BASE_X,BASE_Y-111,36+(float)Math.sin(gameTime*2)*3,
+                0x88ad93fc);
+        polygon(c,new float[]{BASE_X,BASE_Y-184,BASE_X+35,BASE_Y-105,
+                BASE_X,BASE_Y-40,BASE_X-35,BASE_Y-105},0xffaaa9e0);
+        for(int i=-1;i<=1;i++)circle(c,BASE_X+i*67,BASE_Y+46,12,0xffdfb57b);
+        text(c,"THE MEMORY SHRINE",BASE_X,BASE_Y+130,20,0xffedd5a4,true);
+    }
+
     private void drawPause(Canvas c) {
         rect(c,0,0,W,H,0xc3001117);
         round(c,390,166,890,582,27,0xff1f3741);
@@ -3754,6 +3848,17 @@ public final class RiftGameView extends View {
         float x=(ev.getX(index)-offsetX)/scale,y=(ev.getY(index)-offsetY)/scale;
         if(storyOpen){
             if(action==MotionEvent.ACTION_DOWN)advanceStoryLine();
+            invalidate();return true;
+        }
+        if(scene==Scene.CAVE_CHOICE){
+            if(action==MotionEvent.ACTION_DOWN)tapCaveChoice(x,y);
+            invalidate();return true;
+        }
+        if(scene==Scene.CAVE_END){
+            if(action==MotionEvent.ACTION_DOWN){
+                if(y>510&&x<640)startEclipseCave();
+                else if(y>510){scene=Scene.HOME;caveMode=false;}
+            }
             invalidate();return true;
         }
         if(scene==Scene.CHRONICLE){
@@ -3902,7 +4007,11 @@ public final class RiftGameView extends View {
     }
     private void tapMenu(float x,float y) {
         if(scene==Scene.HOME) {
-            if(x>1007 && x<1216 && y>39 && y<104)audio.toggle();
+            if(x>670 && x<1190 && y>385 && y<450){
+                if(storyProgress.caveUnlocked())startEclipseCave();
+                else announce("DEFEAT ALL TEN WORLD BOSSES TO OPEN THE CAVE");
+            }
+            else if(x>1007 && x<1216 && y>39 && y<104)audio.toggle();
             else if(x>665 && x<1205 && y>447 && y<517)scene=Scene.KINGDOM;
             else if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
             else if(x>93 && x<345 && y>408 && y<492)scene=Scene.MAP;
@@ -4005,8 +4114,11 @@ public final class RiftGameView extends View {
                     start(Math.min(299,stage+1));
                     briefingOpen=true;
                 }
+                else if(caveMode)startEclipseCave();
                 else start(stage);
-            }else if(x>420 && x<860 && y>514 && y<602)scene=Scene.MAP;
+            }else if(x>420 && x<860 && y>514 && y<602){
+                scene=Scene.MAP;caveMode=false;
+            }
         }
     }
     private void bar(Canvas c,float x,float y,float w,float h,float fraction,int color) {
