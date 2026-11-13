@@ -60,12 +60,14 @@ public final class StoryCinematicV065 {
         int biome=Math.max(0,Math.min(9,world)),variant=(beat+biome)%3;
         prepare(biome,variant);
         // Slow, film-like virtual camera push. Crop outside gutters.
-        float zoom=1.045f+Math.min(.05f,seconds*.004f);
+        // Authored reverse shots: the opposing camera sides trade on each
+        // spoken beat, with a measured push-in for memory and Cael reveals.
+        float zoom=CinematicDirectionV065.storyZoom(seconds,beat,memory,cael);
         c.save();
         c.translate(640,335);
         c.scale(zoom,zoom);
-        c.translate(-640+(float)Math.sin(seconds*.17f+beat)*9,
-                    -335+(float)Math.cos(seconds*.13f)*5);
+        c.translate(-640+CinematicDirectionV065.storyPanX(seconds,beat,memory,cael),
+                    -335+CinematicDirectionV065.storyPanY(seconds,beat));
         p.setShader(null);p.setColor(Color.WHITE);
         c.drawBitmap(backdrop,0,0,p);
         c.restore();
@@ -94,6 +96,42 @@ public final class StoryCinematicV065 {
         rect(c,0,0,1280,39,0xe8040912);
         rect(c,0,680,1280,720,0xf0070c16);
     }
+    /**
+     * Scene-to-scene optical cut: charcoal shutters, amber edge highlights and
+     * memory fragments. The effect is short, deterministic and does not mutate
+     * battle state or change touch areas. A dramatic shot opens more slowly.
+     */
+    public void drawCutOverlay(Canvas c,float seconds,boolean memory,boolean dramatic){
+        float reveal=CinematicDirectionV065.reveal(seconds,dramatic);
+        int alpha=CinematicDirectionV065.curtainAlpha(seconds,dramatic);
+        if(alpha>0){
+            rect(c,0,0,1280,720,(alpha<<24)|0x090e1a);
+            float remaining=1f-reveal;
+            // Closing diagonal panels glide away from the central picture.
+            float reach=remaining*670f;
+            poly(c,0x660a1525,0,0,reach+125,0,Math.max(0,reach-48),720,0,720);
+            poly(c,0x660b1423,1280,0,1280-reach-125,0,
+                    Math.min(1280,1280-reach+48),720,1280,720);
+            rect(c,0,38,1280,41,memory?0x88e7ca92:0x668ad1cb);
+            rect(c,0,676,1280,680,memory?0x88e7ca92:0x668ad1cb);
+        }
+        // Memory fragments and boss rift lighting inhabit the picture rather
+        // than blocking subtitles or constructing a heavy new sprite sheet.
+        if(memory && seconds<2.6f){
+            float fall=CinematicDirectionV065.ease(seconds/2.6f);
+            for(int i=0;i<7;i++){
+                float x=176+i*145+(float)Math.sin(seconds+i)*17;
+                float y=101+(i*73)%285+fall*52;
+                int ink=((int)(90*(1f-fall))<<24)|0x00e1c18d;
+                poly(c,ink,x,y-17,x+8,y,x,y+21,x-7,y);
+            }
+        }
+        if(dramatic && !memory && seconds<1.3f){
+            float pulse=1f-CinematicDirectionV065.ease(seconds/1.3f);
+            rect(c,0,110,1280,112,((int)(105*pulse)<<24)|0x00c4a079);
+        }
+    }
+
     private void drawRift(Canvas c,float x,float y,float seconds){
         float pulse=(float)Math.sin(seconds*1.6f);
         circle(c,x,y,89+pulse*5,0x335e2f93);
