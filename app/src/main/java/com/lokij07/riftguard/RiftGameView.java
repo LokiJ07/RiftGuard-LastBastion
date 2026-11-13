@@ -1490,8 +1490,8 @@ public final class RiftGameView extends View {
             for(int i=0;i<5;i++){
                 int base=type==3?0xff8c7464:type==4?0xffb3d8ee:
                         type==6?0xffab83d6:0xff8a7361;
-                polygon(c,new float[]{x-40+i*17,y+4,x-34+i*17,y-15-(i%2)*7,
-                        x-23+i*17,y+8},base);
+                polygon(c,x-40+i*17,y+4,x-34+i*17,y-15-(i%2)*7,
+                        x-23+i*17,y+8,base);
             }
             return;
         }
@@ -1517,16 +1517,14 @@ public final class RiftGameView extends View {
                 for(int i=0;i<4;i++)circle(c,x-30+i*16,y-40+(i%2)*13,7,0xffb7c879);
                 break;
             case 3: // Falling rock
-                polygon(c,new float[]{x-46,y-6,x-43,y-62,x-10,y-94,
-                        x+40,y-69,x+47,y-5},0xff877568);
-                polygon(c,new float[]{x-34,y-61,x-10,y-89,x+24,y-64,x-8,y-50},
-                        0xffb59a81);
+                polygon(c,x-46,y-6,x-43,y-62,x-10,y-94,
+                        x+40,y-69,x+47,y-5,0xff877568);
+                polygon(c,x-34,y-61,x-10,y-89,x+24,y-64,x-8,y-50,0xffb59a81);
                 break;
             case 4: // Ice pillar
-                polygon(c,new float[]{x-41,y-2,x-27,y-94,x,y-139,x+29,y-89,
-                        x+42,y-1},0xff91cce9);
-                polygon(c,new float[]{x-15,y-13,x-8,y-107,x+8,y-119,x+23,y-11},
-                        0xffd5f4fd);
+                polygon(c,x-41,y-2,x-27,y-94,x,y-139,x+29,y-89,
+                        x+42,y-1,0xff91cce9);
+                polygon(c,x-15,y-13,x-8,y-107,x+8,y-119,x+23,y-11,0xffd5f4fd);
                 break;
             case 5: // Iron machine
                 circle(c,x,y-50,43,0xff586577);
@@ -1540,10 +1538,8 @@ public final class RiftGameView extends View {
                 circle(c,x,y-50,13,0xff2e3b4b);
                 break;
             case 6: // Crystal obelisk
-                polygon(c,new float[]{x-35,y,x-30,y-68,x,y-142,x+32,y-68,x+35,y},
-                        0xff73649b);
-                polygon(c,new float[]{x-13,y-7,x-4,y-104,x+12,y-83,x+15,y-10},
-                        0xffbc9ef1);
+                polygon(c,x-35,y,x-30,y-68,x,y-142,x+32,y-68,x+35,y,0xff73649b);
+                polygon(c,x-13,y-7,x-4,y-104,x+12,y-83,x+15,y-10,0xffbc9ef1);
                 break;
             case 7: // Storm conduit
                 rect(c,x-23,y-94,x+24,y+4,0xff65788c);
@@ -1552,16 +1548,13 @@ public final class RiftGameView extends View {
                 circle(c,x,y-120,14+(float)Math.sin(gameTime*3)*3,0xffe2f5ff);
                 break;
             case 8: // Shadow stone
-                polygon(c,new float[]{x-33,y,x-23,y-112,x,y-147,x+29,y-108,x+34,y},
-                        0xff47405d);
-                polygon(c,new float[]{x-11,y-93,x,y-114,x+11,y-93,x,y-72},
-                        0xffaa86b4);
+                polygon(c,x-33,y,x-23,y-112,x,y-147,x+29,y-108,x+34,y,0xff47405d);
+                polygon(c,x-11,y-93,x,y-114,x+11,y-93,x,y-72,0xffaa86b4);
                 break;
             default: // Rift shard
-                polygon(c,new float[]{x-40,y,x-24,y-105,x+5,y-158,x+36,y-87,
-                        x+44,y},0xff613e79);
-                polygon(c,new float[]{x-14,y-10,x-9,y-100,x+8,y-138,x+15,y-10},
-                        0xffba81e1);
+                polygon(c,x-40,y,x-24,y-105,x+5,y-158,x+36,y-87,
+                        x+44,y,0xff613e79);
+                polygon(c,x-14,y-10,x-9,y-100,x+8,y-138,x+15,y-10,0xffba81e1);
         }
         if(damage>.25f){
             line(c,x-12,y-70,x+9,y-38,0xff272b36,4);
@@ -2178,8 +2171,8 @@ public final class RiftGameView extends View {
             line(c,bx,by,b.x,b.y,0xff8959cb,10);
             line(c,bx+6,by-5,b.x,b.y,0xffe9caff,3);
             circle(c,b.x,b.y,8,0x88b777f0);
-            polygon(c,new float[]{b.x+(float)Math.cos(a)*14,b.y+
-                    (float)Math.sin(a)*14,b.x-8,b.y-7,b.x-8,b.y+7},0xffe7caff);
+            polygon(c,b.x+(float)Math.cos(a)*14,b.y+
+                    (float)Math.sin(a)*14,b.x-8,b.y-7,b.x-8,b.y+7,0xffe7caff);
         }
         // Death animation persists after combat removal; rewards still count once.
         for(DeathEcho d:deaths){
@@ -2234,10 +2227,10 @@ public final class RiftGameView extends View {
             float sway=(float)Math.sin(gameTime*3f)*4f;
             oval(c,bannerX-21,bannerY-7,bannerX+22,bannerY+7,0x6632a572);
             line(c,bannerX,bannerY-8,bannerX,bannerY-109,0xffe3ca94,7);
-            polygon(c,new float[]{bannerX,bannerY-105,bannerX+51+sway,bannerY-93,
-                    bannerX+31+sway,bannerY-56,bannerX,bannerY-66},0xff67bc8d);
-            polygon(c,new float[]{bannerX+7,bannerY-98,bannerX+27+sway,bannerY-88,
-                    bannerX+16,bannerY-75},0xffe7f9bf);
+            polygon(c,bannerX,bannerY-105,bannerX+51+sway,bannerY-93,
+                    bannerX+31+sway,bannerY-56,bannerX,bannerY-66,0xff67bc8d);
+            polygon(c,bannerX+7,bannerY-98,bannerX+27+sway,bannerY-88,
+                    bannerX+16,bannerY-75,0xffe7f9bf);
             for(int n=0;n<6;n++){
                 float angle=(float)(n*Math.PI/3+gameTime*.5);
                 float rad=34+(float)Math.sin(gameTime*2+n)*3;
@@ -2250,8 +2243,7 @@ public final class RiftGameView extends View {
             for(int n=0;n<8;n++){
                 float a=(float)(n*Math.PI/4);
                 float px=trapX+(float)Math.cos(a)*20,py=trapY+(float)Math.sin(a)*8;
-                polygon(c,new float[]{px-6,py+4,px,py-15,px+6,py+4},
-                        0xffd6ba84);
+                polygon(c,px-6,py+4,px,py-15,px+6,py+4,0xffd6ba84);
             }
             circle(c,trapX,trapY-10,4,0xffff9666);
         }
@@ -2268,9 +2260,9 @@ public final class RiftGameView extends View {
                         meteorY+(float)Math.sin(a)*outer*.4f,0xffffc78d,4);
             }
             float drop=210*(1-t);
-            polygon(c,new float[]{meteorX-23,meteorY-14-drop,meteorX+3,
+            polygon(c,meteorX-23,meteorY-14-drop,meteorX+3,
                     meteorY-72-drop,meteorX+33,meteorY-10-drop,
-                    meteorX+8,meteorY+9-drop},0xffff925c);
+                    meteorX+8,meteorY+9-drop,0xffff925c);
             circle(c,meteorX+3,meteorY-25-drop,13,0xffffdab0);
         }
     }
@@ -2304,7 +2296,7 @@ public final class RiftGameView extends View {
                 float a=(float)(n*Math.PI/9);
                 float r=195*Math.max(.12f,t);
                 float x=heroX+(float)Math.cos(a)*r,y=heroY+(float)Math.sin(a)*r;
-                polygon(c,new float[]{x-7,y,x,y-25-intensity*11,x+7,y,x,y+5},color);
+                polygon(c,x-7,y,x,y-25-intensity*11,x+7,y,x,y+5,color);
             }
         }else if(lastCastSkill==WardenSkills.BANNER){
             for(int n=0;n<10;n++){
@@ -2364,7 +2356,7 @@ public final class RiftGameView extends View {
         if(relicHp>0){
             round(c,-38,-18,38,25,7,0xff594c49);
             round(c,-29,-40,29,-5,5,0xff92765b);
-            polygon(c,new float[]{-24,-38,0,-72,24,-38},0xffc3ab7f);
+            polygon(c,-24,-38,0,-72,24,-38,0xffc3ab7f);
             circle(c,0,-33,21,0x99fee2a0);
             circle(c,0,-33,13,Campaign.world(stage)>=6?0xffaaddf8:0xffffd58e);
             for(int side=-1;side<=1;side+=2){
@@ -2408,13 +2400,12 @@ public final class RiftGameView extends View {
                 line(c,x-40,y-15,x-8,y+13,color,4);
                 line(c,x-8,y+13,x+31,y-19,color,4);
             }else if(kind==4||kind==6){ // Ice and crystal spikes.
-                polygon(c,new float[]{x-18,y+11,x-7,y-33,x+1,y+10},color);
-                polygon(c,new float[]{x+1,y+9,x+17,y-29,x+26,y+11},0xffd5f3fb);
+                polygon(c,x-18,y+11,x-7,y-33,x+1,y+10,color);
+                polygon(c,x+1,y+9,x+17,y-29,x+26,y+11,0xffd5f3fb);
             }else if(kind==2||kind==8){ // Toxic swamps and shadow pools.
                 oval(c,x-40,y-13,x+40,y+15,active?0x6640c77d:0x4444647c);
             }else if(kind==5){ // Rockfall debris.
-                polygon(c,new float[]{x-18,y+7,x-14,y-19,x+12,y-28,x+27,y+5},
-                        0xff958a77);
+                polygon(c,x-18,y+7,x-14,y-19,x+12,y-28,x+27,y+5,0xff958a77);
             }else { // Enchanted grass, storm and bramble triggers.
                 for(int branch=0;branch<4;branch++){
                     float bx=x-25+branch*14;
@@ -2487,8 +2478,8 @@ public final class RiftGameView extends View {
                 rect(c,x-r+4,y-r*.7f+4,x+r-4,y+r*.7f-4,0xff8d9285);
                 for(int j=0;j<4;j++)circle(c,x-r*.7f+j*r*.5f,y,3,0xffaabbaf);
             } else if(biome==6) {
-                polygon(c,new float[]{x-r,y+r*.4f,x,y-r,x+r,y+r*.4f},0x6686ddec);
-                polygon(c,new float[]{x,y-r,x+r,y+r*.4f,x+r*.3f,y+r*.1f},0xff85d9eb);
+                polygon(c,x-r,y+r*.4f,x,y-r,x+r,y+r*.4f,0x6686ddec);
+                polygon(c,x,y-r,x+r,y+r*.4f,x+r*.3f,y+r*.1f,0xff85d9eb);
             } else if(biome==7) {
                 oval(c,x-r,y-r*.25f,x+r,y+r*.25f,0x66a0c1d2);
                 line(c,x-10,y-12,x+15,y+16,0xffb3d1fa,2);
@@ -2527,13 +2518,13 @@ public final class RiftGameView extends View {
         c.save();c.translate(d.x,d.y);c.scale(d.size,d.size);
         if(biome==4 || biome==5 || d.kind==3){
             oval(c,-23,-7,25,11,0x44000000);
-            polygon(c,new float[]{-20,0,-9,-24,14,-31,28,-3,12,8},0xff7f8c88);
-            polygon(c,new float[]{-9,-24,14,-31,28,-3,3,-8},0xffb0b9b2);
+            polygon(c,-20,0,-9,-24,14,-31,28,-3,12,8,0xff7f8c88);
+            polygon(c,-9,-24,14,-31,28,-3,3,-8,0xffb0b9b2);
             line(c,-8,-5,9,-12,0xff596e76,2);
         } else if(biome==3 || biome==9){
             oval(c,-18,-5,22,8,0x44000000);
-            polygon(c,new float[]{-16,2,-7,-18,5,-6,18,-37,22,5},0xff3f353c);
-            polygon(c,new float[]{-7,-18,5,-6,18,-37,12,-4},0xffe28055);
+            polygon(c,-16,2,-7,-18,5,-6,18,-37,22,5,0xff3f353c);
+            polygon(c,-7,-18,5,-6,18,-37,12,-4,0xffe28055);
         } else if(d.kind%3==0 || biome==6) {
             oval(c,-24,-4,27,11,0x44000000);
             polygon(c,new float[]{-11,0,-1,-44,13,-25,24,0},biome==6?0xff85d9dd:0xff68896f);
@@ -2604,8 +2595,8 @@ public final class RiftGameView extends View {
                 float x=BASE_X+side*210,y=BASE_Y-85;
                 line(c,x,y+60,x,y-66,0xff5e4e42,7);
                 float flutter=(float)Math.sin(gameTime*3+side)*12;
-                polygon(c,new float[]{x,y-65,x+side*(58+flutter),y-48,
-                        x+side*11,y-16},0xff9c526c);
+                polygon(c,x,y-65,x+side*(58+flutter),y-48,
+                        x+side*11,y-16,0xff9c526c);
                 circle(c,x,y-68,6,GOLD);
             }
         }
@@ -2628,19 +2619,17 @@ public final class RiftGameView extends View {
                 rect(c,x-7,y-45,x+8,y-24,0xff253c48);
                 if(variant==4)line(c,x-21,y-18,x+19,y-49,0xffb9ab8a,5);
             }else if(variant==1) { // War tents / camps
-                polygon(c,new float[]{x-41,y+12,x-3,y-66,x+43,y+12},0xff9d7254);
-                polygon(c,new float[]{x-3,y-66,x+43,y+12,x+2,y+12},0xffc59b6f);
+                polygon(c,x-41,y+12,x-3,y-66,x+43,y+12,0xff9d7254);
+                polygon(c,x-3,y-66,x+43,y+12,x+2,y+12,0xffc59b6f);
                 line(c,x-4,y-67,x-4,y+12,0xff604b3b,3);
             }else if(variant==2) { // Crystal and arc shrine
                 circle(c,x,y-11,32,0x334cc3d7);
                 polygon(c,new float[]{x-23,y,x,y-85-pulse,x+23,y},
                         biome==3?0xffffa066:0xff90ddef);
-                polygon(c,new float[]{x,y-85-pulse,x+23,y,x,y+4},
-                        0xff426e87);
+                polygon(c,x,y-85-pulse,x+23,y,x,y+4,0xff426e87);
                 circle(c,x,y-51,7,0x99ffffff);
             }else if(variant==3) { // Barricades, carts and supply caches
-                polygon(c,new float[]{x-42,y-7,x-37,y-46,x+36,y-46,x+43,y-7},
-                        0xff82654e);
+                polygon(c,x-42,y-7,x-37,y-46,x+36,y-46,x+43,y-7,0xff82654e);
                 for(int plank=0;plank<5;plank++)
                     line(c,x-33+plank*16,y-45,x-30+plank*16,y-9,0xffc1a077,4);
                 circle(c,x-27,y+9,11,0xff35474d);
@@ -2648,12 +2637,12 @@ public final class RiftGameView extends View {
             }else if(variant==5) { // Broken stone arches
                 rect(c,x-37,y-66,x-22,y+9,0xff8a9994);
                 rect(c,x+20,y-66,x+35,y+9,0xff8a9994);
-                polygon(c,new float[]{x-41,y-66,x-29,y-94,x+32,y-94,
-                        x+38,y-66},0xffa3b6ac);
+                polygon(c,x-41,y-66,x-29,y-94,x+32,y-94,
+                        x+38,y-66,0xffa3b6ac);
                 line(c,x-27,y-12,x+27,y-12,0xff69777b,5);
             }else { // Windmills / waystations
                 rect(c,x-17,y-55,x+17,y+10,0xffa99776);
-                polygon(c,new float[]{x-25,y-55,x,y-83,x+24,y-55},0xff526e73);
+                polygon(c,x-25,y-55,x,y-83,x+24,y-55,0xff526e73);
                 c.save();c.rotate(gameTime*19,x,y-47);
                 line(c,x-31,y-47,x+31,y-47,0xffd9c99b,5);
                 line(c,x,y-78,x,y-16,0xffd9c99b,5);
@@ -2683,17 +2672,14 @@ public final class RiftGameView extends View {
         float anchor=x+45+(signature%170),y=top+50;
         if(style==0||style==4||style==6){
             rect(c,anchor-14,y-20,anchor+14,y+4,0xff344d57);
-            polygon(c,new float[]{anchor-19,y-20,anchor,y-41,anchor+19,y-20},
-                    0xffd2b37a);
+            polygon(c,anchor-19,y-20,anchor,y-41,anchor+19,y-20,0xffd2b37a);
             if(style==6)
                 line(c,anchor-16,y-31,anchor+18,y-9,0xff8fd5eb,3);
         } else if(style==1||style==3){
-            polygon(c,new float[]{anchor-18,y+4,anchor,y-35,anchor+18,y+4},
-                    0xffc49c79);
+            polygon(c,anchor-18,y+4,anchor,y-35,anchor+18,y+4,0xffc49c79);
             circle(c,anchor+31,y-9,5,0xffffcc7c);
         }else{
-            polygon(c,new float[]{anchor-13,y+4,anchor,y-37,anchor+16,y+4},
-                    0xffb0eaf5);
+            polygon(c,anchor-13,y+4,anchor,y-37,anchor+16,y+4,0xffb0eaf5);
             circle(c,anchor,y-22,4,0xffeffaff);
         }
         text(c,""+Campaign.level(mission),x+274,top+23,17,0xfff6e1b1,true);
@@ -2707,7 +2693,7 @@ public final class RiftGameView extends View {
             float px=x-139+i*21;
             // Pointed log stakes are individually shaded for a reinforced look.
             rect(c,px,y-119,px+15,y-93,0xff805f42);
-            polygon(c,new float[]{px,y-116,px+7,y-134,px+15,y-116},0xffb79566);
+            polygon(c,px,y-116,px+7,y-134,px+15,y-116,0xffb79566);
             rect(c,px,y+98,px+15,y+119,0xff79583d);
             line(c,px+3,y+99,px+3,y+117,0xffae8b64,2);
         }
@@ -2726,8 +2712,8 @@ public final class RiftGameView extends View {
         rect(c,x-64,y-2,x+65,y+50,0xff9d815e);
         for(int i=0;i<7;i++)
             line(c,x-60+i*19,y+5,x-60+i*19,y+44,0xff644933,3);
-        polygon(c,new float[]{x-86,y+5,x,y-62,x+86,y+5},0xff394e52);
-        polygon(c,new float[]{x-86,y+5,x,y-62,x,y+5},0xff627b72);
+        polygon(c,x-86,y+5,x,y-62,x+86,y+5,0xff394e52);
+        polygon(c,x-86,y+5,x,y-62,x,y+5,0xff627b72);
         for(int i=0;i<7;i++) {
             float px=x-70+i*22;
             line(c,px,y-5-Math.max(0,55-Math.abs(px-x)*.65f),
@@ -2743,15 +2729,14 @@ public final class RiftGameView extends View {
             for(int side=-1;side<=1;side+=2) {
                 float tx=x+side*118;
                 rect(c,tx-14,y-139,tx+14,y-76,0xff768384);
-                polygon(c,new float[]{tx-22,y-138,tx,y-166,tx+22,y-138},
-                        0xff496574);
+                polygon(c,tx-22,y-138,tx,y-166,tx+22,y-138,0xff496574);
                 rect(c,tx-18,y-93,tx+18,y-82,0xffc0a37d);
             }
             rect(c,x-109,y+72,x+109,y+85,0xffa7a7a0);
         }
         line(c,x,y-61,x,y-99,0xffd9bb80,4);
-        polygon(c,new float[]{x+2,y-98,x+42+(float)Math.sin(gameTime*3)*5,y-87,
-            x+2,y-75},0xffd49c4d);
+        polygon(c,x+2,y-98,x+42+(float)Math.sin(gameTime*3)*5,y-87,
+            x+2,y-75,0xffd49c4d);
         if(baseHp<Progression.maxCoreHp(fortressRank)*.45f) {
             for(int i=0;i<3;i++) {
                 float px=x-110+i*109;
@@ -2979,11 +2964,11 @@ public final class RiftGameView extends View {
         oval(c,-15,-36,15,-7,lighten(body,.2f));
         if(e.kind==3){
             float flap=(float)Math.sin(e.phase*3.6f)*22f;
-            polygon(c,new float[]{-18,-20,-46,-37-flap,-35,5,-17,0},0xffb7a3e4);
-            polygon(c,new float[]{18,-20,46,-37-flap,35,5,17,0},0xffb7a3e4);
+            polygon(c,-18,-20,-46,-37-flap,-35,5,-17,0,0xffb7a3e4);
+            polygon(c,18,-20,46,-37-flap,35,5,17,0,0xffb7a3e4);
         }else if(e.kind==2){
-            polygon(c,new float[]{-12,-32,-27,-61,0,-40},0xffd7d1b4);
-            polygon(c,new float[]{12,-32,27,-61,0,-40},0xffd7d1b4);
+            polygon(c,-12,-32,-27,-61,0,-40,0xffd7d1b4);
+            polygon(c,12,-32,27,-61,0,-40,0xffd7d1b4);
         }else{
             polygon(c,new float[]{-14,-26,-28,-47,-2,-29},darken(body,.2f));
             polygon(c,new float[]{14,-26,28,-47,2,-29},darken(body,.2f));
@@ -2991,10 +2976,10 @@ public final class RiftGameView extends View {
         circle(c,-7,-22,4,0xffffe899);circle(c,7,-22,4,0xffffe899);
         line(c,-4,-9,6,-9,0xff3f3038,3);
         if(e.kind==1) {
-            polygon(c,new float[]{-13,-32,-18,-64,-1,-39},0xffe3b66a);
-            polygon(c,new float[]{13,-32,18,-64,1,-39},0xffe3b66a);
+            polygon(c,-13,-32,-18,-64,-1,-39,0xffe3b66a);
+            polygon(c,13,-32,18,-64,1,-39,0xffe3b66a);
         }else if(e.kind==4) {
-            polygon(c,new float[]{-22,-33,0,-66,22,-33},0xff315c55);
+            polygon(c,-22,-33,0,-66,22,-33,0xff315c55);
             line(c,28,5,28,-44,0xffbca578,5);
             circle(c,28,-51,10,0xff86deb7);
         }else if(e.kind==5) {
@@ -3131,11 +3116,11 @@ public final class RiftGameView extends View {
         float step=(float)Math.sin(gameTime*14)*8;
         line(c,-8,5,-11+step,28,0xff29374e,11);
         line(c,8,5,11-step,28,0xff29374e,11);
-        polygon(c,new float[]{-19,-26,19,-26,23,9,0,20,-23,9},0xff2f718a);
+        polygon(c,-19,-26,19,-26,23,9,0,20,-23,9,0xff2f718a);
         polygon(c,new float[]{-16,-22,0,-30,16,-22,13,10,0,18,-13,10},0xff82b5bb);
         oval(c,-15,-48,15,-17,0xffd5c3a8);
         polygon(c,new float[]{-19,-39,-12,-56,10,-57,19,-39,10,-33,-10,-33},0xff334f65);
-        polygon(c,new float[]{-16,-43,-4,-66,8,-47},0xff8ed0d6);
+        polygon(c,-16,-43,-4,-66,8,-47,0xff8ed0d6);
         circle(c,-6,-35,2,0xff29424a);circle(c,6,-35,2,0xff29424a);
         // Shield arm and shimmering sword, animated on attacks.
         circle(c,-25,-5,19,0xffb79a65);
@@ -3231,7 +3216,7 @@ public final class RiftGameView extends View {
                     (firstWavePending?"BEGIN WAVE 1":"NEXT WAVE")+"  •  "+
                     (int)Math.ceil(intermission)+"s  •  +"+bonus+" GOLD",0xff77604d);
             if(bossNext){
-                polygon(c,new float[]{610,178,640,127,670,178},0xffffcc69);
+                polygon(c,610,178,640,127,670,178,0xffffcc69);
                 text(c,"!",640,170,31,0xff522c2b,true);
                 text(c,"WARNING • WORLD BOSS NEXT WAVE",640,200,24,0xffffb989,true);
             }
@@ -3239,7 +3224,7 @@ public final class RiftGameView extends View {
         if(bossWarningCountdown>0){
             rect(c,390,147,890,239,0xe1392632);
             border(c,390,147,890,239,12,0xffff9b71,3);
-            polygon(c,new float[]{439,219,465,165,491,219},0xffffbd64);
+            polygon(c,439,219,465,165,491,219,0xffffbd64);
             text(c,"!",465,208,29,0xff472626,true);
             String incoming=DifficultyRules.worldBoss(stage)?
                     DifficultyRules.worldBossName(stage):"FINAL ELITE";
@@ -3932,12 +3917,12 @@ public final class RiftGameView extends View {
         }else if(node.lane==0){
             EvolvedWeaponArt.draw(c,weapon,node.tier,x,y+21,.30f,gameTime);
         }else if(node.lane==1){
-            polygon(c,new float[]{x-16,y+9,x-9,y-10,x+3,y-15,
-                    x+19,y+5,x+1,y+18},0xffb5d9e9);
+            polygon(c,x-16,y+9,x-9,y-10,x+3,y-15,
+                    x+19,y+5,x+1,y+18,0xffb5d9e9);
             circle(c,x+2,y+3,5,0xff42677a);
         }else{
             circle(c,x,y-2,19,Progression.WEAPONS[weapon].color);
-            polygon(c,new float[]{x,y-17,x+15,y,x,y+18,x-15,y},0xfff6e7c8);
+            polygon(c,x,y-17,x+15,y,x,y+18,x-15,y,0xfff6e7c8);
         }
         if(owned){
             circle(c,x+31,y-31,10,0xff65cfa6);
@@ -4044,16 +4029,16 @@ public final class RiftGameView extends View {
             }
         }else if(id==WardenSkills.BANNER){
             line(c,x-13,y+37,x-13,y-40,0xffffe5b3,7);
-            polygon(c,new float[]{x-11,y-37,x+32,y-29,x+13,y+2,x-11,y-5},color);
+            polygon(c,x-11,y-37,x+32,y-29,x+13,y+2,x-11,y-5,color);
         }else if(id==WardenSkills.TRAP) {
             for(int n=0;n<5;n++){
                 float px=x+(n-2)*15;
-                polygon(c,new float[]{px-9,y+22,px,y-35+Math.abs(n-2)*6,
-                        px+9,y+22},color);
+                polygon(c,px-9,y+22,px,y-35+Math.abs(n-2)*6,
+                        px+9,y+22,color);
             }
         }else{
-            polygon(c,new float[]{x+8,y-46,x+32,y-13,x+16,y+28,x-18,y+33,
-                    x-30,y+7},color);
+            polygon(c,x+8,y-46,x+32,y-13,x+16,y+28,x-18,y+33,
+                    x-30,y+7,color);
             line(c,x-36,y+36,x+35,y-38,0xffffdd9a,5);
         }
         EvolutionEffects.badge(c,x,y,skillForm(),id);
@@ -4224,14 +4209,14 @@ public final class RiftGameView extends View {
                 break;
             case AscensionTree.TOWER:
                 round(c,-24,11,24,29,4,0xff81959b);
-                polygon(c,new float[]{-20,8,0,-24,20,8},color);
+                polygon(c,-20,8,0,-24,20,8,color);
                 rect(c,-6,-10,7,20,0xff324c58);
                 line(c,0,-20,0,-32,0xffe8d5a5,4);
                 break;
             case AscensionTree.HERO:
                 circle(c,0,-17,11,color);
-                polygon(c,new float[]{-23,25,-15,-4,0,2,14,-4,24,25},color);
-                polygon(c,new float[]{-10,10,0,20,10,10,0,1},0xff274458);
+                polygon(c,-23,25,-15,-4,0,2,14,-4,24,25,color);
+                polygon(c,-10,10,0,20,10,10,0,1,0xff274458);
                 break;
             case AscensionTree.GOLD:
                 circle(c,0,0,24,0xffa0763c);
@@ -4247,7 +4232,7 @@ public final class RiftGameView extends View {
             case AscensionTree.SPEED:
                 for(int i=0;i<3;i++)
                     line(c,-25,-15+i*16,13,-24+i*15,color,5);
-                polygon(c,new float[]{0,-30,29,-16,2,7,12,-9},0xffbaf4f0);
+                polygon(c,0,-30,29,-16,2,7,12,-9,0xffbaf4f0);
                 break;
         }
         c.restore();
@@ -4358,8 +4343,8 @@ public final class RiftGameView extends View {
         circle(c,1046,145,58,0xffdfa778);
         for(int i=0;i<9;i++){
             float x=i*170-80;
-            polygon(c,new float[]{x,630,x+138,210+(i%4)*45,x+300,630},0xff22363d);
-            polygon(c,new float[]{x+20,630,x+139,330+(i%3)*30,x+270,630},0xff142a34);
+            polygon(c,x,630,x+138,210+(i%4)*45,x+300,630,0xff22363d);
+            polygon(c,x+20,630,x+139,330+(i%3)*30,x+270,630,0xff142a34);
         }
         rect(c,0,630,1280,720,0xff182b2b);
         for(int i=0;i<35;i++){
@@ -4715,12 +4700,12 @@ public final class RiftGameView extends View {
         oval(c,BASE_X-168,BASE_Y+83,BASE_X+168,BASE_Y+153,0x99090e1f);
         round(c,BASE_X-138,BASE_Y-53,BASE_X+138,BASE_Y+90,20,0xff434057);
         round(c,BASE_X-99,BASE_Y-92,BASE_X+99,BASE_Y+49,17,0xff625870);
-        polygon(c,new float[]{BASE_X-122,BASE_Y-93,BASE_X,BASE_Y-231,
-                BASE_X+122,BASE_Y-93},0xff58536c);
+        polygon(c,BASE_X-122,BASE_Y-93,BASE_X,BASE_Y-231,
+                BASE_X+122,BASE_Y-93,0xff58536c);
         circle(c,BASE_X,BASE_Y-111,36+(float)Math.sin(gameTime*2)*3,
                 0x88ad93fc);
-        polygon(c,new float[]{BASE_X,BASE_Y-184,BASE_X+35,BASE_Y-105,
-                BASE_X,BASE_Y-40,BASE_X-35,BASE_Y-105},0xffaaa9e0);
+        polygon(c,BASE_X,BASE_Y-184,BASE_X+35,BASE_Y-105,
+                BASE_X,BASE_Y-40,BASE_X-35,BASE_Y-105,0xffaaa9e0);
         for(int i=-1;i<=1;i++)circle(c,BASE_X+i*67,BASE_Y+46,12,0xffdfb57b);
         text(c,"THE MEMORY SHRINE",BASE_X,BASE_Y+130,20,0xffedd5a4,true);
     }
