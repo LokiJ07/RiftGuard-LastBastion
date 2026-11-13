@@ -89,6 +89,16 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
+      # Build output is UNSIGNED until production keystore is supplied securely.
+      # Keep it an internal CI diagnostic; do NOT submit this bundle to Play.
+      - name: Upload unsigned release AAB for package validation
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RiftGuard-UNSIGNED-release-bundle
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
       - name: Upload software Canvas benchmark measurements
         if: always()
         uses: actions/upload-artifact@v4
