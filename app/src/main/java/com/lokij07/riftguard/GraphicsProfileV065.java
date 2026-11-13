@@ -46,8 +46,14 @@ public final class GraphicsProfileV065 {
             default:return "BALANCED";
         }
     }
-    /** All presets seek a stable 60fps rather than burning power at 120Hz. */
-    public static int targetFps(int mode){return 60;}
+    /**
+     * PERFORMANCE targets battery-friendly 30 FPS on constrained phones.
+     * HIGH/BALANCED seek 60 FPS where the CPU/GPU can sustain it.
+     * Frame pacing never changes gameplay damage, physics or touch hitboxes.
+     */
+    public static int targetFps(int mode){
+        return safe(mode)==PERFORMANCE?30:60;
+    }
     /** Secondary atmosphere only; never cull enemies, tower animations or HUD. */
     public static boolean reduceAmbience(int mode,boolean deviceSlow){
         return safe(mode)==PERFORMANCE||deviceSlow;
@@ -68,7 +74,8 @@ public final class GraphicsProfileV065 {
         return Math.max(0L,(long)Math.ceil(frameTarget-displayInterval+1f));
     }
     public static long nextFrameDelayMs(int mode,float screenHz){
-        if(!Float.isFinite(screenHz)||screenHz<88f)return 0;
+        if(!Float.isFinite(screenHz)||screenHz<35f)return 0;
+        if(screenHz<=targetFps(mode)+2f)return 0;
         float displayInterval=1000f/screenHz;
         float targetInterval=1000f/targetFps(mode);
         return Math.max(0L,(long)Math.ceil(targetInterval-displayInterval+1f));
