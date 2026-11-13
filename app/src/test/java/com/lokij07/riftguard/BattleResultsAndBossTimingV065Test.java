@@ -63,9 +63,13 @@ public final class BattleResultsAndBossTimingV065Test {
         assertEquals("OUTRO",get(v,"scene").toString());
         assertEquals(WardenAnimationMachine.State.DEATH,
                 ((WardenAnimationMachine)get(v,"heroAnimation")).state());
-        screenshot(v,"230-v065-warden-dying-before-failed.png");
-        tickOutro(v,1.0f);
+        tickOutro(v,.45f);
         assertEquals("OUTRO",get(v,"scene").toString());
+        assertTrue(((WardenAnimationMachine)get(v,"heroAnimation")).deathProgress()>.4f);
+        screenshot(v,"230-v065-warden-falling-before-failed.png");
+        tickOutro(v,.7f);
+        assertEquals("OUTRO",get(v,"scene").toString());
+        screenshot(v,"230b-v065-death-scene-no-popup.png");
         tickOutro(v,2f);
         assertEquals("LOSE",get(v,"scene").toString());
         screenshot(v,"231-v065-failed-after-death.png");
