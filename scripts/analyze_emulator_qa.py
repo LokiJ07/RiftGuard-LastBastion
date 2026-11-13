@@ -25,6 +25,11 @@ state=(folder/"qa-state.txt").read_text(errors="replace") if (
     folder/"qa-state.txt").exists() else ""
 if "scene=PLAY story=false paused=false briefing=false" not in state:
     raise SystemExit("FAIL: Emulator combat screenshot was not actual PLAY")
+# In the old smoke test the 18s intermission meant NO real enemy was ever
+# present. Require a live wave with at least one actual enemy instance.
+if not re.search(r"scene=PLAY story=false paused=false briefing=false "
+                 r"stage=\d+ wave=\d+ enemies=[1-9]\d*",state):
+    raise SystemExit("FAIL: No real enemy wave spawned during combat test")
 for control in ("MOVE","DODGE","BUILD","SKILL","ATTACK"):
     if f"control={control} scene=PLAY story=false" not in state:
         raise SystemExit(f"FAIL: Actual battle never received {control} touch")
@@ -41,6 +46,7 @@ summary={
     "environment":"Android Emulator (virtualized; NOT a physical phone)",
     "captures":len(shots),
     "actual_playing_battle_verified":True,
+    "enemy_wave_spawn_verified":True,
     "accepted_touch_controls":["MOVE","DODGE","BUILD","SKILL","ATTACK"],
     "frame_count":len(frames),
     "frame_ms_p50":round(p50,2),
