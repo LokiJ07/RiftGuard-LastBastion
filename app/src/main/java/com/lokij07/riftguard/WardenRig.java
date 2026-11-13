@@ -88,6 +88,17 @@ public final class WardenRig {
         final boolean dying = death >= 0f;
         final boolean attacking = attackProgress >= 0f && !dying;
         final boolean casting = castProgress >= 0f && !dying;
+        // Seven-action / ten-pose reference drives secondary gear animation.
+        // IK, target tracking, movement and hitboxes retain continuous clocks.
+        final int clip=dying?WardenVisualStyles.DIE:
+                hurt?WardenVisualStyles.HURT:
+                casting?WardenVisualStyles.CAST:
+                attacking?WardenVisualStyles.ATTACK:
+                running?WardenVisualStyles.RUN:WardenVisualStyles.IDLE;
+        final float clipTime=dying?death:
+                casting?castProgress:attacking?attackProgress:time;
+        final int clipFrame=WardenVisualStyles.frame(clip,clipTime,
+                clip==WardenVisualStyles.RUN?.78f:1f);
         // Quick white-red blink while hurt (invulnerability frames), mild tone on death.
         hurtMix = dying ? .3f : hurt ? (((int) (time * 16f)) % 2 == 0 ? .42f : .1f) : 0f;
         cv = c;
@@ -148,7 +159,7 @@ public final class WardenRig {
         drawLowerTabard(c, time, phase, running, lx);
         drawTorso(c, breath);
         drawHead(c, lx, ly, attacking ? attackProgress : -1f, hurt, dying, kneel);
-        drawStyleGear(c,time,armorTier,breath);
+        drawStyleGear(c,time,armorTier,breath,clipFrame);
         if (grip) drawBackArm(c, pose, id, time, phase, running, lx, ly, -1f, false);
         drawPauldron(c, SHOULDER_BACK_X + 1f, SHOULDER_Y + 2.5f, 8.5f, false);
         drawAscendedArmor(c,armorTier,time,breath);
@@ -646,8 +657,9 @@ public final class WardenRig {
      * IK body, with shoulder / crown / quiver components attached to torso.
      * Uses original authored geometry, not CraftPix source sprites.
      */
-    private void drawStyleGear(Canvas c,float time,int armorTier,float breath) {
-        final float sw=(float)Math.sin(time*3.1f)*1.8f;
+    private void drawStyleGear(Canvas c,float time,int armorTier,float breath,
+                               int clipFrame) {
+        final float sw=(float)Math.sin(clipFrame*(Math.PI/5f))*2.2f;
         if(visualStyle==WardenVisualStyles.RANGER) {
             // Forest ranger: hood framing the actual facial expression.
             path.reset();
