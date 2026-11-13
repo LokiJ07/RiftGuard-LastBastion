@@ -19,6 +19,9 @@ public final class HudLayoutV065 {
 
     public HudLayoutV065(SharedPreferences prefs){
         this.prefs=prefs;
+        reload();
+    }
+    public void reload(){
         for(int i=0;i<COUNT;i++){
             x[i]=clamp(prefs.getFloat(PREFIX+i+".x",DEFAULT_X[i]),95,1182);
             y[i]=clamp(prefs.getFloat(PREFIX+i+".y",DEFAULT_Y[i]),220,625);
