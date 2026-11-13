@@ -98,4 +98,42 @@ public class StoryGameplayV065Test {
         assertEquals(false,field(game,"storyOpen"));
         b.recycle();
     }
+
+    @Test public void firstWorldLaunchPlaysTessaAndChapterThenRemembersSeenScenes()
+            throws Exception{
+        Context context=RuntimeEnvironment.getApplication();
+        SharedPreferences prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
+        prefs.edit().clear().putInt("unlocked",0).commit();
+        RiftGameView game=new RiftGameView(context);
+        game.layout(0,0,1280,720);
+        call(game,"start",0);
+        assertFalse((Boolean)field(game,"storyOpen"));
+        field(game,"briefingOpen",true);
+        touch(game,750,610); // real BEGIN BATTLE button on the stage briefing
+        assertTrue((Boolean)field(game,"storyOpen"));
+        assertFalse((Boolean)field(game,"briefingOpen"));
+        StoryScript.Line[] prologue=(StoryScript.Line[])field(game,"storyLines");
+        assertEquals(StoryScript.prologue("Warden").length,prologue.length);
+        touch(game,750,610); // next authored shot: Old Tessa
+        StoryScript.Line[] lines=(StoryScript.Line[])field(game,"storyLines");
+        int index=(Integer)field(game,"storyIndex");
+        assertEquals(StoryScript.TESSA,lines[index].shot);
+        Bitmap b=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        game.draw(new Canvas(b));screenshot(b,"182-v065-tessa-prologue.png");
+        b.recycle();
+        // Complete prologue and open the Greenhaven chapter automatically.
+        for(int i=1;i<prologue.length;i++)touch(game,750,610);
+        StoryScript.Line[] chapter=(StoryScript.Line[])field(game,"storyLines");
+        assertTrue(chapter.length>=2);
+        assertTrue(chapter[0].text.contains("Greenhaven"));
+        assertTrue(prefs.getBoolean("story.v065.prologueSeen",false));
+        assertTrue(prefs.getBoolean("story.v065.chapterSeen.0",false));
+        for(int i=0;i<chapter.length;i++)touch(game,750,610);
+        assertFalse((Boolean)field(game,"storyOpen"));
+        call(game,"start",0);
+        field(game,"briefingOpen",true);
+        touch(game,750,610);
+        assertFalse("Already seen chapters must not trap retry controls",
+                (Boolean)field(game,"storyOpen"));
+    }
 }
