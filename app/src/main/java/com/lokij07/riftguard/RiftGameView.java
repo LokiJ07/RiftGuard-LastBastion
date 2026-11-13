@@ -4527,7 +4527,7 @@ public final class RiftGameView extends View {
         if(terrain!=null)for(int i=0;i<terrain.count();i++){
             DestructibleTerrainV065.Prop prop=terrain.at(i);
             if(!prop.broken()&&distance(worldX,worldY,prop.x,prop.y-25)<76){
-                focusedTerrain=prop;focusedEnemy=null;selectedTowerPad=-1;
+                focusedTerrain=prop;focusedEnemy=null; // terrain targeting does not erase build-pad selection
                 announce("TARGET LANDMARK • "+DestructibleTerrainV065.NAMES[prop.type]);
                 return;
             }
