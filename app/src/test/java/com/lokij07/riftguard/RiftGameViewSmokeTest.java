@@ -406,7 +406,9 @@ public final class RiftGameViewSmokeTest {
             set(view,"remaining",0);
             ((List<?>)value(view,"enemies")).clear();
             advance(.02f);
-            advance(2.6f);
+            // v0.65 intentionally gives the player 20s of Normal preparation
+            // (not the old 2.5s). Advance beyond the legitimate countdown.
+            advance(25f);
         }
         assertEquals("WIN",value(view,"scene").toString());
         assertEquals(1,value(view,"unlocked"));
