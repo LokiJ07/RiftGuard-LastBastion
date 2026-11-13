@@ -2,6 +2,14 @@
 
 Status: **development / draft PR #23**. This document is an acceptance checklist, not a declaration of release readiness.
 
+## v0.66.0-alpha4 — reduced hot-path allocations; performance not yet proven
+
+- [x] A single mutable `BattleViewportV066` now follows live and cinematic cameras without allocating a new viewport every `onDraw`. Pure reset tests cover camera panning, zoom and rejection of bad dimensions.
+- [x] `CombatVfx` arrow, frost and impact polygon geometry now uses fixed-arity overloads, avoiding temporary Java float-array allocation for every drawn projectile. Existing weapon silhouettes and combat logic are unchanged.
+- [x] Android 16 compile/packaging and unit-test build passed in CI #436: **328 tests, 0 failures, 0 errors, 0 skips**. Debug APK generated.
+- [ ] **No verified speed gain**: 18-frame Robolectric software Canvas stage 152 p50/p95 alpha3 19.25/24.52 ms versus alpha4 23.28/30.79 ms. These are short noisy JVM software tests, not real handset GPU timings. Do not advertise improved FPS.
+- [ ] Confirm latest Android 16 emulator QA #223 and Android 10 emulator gameplay run before public release; no physical-device thermal/profile certification.
+
 ## v0.66.0-alpha2 — Corrected emulator QA and on-device frame diagnostics
 
 - [x] QA screenshot audit found the Evolution emulator's old "04-battle" and "05-touch-combat" pictures were actually **STORY 1/7 and STORY 5/7**. Its earlier green reports verified navigation, NOT accepted battle controls. Do not cite those screenshots as actual combat proof.
