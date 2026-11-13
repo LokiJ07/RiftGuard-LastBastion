@@ -108,6 +108,7 @@ public final class LiveFortressAndRelicV065Test {
     }
     @Test public void earlyWaveBonusIsPaidExactlyOnce()throws Exception{
         start(0);
+        set("firstWavePending",false);
         set("waiting",true);set("wave",1);
         set("intermission",20f);
         set("gold",100);
