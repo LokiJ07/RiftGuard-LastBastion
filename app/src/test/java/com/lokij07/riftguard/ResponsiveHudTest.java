@@ -53,33 +53,33 @@ public final class ResponsiveHudTest {
     @Test public void ultraWideJoystickAndActionHitboxesMatchActualDrawnControls()
             throws Exception {
         RiftGameView view=game();
-        assertEquals(-12f,numberInvoke(view,"stickHudX"),.001f);
-        assertEquals(1306f,numberInvoke(view,"attackHudX"),.001f);
+        assertEquals(153f,numberInvoke(view,"stickHudX"),.001f);
+        assertEquals(1130f,numberInvoke(view,"attackHudX"),.001f);
         float before=number(view,"heroX");
-        down(view,331,568); // physical, accounting for 250px letterbox offset
+        down(view,495,568); // virtual MOVE 153 + 250 gutter + 92px joystick travel
         assertTrue(number(view,"axisX")>.9f);
         Method update=RiftGameView.class.getDeclaredMethod("update",float.class);
         update.setAccessible(true);update.invoke(view,.12f);
         assertTrue(number(view,"heroX")>before+20f);
-        up(view,331,568);
+        up(view,495,568);
         assertEquals(0f,number(view,"axisX"),.001f);
-        down(view,1556,560); // real ATTACK control near right device edge
+        down(view,1380,560); // virtual ATTACK 1130 + 250px gutter
         assertTrue((Boolean)value(view,"firing"));
-        up(view,1556,560);
+        up(view,1380,560);
         assertFalse((Boolean)value(view,"firing"));
         int[] towers=(int[])value(view,"towers");
         int beforeBuild=towers[1]+towers[2]+towers[3];
-        tap(view,1207,589); // responsive BUILD
+        tap(view,1099,589); // virtual BUILD 849 + 250px gutter
         assertTrue(towers[1]+towers[2]+towers[3]>beforeBuild);
-        tap(view,1367,593); // responsive PULSE
+        tap(view,1224,593); // virtual SKILL 974 + 250px gutter
         assertTrue(number(view,"pulseCooldown")>0);
     }
     @Test public void ultraWideRenderShowsRealControlsOnBothSides() throws Exception {
         RiftGameView view=game();
         Bitmap bitmap=Bitmap.createBitmap(1780,720,Bitmap.Config.ARGB_8888);
         view.draw(new Canvas(bitmap));
-        assertTrue(android.graphics.Color.alpha(bitmap.getPixel(238,568))>0);
-        assertTrue(android.graphics.Color.alpha(bitmap.getPixel(1556,560))>0);
+        assertTrue(android.graphics.Color.alpha(bitmap.getPixel(403,568))>0);
+        assertTrue(android.graphics.Color.alpha(bitmap.getPixel(1380,560))>0);
         bitmap.recycle();
         view.layout(0,0,1280,720);
         assertEquals(153f,numberInvoke(view,"stickHudX"),.001f);
