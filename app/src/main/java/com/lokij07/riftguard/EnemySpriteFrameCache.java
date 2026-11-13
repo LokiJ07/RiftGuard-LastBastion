@@ -20,8 +20,8 @@ import java.util.Map;
 public final class EnemySpriteFrameCache {
     public static final int FRAME_COUNT=10, WIDTH=208, HEIGHT=238;
     private static final int FOOT_Y=220;
-    // < 15 MB of ARGB_8888 frames. Oldest frames are recycled first.
-    public static final int MAX_CACHED_FRAMES=72;
+    // ~32 MB of ARGB_8888 frames; enough for active multi-species squads.
+    public static final int MAX_CACHED_FRAMES=160;
     private final EnemyRig rig;
     private final LinkedHashMap<Integer,Bitmap> frames=
             new LinkedHashMap<>(96,.75f,true);
