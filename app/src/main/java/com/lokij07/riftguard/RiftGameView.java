@@ -79,6 +79,8 @@ public final class RiftGameView extends View {
     private final WardenRig wardenRig=new WardenRig();
     private boolean firstBattleActorDiag=false;
     private final EnemyRig enemyRig=new EnemyRig();
+    private final StoryCinematicV065 cinematic=new StoryCinematicV065();
+    private float cinematicBeatStart=0f;
     private final EnemySpriteFrameCache enemyFrames=new EnemySpriteFrameCache(enemyRig);
     // Independent, reversible switches for per-species visual QA.
     private static final boolean USE_VECTOR_WARDEN=true;
@@ -294,7 +296,7 @@ public final class RiftGameView extends View {
         if(active)audio.prepare();
         if (active) postInvalidateOnAnimation();
     }
-    public void releaseAudio(){audio.release();enemyFrames.clear();}
+    public void releaseAudio(){audio.release();enemyFrames.clear();cinematic.release();}
     public boolean handleBack() {
         if(storyOpen){dismissStory();return true;}
         if(scene==Scene.CHRONICLE){scene=Scene.HOME;return true;}
@@ -3640,54 +3642,73 @@ public final class RiftGameView extends View {
             storyOpen=false;storyLines=null;storyIndex=0;return;
         }
         storyLines=pendingStory.remove(0);
-        storyIndex=0;storyOpen=true;clearTouchControls();
+        storyIndex=0;storyOpen=true;cinematicBeatStart=gameTime;clearTouchControls();
     }
     private void advanceStoryLine(){
         if(!storyOpen)return;
         if(++storyIndex>=storyLines.length)nextStoryBlock();
+        else cinematicBeatStart=gameTime;
     }
     private void dismissStory(){
         pendingStory.clear();storyOpen=false;storyLines=null;storyIndex=0;
         clearTouchControls();
     }
-    /** Dialogue overlay: built on the existing playable scene, no UI-only demo. */
+    /** Story is staged as a full-bleed moving world shot, not an opaque modal.
+     * Character blocking, memory flashback grading and subtitle treatment
+     * react to the actual speaker. Dedicated painted sprite assets follow. */
     private void drawStoryScene(Canvas c){
         if(storyLines==null||storyIndex<0||storyIndex>=storyLines.length)return;
         StoryScript.Line ln=storyLines[storyIndex];
-        boolean cael=ln.speaker.equals("TITAN")||ln.speaker.equals("CAEL")||
-                ln.speaker.equals("CAEL'S MEMORY");
-        boolean memory=ln.speaker.endsWith("MEMORY");
-        rect(c,0,0,W,H,0xd3091722);
-        round(c,73,48,1207,672,25,0xf41b303c);
-        border(c,73,48,1207,672,25,cael?0xffbca7eb:0xffd6ad70,3);
-        text(c,memory?"THE WARDEN'S CHRONICLE":cael?"ECHOES OF THE RIFT":
-                "ECHOES OF THE RIFT  •  STORY",112,110,30,GOLD,false);
-        // Reuse live detailed actor rigs for visual identity while authored
-        // illustrated portrait/fully animated cinematic media is produced.
+        String who=ln.speaker;
+        boolean cael=who.equals("CAEL")||who.equals("TITAN")||
+                who.equals("CAEL'S MEMORY");
+        boolean tessa=who.equals("TESSA");
+        boolean bantay=who.equals("BANTAY");
+        boolean memory=who.endsWith("MEMORY");
+        float seconds=Math.max(0,gameTime-cinematicBeatStart);
+        int world=Campaign.world(Math.max(0,Math.min(stage,299)));
+        cinematic.drawStage(c,world,memory,cael,storyIndex,seconds);
+
+        // Layered cast placement: opposing characters stay in the shot while
+        // the speaking actor gains emphasis and subtle organic motion.
         c.save();
-        c.clipRect(93,148,1187,426);
-        round(c,102,145,1178,430,12,cael?0xff302d4b:0xff304f52);
-        for(int i=0;i<16;i++){
-            float x=130+i*65,y=158+(i*43)%212;
-            circle(c,x+(float)Math.sin(gameTime+i)*8,y,2+(i%3),0x99dac7a5);
-        }
+        c.translate(282+(float)Math.sin(seconds*1.2f)*3,511);
+        c.scale(.85f,.85f);
+        wardenRig.hero(c,0,0,gameTime,-.2f,false,-1,-1,false,
+                equippedWeapon,weaponMastery.count(equippedWeapon),
+                weaponForm(equippedWeapon),armorForm(),-1);
+        c.restore();
         if(cael){
-            c.save();c.translate(683,414);c.scale(2.0f,2.0f);
+            c.save();
+            c.translate(967+(float)Math.sin(seconds*.9f)*4,516);
+            c.scale(2.2f,2.2f);
             enemyRig.enemy(c,5,9,3,0,0,gameTime,true,-1,true,2);
             c.restore();
-        }else{
-            c.save();c.translate(625,420);c.scale(1.65f,1.65f);
-            wardenRig.hero(c,0,0,gameTime,-2.0f,false,-1,-1,false,
-                    equippedWeapon,weaponMastery.count(equippedWeapon),
-                    weaponForm(equippedWeapon),armorForm(),-1);
-            c.restore();
+        }else if(tessa){
+            cinematic.drawTessa(c,925,325,1.0f,seconds);
+            cinematic.drawTreasure(c,1035,468,seconds,0);
+        }else if(bantay){
+            cinematic.drawBantay(c,910,380,1.1f,seconds);
+        }else if(memory) {
+            // The memory's focus object gives every recovered page a symbolic
+            // anchor. The authored memory text determines the scene content.
+            int treasure=((Campaign.level(stage)-1)%3);
+            cinematic.drawTreasure(c,925,354,seconds,treasure);
+        }else {
+            cinematic.drawTreasure(c,953,365,seconds,
+                    world<4?0:world<7?1:2);
         }
-        c.restore();
-        String speaker=ln.speaker.equals("WARDEN")?storyProgress.wardenName():ln.speaker;
-        text(c,speaker,113,473,28,cael?0xffd8bdfa:GOLD,false);
-        drawStoryParagraph(c,ln.text,113,523,1044,24,38,INK);
-        text(c,"TAP TO CONTINUE   "+(storyIndex+1)+" / "+storyLines.length+
-                "   •   BACK TO SKIP",934,641,17,0xffc2d3d3,true);
+
+        rect(c,0,492,1280,680,0xe60c1624);
+        rect(c,0,489,1280,492,cael?0xffab88dd:0xffd8aa73);
+        String speaker=who.equals("WARDEN")?storyProgress.wardenName():who;
+        textFit(c,speaker.toUpperCase(),78,539,600,26,cael?0xffdabdff:GOLD,false);
+        // Word-wrap without artificially enlarging the panel and covering
+        // moving actors; scene advances only on the player's tap.
+        drawStoryParagraph(c,ln.text,78,583,1100,25,38,INK);
+        text(c,memory?"MEMORY REVEALED":"SCENE "+(storyIndex+1)+" / "+storyLines.length,
+                83,76,19,0xffffe2ae,false);
+        text(c,"TAP TO CONTINUE  •  BACK TO SKIP",1010,650,17,0xffb9d2d3,true);
     }
 
     private void drawChronicle(Canvas c){
