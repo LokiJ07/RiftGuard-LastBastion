@@ -23,7 +23,7 @@ public final class DifficultyRules {
     private static final int[] WAVE_BONUS={-1,0,1,2};
     private static final int[] ENEMY_BONUS={-2,0,3,5};
     private static final float[] REWARD_BONUS={0f,0f,.43f,1.18f};
-    private static final int[] GOLD={250,150,115,70};
+    private static final int[] GOLD={250,150,115,85};
     private static final float[] HERO_HP={1.30f,1f,.91f,.78f};
     private static final float[] HAZARD={.40f,1f,1.7f,2.55f};
 
@@ -44,7 +44,8 @@ public final class DifficultyRules {
     public static int enemies(int stage,int wave,int mode){
         return Math.min(34,Math.max(4,Campaign.enemies(stage,wave)+bonusEnemies(mode)));
     }
-    /** Expert spawns in roughly half the normal time, even on early stages. */
+    /** Controlled enemy arrival; harder modes shorten the gaps but still
+     * obey the concurrent enemy limit and never drop queued enemies. */
     public static float spawnInterval(int stage,int mode){
         return Math.max(.42f,Math.max(.75f,1.12f-stage*.0012f)*SPAWN[safe(mode)]);
     }
