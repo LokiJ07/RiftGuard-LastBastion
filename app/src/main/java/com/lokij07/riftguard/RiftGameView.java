@@ -1956,7 +1956,9 @@ public final class RiftGameView extends View {
         markDefeat();
     }
     private void markDefeat() {
-        if(scene==Scene.OUTRO||scene==Scene.LOSE)return;
+        // A completed stage or final result cannot be overwritten by a
+        // lingering collision callback from a previous battle.
+        if(scene!=Scene.PLAY)return;
         clearSavedWave(); // No ghost resume after a recorded failed run.
         recordBattleResult(false);
         audio.play(GameAudio.HURT);
@@ -1967,7 +1969,9 @@ public final class RiftGameView extends View {
         clearTouchControls();
     }
     private void complete() {
-        if(scene==Scene.OUTRO||scene==Scene.WIN)return;
+        // Only the real running stage can pay a permanent reward.
+        // In particular, a delayed win callback must never pay after LOSE.
+        if(scene!=Scene.PLAY||caveMode)return;
         boolean firstClear=stage>=unlocked;
         int reward=Progression.stageReward(stage,firstClear);
         int earnedObjective=MissionObjectives.completed(stage,missionBuilds,
