@@ -33,7 +33,7 @@ public final class BossAnatomyV065Test {
         assertEquals(1f,b.siegeMultiplier(),.001f);
         assertTrue(b.damage(BossAnatomyV065.WEAPON,10000));
         assertEquals(.48f,b.siegeMultiplier(),.001f);
-        assertEquals(1,b.nextIntact(BossAnatomyV065.WEAPON));
+        assertEquals(BossAnatomyV065.CORE,b.nextIntact(BossAnatomyV065.WEAPON));
     }
     @Test public void coreBreakSuppressesReinforcementsAndFocusSkipsDestroyedParts(){
         BossAnatomyV065 b=new BossAnatomyV065(9,1000);
