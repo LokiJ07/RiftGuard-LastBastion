@@ -83,6 +83,11 @@ public final class RiftGameView extends View {
     private int waveRetriesUsed=0;
     private float relicHp=0,relicMaxHp=0,relicX=0,relicY=0;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+    // Drawn on Android's single UI thread. Reuse the geometry object instead
+    // of allocating a Path for each HP marker, boss crown and tower polygon.
+    private final Path reusablePolygonPath=new Path();
+    private static final int[] TOWER_ACCENTS={
+            0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff};
     private final RenderBudgetV065 renderBudget=new RenderBudgetV065();
     private int graphicsMode=GraphicsProfileV065.BALANCED;
     private float lastCombatFps=0f;
@@ -2098,13 +2103,13 @@ public final class RiftGameView extends View {
         // Only submit actors whose geometry intersects the world camera.
         // Their movement, collisions, damage and boss AI are still updated
         // independently; this avoids doing heavy skeletal drawing off-screen.
-        final float actorHalfW=W*.5f/BATTLE_ZOOM+145f;
-        final float actorHalfH=H*.5f/BATTLE_ZOOM+145f;
+        final BattleViewportV066 viewport=new BattleViewportV066(
+                camX,camY,W,H,sceneZoom);
         for(Enemy e:enemies)
-            if(Math.abs(e.x-camX)<=actorHalfW && Math.abs(e.y-camY)<=actorHalfH)
+            if(viewport.visible(e.x,e.y,e.boss?175f:145f))
                 layer(MONSTER,e.y+8,e,0);
         for(Pickup drop:pickups)
-            if(Math.abs(drop.x-camX)<=actorHalfW && Math.abs(drop.y-camY)<=actorHalfH)
+            if(viewport.visible(drop.x,drop.y,52f))
                 layer(DROP,drop.y+12,drop,0);
         layer(WARDEN,heroY+9,null,0);
         if(terrain!=null)for(int i=0;i<terrain.count();i++){
@@ -2142,14 +2147,18 @@ public final class RiftGameView extends View {
         }
         // Draw actual class-specific projectile silhouettes instead of identical dots.
         for(Shot s:shots){
+            if(!viewport.visible(s.x,s.y,56f))continue;
             CombatVfx.projectile(c,s.x,s.y,s.target.x,s.target.y-10,
                     s.weaponId,s.tower?s.towerSlot:-1,gameTime);
         }
-        for(TerrainBolt b:terrainBolts)
+        for(TerrainBolt b:terrainBolts){
+            if(!viewport.visible(b.x,b.y,56f))continue;
             CombatVfx.projectile(c,b.x,b.y,b.target.x,b.target.y-15,
                     b.weapon,-1,gameTime);
+        }
         // Enemy shaman bolts are animated physical objects with fixed targets.
         for(HostileBolt b:hostileBolts){
+            if(!viewport.visible(b.x,b.y,65f))continue;
             float a=(float)Math.atan2(b.ty-b.y,b.tx-b.x);
             float bx=b.x-(float)Math.cos(a)*21,by=b.y-(float)Math.sin(a)*21;
             line(c,bx,by,b.x,b.y,0xff8959cb,10);
@@ -2160,6 +2169,7 @@ public final class RiftGameView extends View {
         }
         // Death animation persists after combat removal; rewards still count once.
         for(DeathEcho d:deaths){
+            if(!viewport.visible(d.x,d.y,145f))continue;
             float progress=1f-Math.max(0,d.life)/.64f;
             int alpha=Math.max(0,Math.min(255,(int)(195*(1f-progress))));
             c.save();
@@ -2176,6 +2186,8 @@ public final class RiftGameView extends View {
                     GLOWS[Campaign.world(stage)],d.kind==5?90:47);
         }
         for(Impact impact:impacts) {
+            if(!viewport.visible(impact.x,impact.y,Math.max(25f,impact.radius)+24f))
+                continue;
             CombatVfx.hit(c,impact.x,impact.y,1f-impact.life/.42f,
                     impact.color,impact.radius);
         }
@@ -2186,6 +2198,7 @@ public final class RiftGameView extends View {
                 graphicsMode,renderBudget.leanEffects())?2:1;
         for(int index=0;index<sparks.size();index+=sparkStride){
             Spark s=sparks.get(index);
+            if(!viewport.visible(s.x,s.y,12f))continue;
             p.setColor(s.color);p.setAlpha((int)(255*Math.max(0,s.life/s.maxLife)));
             c.drawCircle(s.x,s.y,2.5f+3*s.life/s.maxLife,p);p.setAlpha(255);
         }
@@ -2747,7 +2760,7 @@ public final class RiftGameView extends View {
     }
     private int towerFamily(int slot){return towerTypes[slot];}
     private static int towerColor(int slot) {
-        return new int[]{0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff}[slot];
+        return TOWER_ACCENTS[slot];
     }
     /** Four distinctive functional fortress-mounted weapons. No generic sticks. */
     private void drawTower(Canvas c,float x,float y,int tier,int slot,int biome) {
@@ -5210,9 +5223,12 @@ public final class RiftGameView extends View {
     }
     private void polygon(Canvas c,float[] pts,int color) {
         p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.FILL);
-        Path path=new Path();path.moveTo(pts[0],pts[1]);
-        for(int i=2;i<pts.length;i+=2)path.lineTo(pts[i],pts[i+1]);
-        path.close();c.drawPath(path,p);
+        reusablePolygonPath.reset();
+        reusablePolygonPath.moveTo(pts[0],pts[1]);
+        for(int i=2;i<pts.length;i+=2)
+            reusablePolygonPath.lineTo(pts[i],pts[i+1]);
+        reusablePolygonPath.close();
+        c.drawPath(reusablePolygonPath,p);
     }
     private void text(Canvas c,String str,float x,float y,float size,int color,boolean center) {
         p.setShader(null);p.setStyle(Paint.Style.FILL);p.setColor(color);
