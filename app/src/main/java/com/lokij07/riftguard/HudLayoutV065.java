@@ -89,8 +89,12 @@ public final class HudLayoutV065 {
         }
         e.apply();
     }
-    public void reset(){
+    /** Preview factory positions without changing the player's saved layout. */
+    public void previewDefaults(){
         for(int i=0;i<COUNT;i++){x[i]=DEFAULT_X[i];y[i]=DEFAULT_Y[i];}
+    }
+    public void reset(){
+        previewDefaults();
         save();
     }
 }
