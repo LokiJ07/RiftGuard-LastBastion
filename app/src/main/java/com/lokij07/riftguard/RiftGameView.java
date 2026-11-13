@@ -95,6 +95,7 @@ public final class RiftGameView extends View {
     // replacing the v0.51 combat engine or any purchased-upgrade save keys.
     private final WardenRig wardenRig=new WardenRig();
     private final WardenSpriteFrameCache wardenFrames=new WardenSpriteFrameCache(wardenRig);
+    private final FortressStaticFrameCache fortressFrames=new FortressStaticFrameCache();
     private boolean firstBattleActorDiag=false;
     private final EnemyRig enemyRig=new EnemyRig();
     private final StoryCinematicV065 cinematic=new StoryCinematicV065();
@@ -353,7 +354,21 @@ public final class RiftGameView extends View {
         }
         if (active) postInvalidateOnAnimation();
     }
-    public void releaseAudio(){audio.release();enemyFrames.clear();wardenFrames.clear();cinematic.release();}
+    public void releaseAudio(){
+        audio.release();
+        enemyFrames.clear();wardenFrames.clear();
+        fortressFrames.clear();deployedMap.release();cinematic.release();
+    }
+    /** Android may reclaim native raster caches under low-memory pressure.
+     * Do not discard game state, save data or current wave progress.
+     */
+    public void trimGraphicCaches(boolean severe){
+        enemyFrames.clear();
+        wardenFrames.clear();
+        fortressFrames.clear();
+        if(severe&&scene!=Scene.PLAY&&scene!=Scene.OUTRO)
+            deployedMap.release();
+    }
     public boolean handleBack() {
         if(storyOpen){dismissStory();return true;}
         if(scene==Scene.CHRONICLE){scene=Scene.HOME;return true;}
@@ -2645,15 +2660,14 @@ public final class RiftGameView extends View {
     private void drawBase(Canvas c,int biome) {
         // The real game fort uses the exact HTML-deployed fort vocabulary
         // (wood walls, corner towers, hut and banner) with rank-aware skins.
-        NativeDeployedMapArt.fort(c,BASE_X,BASE_Y,fortressRank,gameTime,
-                baseHp/Math.max(1f,coreMaxHp()));
-        FortressStructures.rankStructures(c,BASE_X,BASE_Y,fortressRank,gameTime);
-        FortressSilhouetteArt.draw(c,BASE_X,BASE_Y,fortressRank,gameTime);
-        FortressEvolutionArt.draw(c,BASE_X,BASE_Y,fortressRank,
-                arsenalTier(),gameTime);
-        FortressWeaponShowcaseArt.draw(c,BASE_X,BASE_Y,arsenalTier(),gameTime);
-        EvolutionEffects.fortressBranches(c,BASE_X,BASE_Y,
-                coreForm(),treasuryForm());
+        // Rank / arsenal / saved upgrade models are still physically distinct,
+        // but static masonry is built once, not every rendered combat frame.
+        if(!fortressFrames.draw(c,BASE_X,BASE_Y,fortressRank,arsenalTier(),
+                coreForm(),treasuryForm(),gameTime,
+                baseHp/Math.max(1f,coreMaxHp()))){
+            FortressStaticFrameCache.drawOriginal(c,BASE_X,BASE_Y,
+                    fortressRank,arsenalTier(),coreForm(),treasuryForm(),gameTime);
+        }
     }
     private int towerFamily(int slot){return towerTypes[slot];}
     private static int towerColor(int slot) {
@@ -3276,12 +3290,11 @@ public final class RiftGameView extends View {
 
     /** Identical layered fortress model in the Workshop and previews. */
     private void paintFullFortress(Canvas c,float x,float y,int rank,int arsenal){
-        NativeDeployedMapArt.fort(c,x,y,rank,gameTime,1);
-        FortressStructures.rankStructures(c,x,y,rank,gameTime);
-        FortressSilhouetteArt.draw(c,x,y,rank,gameTime);
-        FortressEvolutionArt.draw(c,x,y,rank,arsenal,gameTime);
-        FortressWeaponShowcaseArt.draw(c,x,y,arsenal,gameTime);
-        EvolutionEffects.fortressBranches(c,x,y,coreForm(),treasuryForm());
+        if(!fortressFrames.draw(c,x,y,rank,arsenal,
+                coreForm(),treasuryForm(),gameTime,1f)){
+            FortressStaticFrameCache.drawOriginal(c,x,y,rank,arsenal,
+                    coreForm(),treasuryForm(),gameTime);
+        }
     }
     /** Standalone previews are explicitly labeled; never imply unowned gear. */
     private void workshopMiniature(Canvas c,float left,float top,int rank,
