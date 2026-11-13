@@ -35,6 +35,9 @@ public final class SquadTacticsV065 {
         Campaign.checkStage(stage);
         if(wave<1)throw new IllegalArgumentException("wave");
         int realm=Campaign.world(stage);
+        // Do not announce COMMANDER ASSAULT when no commander can appear in
+        // the first-wave tutorial / preparation phase.
+        if(wave==1)return realm==4||realm==5?SHIELD_WALL:FLANK;
         int threat=(Campaign.seed(stage)>>>3)^wave*37^realm*71;
         if(builtTowers>=4&&wave>=3&&(threat&3)!=0)return SIEGE;
         if(DifficultyRules.worldBoss(stage)&&wave==DifficultyRules.waves(stage,difficulty))
