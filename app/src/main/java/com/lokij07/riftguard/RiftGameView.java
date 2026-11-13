@@ -70,6 +70,8 @@ public final class RiftGameView extends View {
     private boolean trialPassed=false,trialAwarded=false;
     private int towersDestroyedInBattle=0;
     private int squadPlan=SquadTacticsV065.FLANK;
+    private WaveCheckpointV065.Snapshot waveCheckpoint;
+    private int waveRetriesUsed=0;
     private float relicHp=0,relicMaxHp=0,relicX=0,relicY=0;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
@@ -400,6 +402,7 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
+        waveCheckpoint=null;waveRetriesUsed=0;
         caveMode=false;caveWinRecorded=false;caveEnding=StoryProgress.ENDING_NONE;
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
@@ -486,6 +489,7 @@ public final class RiftGameView extends View {
         combatFeel.reset();
         audio.play(GameAudio.AMBIENT);
         clearTouchControls();
+        captureWaveCheckpoint();
     }
 
     private void update(float dt) {
@@ -1036,7 +1040,41 @@ public final class RiftGameView extends View {
         announce("INCOMING: "+SquadTacticsV065.name(squadPlan));
         spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
         intermission=0;waiting=false;waveNotice=2.2f;
+        captureWaveCheckpoint();
         if(early)announce("EARLY WAVE • +"+bonus+" BATTLE GOLD");
+    }
+    private void captureWaveCheckpoint(){
+        waveCheckpoint=WaveCheckpointV065.capture(
+                stage,wave,Math.max(0,gold),kills,missionBuilds,revival.usedCharges(),
+                towersDestroyedInBattle,battlePulses,defeatedElite,
+                Math.max(0,heroHp),Math.max(0,baseHp),Math.max(0,relicHp),
+                heroX,heroY,towers,towerTypes,destroyedTowerTier,towerHp);
+    }
+    private boolean canRetryWave(){
+        return !caveMode&&scene==Scene.LOSE&&wave>1&&waveCheckpoint!=null&&
+                waveCheckpoint.stage==stage&&waveCheckpoint.wave==wave&&
+                waveRetriesUsed<WaveCheckpointV065.retries(difficultyMode);
+    }
+    private void retryWave(){
+        if(!canRetryWave())return;
+        WaveCheckpointV065.Snapshot snap=waveCheckpoint;
+        int used=waveRetriesUsed+1;
+        start(snap.stage);
+        waveRetriesUsed=used;
+        snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
+        gold=snap.gold;wave=snap.wave;kills=snap.kills;
+        missionBuilds=snap.built;battlePulses=snap.pulses;
+        towersDestroyedInBattle=snap.destroyedCount;
+        defeatedElite=snap.defeatedElite;
+        heroHp=snap.heroHp;baseHp=snap.coreHp;relicHp=snap.relicHp;
+        heroX=snap.heroX;heroY=snap.heroY;
+        revival.restoreUsed(snap.revivalsUsed);
+        remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
+        squadPlan=SquadTacticsV065.plan(stage,wave,countArmedTowers(),difficultyMode);
+        spawnTimer=2f;intermission=0;waiting=false;
+        waveCheckpoint=snap;
+        clearTouchControls();heroAnimation.reset();
+        announce("WAVE "+wave+" RETRY • "+(WaveCheckpointV065.retries(difficultyMode)-used)+" LEFT");
     }
     private void spawnEnemy() {
         if(caveMode){
@@ -3661,8 +3699,8 @@ public final class RiftGameView extends View {
     }
     private void drawResult(Canvas c) {
         rect(c,0,0,W,H,0xb900131b);
-        round(c,348,164,932,624,32,0xff1b343e);
-        border(c,348,164,932,624,32,GOLD,3);
+        round(c,348,164,932,674,32,0xff1b343e);
+        border(c,348,164,932,674,32,GOLD,3);
         text(c,scene==Scene.WIN?"FORTRESS SECURED":
                 caveMode?"THE CAVE HAS FALLEN":"THE CORE HAS FALLEN",
                 640,249,42,scene==Scene.WIN?GOLD:0xffff9f8c,true);
@@ -3681,8 +3719,13 @@ public final class RiftGameView extends View {
         if(scene==Scene.WIN)
             textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES",640,418,
                     430,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
-        button(c,435,429,845,502,scene==Scene.WIN?"NEXT STAGE":"RETRY STAGE",0xffae7652);
-        button(c,435,520,845,585,"CAMPAIGN MAP",0xff3f626e);
+        boolean waveRetry=canRetryWave();
+        button(c,435,429,845,502,scene==Scene.WIN?"NEXT STAGE":
+                waveRetry?"RETRY WAVE  ("+
+                (WaveCheckpointV065.retries(difficultyMode)-waveRetriesUsed)+" LEFT)":
+                "RETRY STAGE",0xffae7652);
+        button(c,435,520,845,585,waveRetry?"RESTART STAGE":"CAMPAIGN MAP",0xff3f626e);
+        if(waveRetry)button(c,435,590,845,651,"CAMPAIGN MAP",0xff485e66);
     }
     /**
      * Storybook mission panel is a real tap-gated overlay above a live battlefield.
@@ -4316,8 +4359,12 @@ public final class RiftGameView extends View {
                     briefingOpen=true;
                 }
                 else if(caveMode)startEclipseCave();
+                else if(canRetryWave())retryWave();
                 else start(stage);
-            }else if(x>420 && x<860 && y>514 && y<602){
+            }else if(x>420 && x<860 && y>514 && y<588){
+                if(canRetryWave())start(stage);
+                else {scene=Scene.MAP;caveMode=false;}
+            }else if(x>420&&x<860&&y>=590&&canRetryWave()){
                 scene=Scene.MAP;caveMode=false;
             }
         }
