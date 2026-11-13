@@ -115,6 +115,9 @@ public final class RiftGameView extends View {
 
     private final SharedPreferences prefs;
     private final DefenseLoadouts defenseLoadouts;
+    private final HudLayoutV065 hudLayout;
+    private boolean hudEditing=false;
+    private int hudDragPointer=-1,hudDragControl=-1;
     private final WardenRevivalV065 revival=new WardenRevivalV065();
     private int selectedLoadout=0;
     private final float[] towerHp=new float[TowerPadLayout.MAX];
@@ -283,6 +286,7 @@ public final class RiftGameView extends View {
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
         storyProgress=new StoryProgress(prefs);
         defenseLoadouts=new DefenseLoadouts(prefs);
+        hudLayout=new HudLayoutV065(prefs);
         selectedLoadout=Math.max(0,Math.min(2,prefs.getInt("fort.v065.active",0)));
         kingdom=new KingdomMeta(prefs);
         ascension=new AscensionTree(prefs);
@@ -399,7 +403,10 @@ public final class RiftGameView extends View {
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
             else if(scene==Scene.CAVE_CHOICE)drawCaveChoice(canvas);
             else if(scene==Scene.CAVE_END)drawCaveEnding(canvas);
-            else if (paused) drawPause(canvas);
+            else if (paused) {
+                if(hudEditing)drawHudEditor(canvas);
+                else drawPause(canvas);
+            }
             else if (scene==Scene.PLAY && briefingOpen) drawMissionBriefing(canvas);
         }
         if(storyOpen)drawStoryScene(canvas);
@@ -2836,11 +2843,16 @@ public final class RiftGameView extends View {
         if(scale<=0)return 0;
         return Math.max(0,Math.min(220f,(getWidth()/scale-W)*.5f));
     }
-    private float stickHudX(){return 153f-hudSideBleed()*.75f;}
-    private float dodgeHudX(){return 729f+hudSideBleed()*.32f;}
-    private float buildHudX(){return 849f+hudSideBleed()*.49f;}
-    private float pulseHudX(){return 974f+hudSideBleed()*.65f;}
-    private float attackHudX(){return 1130f+hudSideBleed()*.8f;}
+    private float stickHudX(){return hudLayout.x(HudLayoutV065.MOVE);}
+    private float stickHudY(){return hudLayout.y(HudLayoutV065.MOVE);}
+    private float dodgeHudX(){return hudLayout.x(HudLayoutV065.DODGE);}
+    private float dodgeHudY(){return hudLayout.y(HudLayoutV065.DODGE);}
+    private float buildHudX(){return hudLayout.x(HudLayoutV065.BUILD);}
+    private float buildHudY(){return hudLayout.y(HudLayoutV065.BUILD);}
+    private float pulseHudX(){return hudLayout.x(HudLayoutV065.SKILL);}
+    private float pulseHudY(){return hudLayout.y(HudLayoutV065.SKILL);}
+    private float attackHudX(){return hudLayout.x(HudLayoutV065.ATTACK);}
+    private float attackHudY(){return hudLayout.y(HudLayoutV065.ATTACK);}
 
     private void drawHud(Canvas c,int biome) {
         drawHudTop(c,biome);
@@ -2866,29 +2878,29 @@ public final class RiftGameView extends View {
         boolean bossActive=drawBossHud(c);
         // Left joystick and right action cluster: no UI obstruction in the center.
         float stickX=stickHudX();
-        circle(c,stickX,568,94,0x77202c38);
-        circleStroke(c,stickX,568,93,0x77d3ede6,3);
-        circle(c,stickX+axisX*61,568+axisY*61,45,0xbba3c4c6);
-        circle(c,stickX+axisX*61,568+axisY*61,26,0xff416578);
+        circle(c,stickX,stickHudY(),94,0x77202c38);
+        circleStroke(c,stickX,stickHudY(),93,0x77d3ede6,3);
+        circle(c,stickX+axisX*61,stickHudY()+axisY*61,45,0xbba3c4c6);
+        circle(c,stickX+axisX*61,stickHudY()+axisY*61,26,0xff416578);
         int nextTier=nextTowerTier();
-        action(c,dodgeHudX(),590,42,
+        action(c,dodgeHudX(),dodgeHudY(),42,
                 dodgeTime>0?0xff66b8bc:0xff487d95,"DODGE",
                 dodgeCooldown>0?""+(int)Math.ceil(dodgeCooldown)+"s":"READY");
         int chosen=selectedTowerPad;
         boolean canRepair=chosen>=0&&chosen<activeTowerCount&&towers[chosen]>0&&
                 towerHp[chosen]<TowerDurability.maxHp(towers[chosen],fortressRank);
         boolean rubble=chosen>=0&&chosen<activeTowerCount&&destroyedTowerTier[chosen]>0;
-        action(c,buildHudX(),589,50,canRepair?0xff4d937d:0xff4c837d,
+        action(c,buildHudX(),buildHudY(),50,canRepair?0xff4d937d:0xff4c837d,
                 canRepair?"REPAIR":rubble?"REBUILD":"BUILD",
                 canRepair?""+TowerDurability.repairCost(towerHp[chosen],
                         TowerDurability.maxHp(towers[chosen],fortressRank)):
                         rubble?""+TowerDurability.rebuildCost(destroyedTowerTier[chosen]):
                         nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":
                         ""+BattleRules.towerCost(nextTier));
-        action(c,pulseHudX(),593,49,WardenSkills.SKILLS[equippedSkill].color,
+        action(c,pulseHudX(),pulseHudY(),49,WardenSkills.SKILLS[equippedSkill].color,
                 WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
-        action(c,attackHudX(),560,70,0xffb3684c,"ATTACK","FIRE");
+        action(c,attackHudX(),attackHudY(),70,0xffb3684c,"ATTACK","FIRE");
         if(waiting && wave<DifficultyRules.waves(stage,difficultyMode)){
             boolean bossNext=DifficultyRules.worldBoss(stage)&&
                     wave+1==DifficultyRules.waves(stage,difficultyMode);
@@ -2913,10 +2925,10 @@ public final class RiftGameView extends View {
             round(c,448,119,830,153,8,0xcc203941);
             textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
         }
-        text(c,"MOVE",stickX,688,17,0xffb5cfc5,true);
+        text(c,"MOVE",stickX,Math.min(710f,stickHudY()+119),17,0xffb5cfc5,true);
         text(c,selectedTowerPad<0?"PADS "+activeTowerCount:
                 "PAD "+(selectedTowerPad+1)+"/"+activeTowerCount,
-                buildHudX(),680,15,0xffb9ddd2,true);
+                buildHudX(),Math.min(707f,buildHudY()+90),15,0xffb9ddd2,true);
         EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
                 624,652,.61f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
@@ -4331,13 +4343,66 @@ public final class RiftGameView extends View {
         text(c,"THE MEMORY SHRINE",BASE_X,BASE_Y+130,20,0xffedd5a4,true);
     }
 
+    /** HUD edit mode deliberately shares the very same positions as touch
+     * dispatch. Only explicit SAVE commits a new layout to SharedPreferences. */
+    private void drawHudEditor(Canvas c){
+        rect(c,0,0,W,176,0xea132937);
+        text(c,"CUSTOMIZE CONTROLS",38,60,35,GOLD,false);
+        text(c,"DRAG MOVE / ATTACK / BUILD / SKILL / DODGE • TEST AFTER SAVING",
+                38,103,19,INK,false);
+        button(c,700,42,852,115,"SAVE",0xff539374);
+        button(c,861,42,1034,115,"RESET",0xff926849);
+        button(c,1043,42,1218,115,"CANCEL",0xff536574);
+        for(int i=0;i<HudLayoutV065.COUNT;i++){
+            float cx=hudLayout.x(i),cy=hudLayout.y(i);
+            circleStroke(c,cx,cy,hudLayout.radius(i)+8,
+                    i==hudDragControl?0xfff7da98:0xffa0d8cd,4);
+            text(c,HudLayoutV065.NAMES[i],cx,cy-8,17,INK,true);
+            text(c,"DRAG",cx,cy+15,14,GOLD,true);
+        }
+    }
+    private void handleHudEditorTouch(MotionEvent ev,float x,float y,int action,int id){
+        if(action==MotionEvent.ACTION_CANCEL){
+            hudDragPointer=-1;hudDragControl=-1;return;
+        }
+        if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN){
+            if(y<=130){
+                if(x>=700&&x<=852){
+                    hudLayout.save();hudEditing=false;hudDragPointer=-1;hudDragControl=-1;
+                    announce("CUSTOM HUD POSITIONS SAVED");
+                }else if(x>=861&&x<=1034){
+                    hudLayout.reset();hudDragPointer=-1;hudDragControl=-1;
+                }else if(x>=1043&&x<=1218){
+                    hudLayout.reload();hudEditing=false;hudDragPointer=-1;hudDragControl=-1;
+                }
+                return;
+            }
+            int target=hudLayout.nearest(x,y);
+            if(target>=0){
+                hudDragPointer=id;hudDragControl=target;
+            }
+        }else if(action==MotionEvent.ACTION_MOVE&&hudDragPointer>=0){
+            int at=ev.findPointerIndex(hudDragPointer);
+            if(at<0)return;
+            float scale=Math.min(getWidth()/W,getHeight()/H);
+            if(scale<=0)return;
+            float ox=(getWidth()-W*scale)*.5f,oy=(getHeight()-H*scale)*.5f;
+            hudLayout.move(hudDragControl,(ev.getX(at)-ox)/scale,
+                    (ev.getY(at)-oy)/scale);
+        }else if((action==MotionEvent.ACTION_UP||
+                action==MotionEvent.ACTION_POINTER_UP)&&id==hudDragPointer){
+            hudDragPointer=-1;hudDragControl=-1;
+        }
+    }
+
     private void drawPause(Canvas c) {
         rect(c,0,0,W,H,0xc3001117);
-        round(c,390,166,890,582,27,0xff1f3741);
-        text(c,"PAUSED",640,282,66,GOLD,true);
-        button(c,456,332,825,414,"RESUME BATTLE",0xffae7652);
-        button(c,456,439,825,517,"RETURN TO MAP",0xff42616b);
-        button(c,456,526,825,581,"SAVE FORMATION "+(selectedLoadout+1),0xff766347);
+        round(c,390,114,890,623,27,0xff1f3741);
+        text(c,"PAUSED",640,199,59,GOLD,true);
+        button(c,456,245,825,321,"RESUME BATTLE",0xffae7652);
+        button(c,456,332,825,405,"RETURN TO MAP",0xff42616b);
+        button(c,456,415,825,493,"SAVE FORMATION "+(selectedLoadout+1),0xff766347);
+        button(c,456,504,825,584,"CUSTOMIZE HUD",0xff477a82);
     }
     /**
      * Fixed, accessible upgrade navigation across Armory, Skills, Fortress,
@@ -4382,6 +4447,10 @@ public final class RiftGameView extends View {
         if(scale<=0)return true;
         float offsetX=(getWidth()-W*scale)*.5f,offsetY=(getHeight()-H*scale)*.5f;
         float x=(ev.getX(index)-offsetX)/scale,y=(ev.getY(index)-offsetY)/scale;
+        if(hudEditing){
+            handleHudEditorTouch(ev,x,y,action,id);
+            invalidate();return true;
+        }
         if(storyOpen){
             if(action==MotionEvent.ACTION_DOWN)advanceStoryLine();
             invalidate();return true;
@@ -4480,25 +4549,27 @@ public final class RiftGameView extends View {
         if(action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) {
             if(scene!=Scene.PLAY) { tapMenu(x,y);invalidate();return true; }
             if(paused) {
-                if(x>450 && x<830 && y>330 && y<421) { paused=false;clearTouchControls(); }
-                else if(x>450 && x<830 && y>435 && y<525) {scene=Scene.MAP;paused=false;clearTouchControls();}
-                else if(x>450 && x<830 && y>525 && y<589){
+                if(x>450 && x<830 && y>245 && y<322) { paused=false;clearTouchControls(); }
+                else if(x>450 && x<830 && y>332 && y<406) {scene=Scene.MAP;paused=false;clearTouchControls();}
+                else if(x>450 && x<830 && y>415 && y<495){
                     defenseLoadouts.save(selectedLoadout,towers,towerTypes,activeTowerCount);
                     announce("FORMATION "+(selectedLoadout+1)+" SAVED");
                     paused=false;clearTouchControls();
+                }else if(x>450 && x<830 && y>503 && y<585){
+                    hudEditing=true;clearTouchControls();
                 }
             }else if(x>1138 && y<112) {paused=true;clearTouchControls();}
             else if(revival.isDown()){clearTouchControls();}
             else if(waiting && x>452 && x<828 && y>216 && y<270)
                 advanceWave(true);
-            else if(distance(x,y,stickHudX(),568)<150) {joyPointer=id;updateStick(x,y);}
-            else if(distance(x,y,attackHudX(),560)<82) {
+            else if(hudLayout.hit(HudLayoutV065.MOVE,x,y,56)) {joyPointer=id;updateStick(x,y);}
+            else if(hudLayout.hit(HudLayoutV065.ATTACK,x,y,12)) {
                 attackPointer=id;attackGesture=true;heldAttackSeconds=0f;
                 firing=true;bufferedAttackTime=0f;chargeNext=false;fire();
             }
-            else if(distance(x,y,pulseHudX(),593)<62) pulse();
-            else if(distance(x,y,buildHudX(),589)<65) build();
-            else if(distance(x,y,dodgeHudX(),590)<54) triggerDodge();
+            else if(hudLayout.hit(HudLayoutV065.SKILL,x,y,13)) pulse();
+            else if(hudLayout.hit(HudLayoutV065.BUILD,x,y,15)) build();
+            else if(hudLayout.hit(HudLayoutV065.DODGE,x,y,12)) triggerDodge();
             else selectTowerPadAt(x,y);
         }else if(action==MotionEvent.ACTION_MOVE) {
             if(joyPointer!=-1){
@@ -4582,7 +4653,7 @@ public final class RiftGameView extends View {
         puff(heroX,heroY,6,0xffa6dfe0);
     }
     private void updateStick(float x,float y) {
-        float dx=x-stickHudX(),dy=y-568,d=(float)Math.hypot(dx,dy);
+        float dx=x-stickHudX(),dy=y-stickHudY(),d=(float)Math.hypot(dx,dy);
         axisX=d>0?dx/d*Math.min(d/90f,1f):0;
         axisY=d>0?dy/d*Math.min(d/90f,1f):0;
     }
