@@ -57,12 +57,15 @@ public final class DifficultyBalanceTest {
                     DifficultyRules.spawnInterval(0,mode));
             assertTrue(pressure(mode+1)>pressure(mode)*1.5f);
         }
-        assertTrue("Expert must be massively stronger than Normal even on level 1",
-                pressure(DifficultyRules.EXPERT)>pressure(DifficultyRules.NORMAL)*30);
-        assertTrue(DifficultyRules.health(3)>=3.5f);
-        assertTrue(DifficultyRules.enemyDamage(3)>=2.7f);
-        assertTrue(DifficultyRules.waves(0,3)>=9);
-        assertTrue(DifficultyRules.enemies(0,1,3)>=16);
+        // Expertise stays dangerous through waves, damage, speed and elite AI,
+        // not by multiplying every first-level grunt into a bullet sponge.
+        assertTrue("Expert must be substantially stronger than Normal",
+                pressure(DifficultyRules.EXPERT)>pressure(DifficultyRules.NORMAL)*8);
+        assertTrue(DifficultyRules.health(3)>=2.3f);
+        assertTrue(DifficultyRules.enemyDamage(3)>=2f);
+        assertTrue(DifficultyRules.waves(0,3)>=6);
+        assertTrue(DifficultyRules.enemies(0,1,3)>=10);
+        assertTrue(DifficultyRules.enemies(0,1,3)<=14);
         assertEquals(0,DifficultyRules.initialTowers(1,3));
         assertEquals(1,DifficultyRules.initialTowers(1,1));
         assertTrue(DifficultyRules.startingGold(1,3)<
@@ -73,7 +76,7 @@ public final class DifficultyBalanceTest {
         assertTrue(DifficultyRules.eliteWave(0,2,DifficultyRules.EXPERT));
         assertTrue(DifficultyRules.eliteWave(0,3,DifficultyRules.HARD));
         assertFalse(DifficultyRules.eliteWave(0,2,DifficultyRules.HARD));
-        assertTrue(DifficultyRules.eliteMultiplier(0,2,3)>4f);
+        assertTrue(DifficultyRules.eliteMultiplier(0,2,3)>3f);
         assertTrue(DifficultyRules.worldBoss(Campaign.stage(10,2)));
         assertEquals(DifficultyRules.finalBossMultiplier(Campaign.stage(10,2)),
                 DifficultyRules.eliteMultiplier(Campaign.stage(10,2),
@@ -109,6 +112,6 @@ public final class DifficultyBalanceTest {
         List<Object> enemies=(List<Object>)enemiesField.get(expert);
         Object elite=enemies.get(enemies.size()-1);
         assertEquals(5,number(elite,"kind"));
-        assertTrue(value(elite,"hp")>BattleRules.enemyHealth(0,5)*10);
+        assertTrue(value(elite,"hp")>BattleRules.enemyHealth(0,5)*8);
     }
 }
