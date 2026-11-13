@@ -404,15 +404,18 @@ public final class RiftGameViewSmokeTest {
 
     @Test public void clearedWavesUnlockAndPersistNextStage() throws Exception {
         start(0);
-        int total=Campaign.waves(0);
-        for(int wave=0;wave<total;wave++) {
+        int total=DifficultyRules.waves(0,DifficultyRules.NORMAL);
+        // One initial preparation period, followed by every actual wave and
+        // its intermission. No invisible instantly-started first wave.
+        for(int wave=0;wave<=total;wave++) {
             set(view,"remaining",0);
             ((List<?>)value(view,"enemies")).clear();
             advance(.02f);
-            // v0.65 intentionally gives the player 20s of Normal preparation
-            // (not the old 2.5s). Advance beyond the legitimate countdown.
             advance(25f);
         }
+        assertEquals("OUTRO",value(view,"scene").toString());
+        // Real win screen appears after the Warden walks up the enemy road.
+        advance(4f);
         assertEquals("WIN",value(view,"scene").toString());
         assertEquals(1,value(view,"unlocked"));
         assertEquals(1,RuntimeEnvironment.getApplication()
