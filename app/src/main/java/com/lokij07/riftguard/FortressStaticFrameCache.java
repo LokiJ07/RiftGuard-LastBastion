@@ -22,6 +22,7 @@ public final class FortressStaticFrameCache {
             new LinkedHashMap<>(3,.75f,true);
     private final Paint bitmapPaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private final Paint accent=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.graphics.Path banner=new android.graphics.Path();
     private boolean disabled=false;
     private int cacheLimit=MAX_FRAMES;
     private int builds=0;
@@ -84,7 +85,7 @@ public final class FortressStaticFrameCache {
         accent.setColor(0xffe2a847);
         float sway=(float)Math.sin(time*3f)*5f;
         c.drawRect(x+2,y-108,x+3,y-81,accent);
-        android.graphics.Path banner=new android.graphics.Path();
+        banner.reset();
         banner.moveTo(x+3,y-108);
         banner.lineTo(x+46+sway,y-94);
         banner.lineTo(x+3,y-82);
