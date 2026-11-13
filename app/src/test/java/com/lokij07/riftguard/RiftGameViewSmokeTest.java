@@ -103,6 +103,9 @@ public final class RiftGameViewSmokeTest {
         start(0);
         invoke(view,"complete",new Class<?>[0]);
         assertEquals(120,value(view,"supplies"));
+        assertEquals("OUTRO",value(view,"scene").toString());
+        for(int frame=0;frame<85;frame++)advance(.05f);
+        assertEquals("WIN",value(view,"scene").toString());
         tap(600,555); // Results -> campaign map
         assertEquals("MAP",value(view,"scene").toString());
         tap(100,641); // Map -> home
