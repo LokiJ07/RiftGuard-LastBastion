@@ -515,6 +515,10 @@ public final class RiftGameView extends View {
             }
         }
         for (int i=0;i<activeTowerCount;i++) {
+            // Existing old-save/script-spawned towers get full initial health;
+            // real destroyed towers have tier 0 and stay as rubble.
+            if(towers[i]>0 && towerHp[i]<=0 && destroyedTowerTier[i]==0)
+                towerHp[i]=TowerDurability.maxHp(towers[i],fortressRank);
             towerTimers[i]-=dt;
             towerRecoil[i]=Math.max(0,towerRecoil[i]-dt);
             if (towers[i]>0 && towerHp[i]>0 && towerTimers[i]<=0) {
