@@ -25,6 +25,17 @@ public final class SiegeBalanceV066 {
         return 1f+Math.min(.22f,(wave-1)*.02f);
     }
 
+    /** Accept existing alpha3 saves before Hard/Expert bonus-wave tuning.
+     * Only used to validate a LEGACY saved wave; new battles use the new cap.
+     */
+    public static int legacyWaveCeiling(int stage,int mode){
+        Campaign.checkStage(stage);
+        int before=Math.min(12,4+stage/38+
+                (Campaign.map(stage)==2?2:0));
+        int bonus=new int[]{-1,0,2,5}[DifficultyRules.safe(mode)];
+        return Math.max(3,before+bonus);
+    }
+
     /** Limit SIMULTANEOUS enemies without deleting a queued wave spawn. */
     public static int activeLimit(int difficulty){
         switch(DifficultyRules.safe(difficulty)){
