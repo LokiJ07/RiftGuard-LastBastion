@@ -1204,8 +1204,17 @@ public final class RiftGameView extends View {
         // Previously upper turret weapons were depth-sorted behind the castle art.
         layer(KEEP,BASE_Y-305,null,0);
         for(int i=0;i<activeTowerCount;i++)layer(TOWER,towerY[i]+31,null,i);
-        for(Enemy e:enemies)layer(MONSTER,e.y+8,e,0);
-        for(Pickup drop:pickups)layer(DROP,drop.y+12,drop,0);
+        // Only submit actors whose geometry intersects the world camera.
+        // Their movement, collisions, damage and boss AI are still updated
+        // independently; this avoids doing heavy skeletal drawing off-screen.
+        final float actorHalfW=W*.5f/BATTLE_ZOOM+145f;
+        final float actorHalfH=H*.5f/BATTLE_ZOOM+145f;
+        for(Enemy e:enemies)
+            if(Math.abs(e.x-camX)<=actorHalfW && Math.abs(e.y-camY)<=actorHalfH)
+                layer(MONSTER,e.y+8,e,0);
+        for(Pickup drop:pickups)
+            if(Math.abs(drop.x-camX)<=actorHalfW && Math.abs(drop.y-camY)<=actorHalfH)
+                layer(DROP,drop.y+12,drop,0);
         layer(WARDEN,heroY+9,null,0);
         drawQueue.sort((a,b)->Float.compare(a.depth,b.depth));
         for(DepthItem entry:drawQueue) {
