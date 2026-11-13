@@ -26,6 +26,17 @@ public final class HudLayoutV065 {
             x[i]=clamp(prefs.getFloat(PREFIX+i+".x",DEFAULT_X[i]),95,1182);
             y[i]=clamp(prefs.getFloat(PREFIX+i+".y",DEFAULT_Y[i]),220,625);
         }
+        // Old versions or corrupted preference floats can overlap hit areas,
+        // making BUILD/SKILL/DODGE appear unresponsive. The entire legacy
+        // layout falls back in memory to safe defaults, without deleting
+        // the player's unrelated permanent progression.
+        for(int i=0;i<COUNT;i++)for(int j=i+1;j<COUNT;j++){
+            if(Math.hypot(x[i]-x[j],y[i]-y[j])<
+                    RADIUS[i]+RADIUS[j]+12f){
+                previewDefaults();
+                return;
+            }
+        }
     }
     private static void check(int control){
         if(control<0||control>=COUNT)throw new IllegalArgumentException("control");
