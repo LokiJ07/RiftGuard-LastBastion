@@ -91,6 +91,8 @@ public final class RiftGameView extends View {
     private final RenderBudgetV065 renderBudget=new RenderBudgetV065();
     private int graphicsMode=GraphicsProfileV065.BALANCED;
     private float lastCombatFps=0f;
+    private final BattlePerfStatsV066 battlePerf=new BattlePerfStatsV066();
+    private BattlePerfStatsV066.Snapshot pausedPerfSnapshot;
     private Shader gutterShader;
     private final Shader hudGradient=new LinearGradient(0,510,0,H,
             0x00112631,0xe8172b37,Shader.TileMode.CLAMP);
@@ -432,6 +434,7 @@ public final class RiftGameView extends View {
             // Hitstop freezes only painted-animation clocks, NOT real damage
             // simulation or touch handling. Feedback remains mobile-friendly.
             boolean liveCombat=scene==Scene.PLAY&&!paused&&!briefingOpen&&!storyOpen;
+            if(liveCombat)pausedPerfSnapshot=null;
             animationDelta=liveCombat?combatFeel.frame(dt):dt;
             gameTime+=animationDelta;
             evolutionRevealTimer=Math.max(0,evolutionRevealTimer-dt);
@@ -494,13 +497,15 @@ public final class RiftGameView extends View {
             drawEvolutionReveal(canvas);
         }
         canvas.restore();
-        renderBudget.sample((System.nanoTime()-now)/1000000f,frameGapMs);
+        float cpuDrawMs=(System.nanoTime()-now)/1000000f;
+        renderBudget.sample(cpuDrawMs,frameGapMs);
         // Actual frame cadence, not an invented FPS estimate from the CPU-only
         // test runner. Report the recent live battle cadence on the pause menu.
         if(active&&scene==Scene.PLAY&&!paused&&!briefingOpen&&!storyOpen&&
                 frameGapMs>=8f&&frameGapMs<500f){
             float fps=Math.min(144f,1000f/frameGapMs);
             lastCombatFps=lastCombatFps==0f?fps:lastCombatFps*.90f+fps*.10f;
+            battlePerf.record(cpuDrawMs,frameGapMs);
         }
         if(active){
             // At 120Hz we need not paint twice as often just because the
@@ -530,6 +535,9 @@ public final class RiftGameView extends View {
 
     private void start(int s) {
         Campaign.checkStage(s);
+        battlePerf.reset();
+        pausedPerfSnapshot=null;
+        lastCombatFps=0f;
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
         outro=null;outcomeStory.clear();
         bossSpawnWarned=false;bossWarningCountdown=0f;
@@ -4765,11 +4773,28 @@ public final class RiftGameView extends View {
 
     private void drawPause(Canvas c) {
         rect(c,0,0,W,H,0xc3001117);
-        round(c,390,114,890,696,27,0xff1f3741);
-        text(c,"PAUSED",640,199,59,GOLD,true);
+        round(c,390,85,890,696,27,0xff1f3741);
+        text(c,"PAUSED",640,150,49,GOLD,true);
+        int targetFps=GraphicsProfileV065.targetFps(graphicsMode);
         textFit(c,lastCombatFps<1f?"BATTLE FPS: MEASURING":
-                        "LAST BATTLE: "+Math.round(lastCombatFps)+" FPS  /  TARGET 60",
-                640,231,447,18,0xffb9dbe0,true);
+                "RECENT BATTLE: "+Math.round(lastCombatFps)+
+                " FPS  /  TARGET "+targetFps,
+                640,183,447,17,0xffb9dbe0,true);
+        // Frame gap includes scheduling; CPU DRAW excludes GPU execution.
+        // Sample is snapped ONCE per pause instead of sorting every UI frame.
+        if(pausedPerfSnapshot==null)pausedPerfSnapshot=battlePerf.snapshot();
+        BattlePerfStatsV066.Snapshot snap=pausedPerfSnapshot;
+        if(snap.samples<12){
+            text(c,"FRAME TIMING: COLLECTING IN-BATTLE SAMPLES",640,210,
+                    15,0xffb9dbe0,true);
+        }else{
+            textFit(c,"FRAME GAP: P50 "+Math.round(snap.frameGapP50Ms)+
+                    "ms  /  P95 "+Math.round(snap.frameGapP95Ms)+"ms",
+                    640,210,447,16,0xffb9dbe0,true);
+            textFit(c,"ON-DRAW CPU: P50 "+Math.round(snap.drawCpuP50Ms)+
+                    "ms  /  P95 "+Math.round(snap.drawCpuP95Ms)+"ms",
+                    640,235,447,16,0xffb9dbe0,true);
+        }
         button(c,456,245,825,321,"RESUME BATTLE",0xffae7652);
         button(c,456,332,825,405,"RETURN TO MAP",0xff42616b);
         button(c,456,415,825,493,"SAVE FORMATION "+(selectedLoadout+1),0xff766347);
