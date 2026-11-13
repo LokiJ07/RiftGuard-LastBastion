@@ -18,6 +18,18 @@ public final class BiomeAtmosphere {
     public static final int FOREST=0, HOLLOW=1, SWAMP=2, ASH=3, SNOW=4,
             IRON=5, CRYSTAL=6, TEMPEST=7, SHADOW=8, ECLIPSE=9;
     private static final Paint P=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private static final float[] SEED=new float[64],X=new float[64],Y=new float[64];
+    private static int preparedStage=Integer.MIN_VALUE;
+    /** The seeded particle locations never change during an individual stage. */
+    private static void prepareParticles(int stage){
+        if(stage==preparedStage)return;
+        for(int i=0;i<SEED.length;i++){
+            SEED[i]=hash(i+13,stage*.73f+17f);
+            X[i]=hash(i+33f,stage*.17f+9f)*1900;
+            Y[i]=hash(i*1.37f,stage*.11f+29f)*1050;
+        }
+        preparedStage=stage;
+    }
     public static final int[] LIGHT={
             0xffb5ecb4,0xffb9e8c8,0xff9adbc5,0xffffbc82,0xffe8f7ff,
             0xffffc58c,0xff86eaf9,0xff9cbefa,0xffa58ad0,0xffffbba0
@@ -78,14 +90,19 @@ public final class BiomeAtmosphere {
     }
     /** World space particles are always drawn ahead of actors but below HUD. */
     public static void drawFront(Canvas c,int biome,int stage,float time) {
+        drawFront(c,biome,stage,time,false);
+    }
+    public static void drawFront(Canvas c,int biome,int stage,float time,boolean lean) {
         int id=Math.max(0,Math.min(9,biome));
         if(!Float.isFinite(time))return;
+        prepareParticles(stage);
         int color=LIGHT[id];
         int particles=id==SNOW||id==TEMPEST?64:44;
+        if(lean)particles=(particles+1)/2;
         for(int i=0;i<particles;i++){
-            float seed=hash(i+13,stage*.73f+17f);
-            float x=hash(i+33f,stage*.17f+9f)*1900;
-            float y=hash(i*1.37f,stage*.11f+29f)*1050;
+            float seed=SEED[i];
+            float x=X[i];
+            float y=Y[i];
             float parallax=.65f+seed*.9f;
             float wx=(id==TEMPEST?100:id==SNOW?-29:id==ASH?39:12)*parallax;
             float wy=(id==TEMPEST?82:id==SNOW?33:id==ASH?-45:7)*parallax;
