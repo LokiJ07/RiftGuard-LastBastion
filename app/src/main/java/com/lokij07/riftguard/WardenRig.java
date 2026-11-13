@@ -49,6 +49,7 @@ public final class WardenRig {
     private final float[] ik = new float[4]; // kneeX, kneeY, endX, endY
     private final float[][] foot = new float[2][3]; // x, y, planted(1)
     private float hurtMix;
+    private int visualStyle=WardenVisualStyles.VANGUARD;
 
     /** Always true: this rig needs no bitmap. Kept for call-site symmetry. */
     public boolean ready() { return true; }
@@ -80,6 +81,7 @@ public final class WardenRig {
             return false; // original MotionArt fallback can handle invalid state
         if (!Float.isFinite(time) || !Float.isFinite(facing)) return false;
         final int id = Math.max(0, Math.min(5, weaponId));
+        visualStyle=WardenVisualStyles.forWeapon(id);
         final boolean left = Math.cos(facing) < -.28f;
         final float lx = (float) Math.cos(facing) * (left ? -1f : 1f); // local heading
         final float ly = (float) Math.sin(facing);
@@ -146,6 +148,7 @@ public final class WardenRig {
         drawLowerTabard(c, time, phase, running, lx);
         drawTorso(c, breath);
         drawHead(c, lx, ly, attacking ? attackProgress : -1f, hurt, dying, kneel);
+        drawStyleGear(c,time,armorTier,breath);
         if (grip) drawBackArm(c, pose, id, time, phase, running, lx, ly, -1f, false);
         drawPauldron(c, SHOULDER_BACK_X + 1f, SHOULDER_Y + 2.5f, 8.5f, false);
         drawAscendedArmor(c,armorTier,time,breath);
@@ -241,16 +244,16 @@ public final class WardenRig {
         path.quadTo(30f + sw * .8f, -4f + f3 - lift, 33f + sw, -14f + f1 - lift * .4f);
         path.cubicTo(37f + sw * .5f, -44f, 31f, -76f, 16f, -88f);
         path.close();
-        fill(path, BLUE_D, true);
+        fill(path, WardenVisualStyles.capeShadow(visualStyle), true);
         // inner folds
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeCap(Paint.Cap.ROUND);
         p.setStrokeWidth(3f);
-        p.setColor(tint(BLUE_DD));
+        p.setColor(tint(WardenVisualStyles.capeShadow(visualStyle)));
         c.drawLine(-14f, -80f, -22f + sw * .6f, -22f + f1, p);
         c.drawLine(12f, -80f, 21f + sw * .6f, -22f + f3, p);
         p.setStrokeWidth(2f);
-        p.setColor(tint(BLUE));
+        p.setColor(tint(WardenVisualStyles.capeHighlight(visualStyle)));
         c.drawLine(-6f, -82f, -9f + sw * .4f, -16f + f2, p);
         c.drawLine(5f, -82f, 7f + sw * .4f, -16f + f2, p);
         // gold hem
@@ -268,7 +271,7 @@ public final class WardenRig {
         float sw = running ? (float) Math.sin(phase) * 2.5f * lx : (float) Math.sin(time * 2.2f) * .6f;
         float hem = running ? (float) Math.abs(Math.sin(phase)) * 1.8f : 0f;
         poly(new float[]{-10f, -60f, 8f, -60f, 10f + sw, -30f - hem, 4f + sw, -25f - hem,
-                -2f + sw * 1.2f, -24f - hem, -9f + sw, -25f - hem, -12f + sw, -30f - hem}, BLUE, true);
+                -2f + sw * 1.2f, -24f - hem, -9f + sw, -25f - hem, -12f + sw, -30f - hem}, WardenVisualStyles.cape(visualStyle), true);
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(1.8f);
         p.setColor(tint(GOLD));
@@ -280,7 +283,7 @@ public final class WardenRig {
         path.lineTo(4f + sw, -25f - hem);
         path.lineTo(10f + sw, -30f - hem);
         c.drawPath(path, p);
-        p.setColor(tint(BLUE_DD));
+        p.setColor(tint(WardenVisualStyles.capeShadow(visualStyle)));
         p.setStrokeWidth(1.6f);
         c.drawLine(-2f, -58f, -2f + sw * .6f, -28f, p);
         // hip plates (tassets)
@@ -295,7 +298,8 @@ public final class WardenRig {
         poly(new float[]{-21f, -83f + ch, -16f, -88f + ch, 13f, -88f + ch, 17f, -83f + ch,
                 14f, -72f, 12f, -60f, -16f, -60f, -18f, -72f}, STEEL_M, true);
         // blue tabard panel on the chest
-        poly(new float[]{-11f, -87f + ch, 7f, -87f + ch, 8f, -64f, -2f, -58f, -12f, -64f}, BLUE, true);
+        poly(new float[]{-11f, -87f + ch, 7f, -87f + ch, 8f, -64f, -2f, -58f, -12f, -64f},
+                WardenVisualStyles.cape(visualStyle), true);
         // plate edge highlights
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeCap(Paint.Cap.ROUND);
@@ -634,6 +638,123 @@ public final class WardenRig {
             p.setColor(tint(BLUE));
             c.drawCircle(x + rx * .35f, y - ry * .1f, 1.3f, p);
         }
+    }
+
+    /**
+     * Three truly different battle silhouettes inspired by the reference's
+     * distinct knight armor/weapon classes. Drawn above the original detailed
+     * IK body, with shoulder / crown / quiver components attached to torso.
+     * Uses original authored geometry, not CraftPix source sprites.
+     */
+    private void drawStyleGear(Canvas c,float time,int armorTier,float breath) {
+        final float sw=(float)Math.sin(time*3.1f)*1.8f;
+        if(visualStyle==WardenVisualStyles.RANGER) {
+            // Forest ranger: hood framing the actual facial expression.
+            path.reset();
+            path.moveTo(-18,-102);path.lineTo(-19,-119);
+            path.quadTo(-14,-137,-1,-139);
+            path.quadTo(16,-136,18,-119);
+            path.lineTo(15,-101);path.lineTo(10,-116);
+            path.quadTo(-2,-131,-13,-115);path.close();
+            fill(path,0xff284c40,true);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2.2f);
+            p.setColor(tint(0xff9bc6a2));
+            c.drawArc(-15,-135,14,-107,188,165,false,p);
+            // Asymmetric quiver emerges behind the left shoulder.
+            path.reset();path.moveTo(-27,-89);path.lineTo(-37,-103);
+            path.lineTo(-41,-75);path.lineTo(-26,-70);path.close();
+            fill(path,0xff4c3024,true);
+            for(int i=0;i<3;i++){
+                float ex=-37+i*4;
+                p.setColor(tint(0xffefddb3));p.setStrokeWidth(2.4f);
+                c.drawLine(ex,-105,ex+1,-79,p);
+                path.reset();path.moveTo(ex,-110);
+                path.lineTo(ex-3,-106);path.lineTo(ex+1,-102);
+                path.lineTo(ex+4,-106);path.close();
+                fill(path,i==1?0xffa8dbb5:0xffdce8df,true);
+            }
+            // Leather shoulder straps and layered hunter's clasp.
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4f);
+            p.setColor(tint(0xff5b3b2b));
+            c.drawLine(-16,-85,12,-58,p);
+            p.setStrokeWidth(1.6f);p.setColor(tint(GOLD));
+            c.drawLine(-15,-85,12,-58,p);
+            ball(c,12,-58,3.2f,GOLD);
+        }else if(visualStyle==WardenVisualStyles.VANGUARD){
+            // Heavy knight: enclosed T-visored helmet + broad raised gorget.
+            path.reset();path.moveTo(-17,-111);path.lineTo(-14,-127);
+            path.quadTo(1,-142,16,-126);path.lineTo(18,-107);
+            path.lineTo(13,-96);path.lineTo(-12,-96);path.close();
+            fill(path,STEEL_D,true);
+            path.reset();path.moveTo(-14,-116);path.lineTo(-10,-127);
+            path.quadTo(0,-134,12,-126);path.lineTo(14,-116);
+            path.lineTo(12,-103);path.lineTo(-11,-103);path.close();
+            fill(path,STEEL_M,true);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3.4f);
+            p.setColor(tint(0xff0d1118));
+            c.drawLine(-10,-113,12,-113,p);
+            c.drawLine(1,-113,1,-102,p);
+            p.setStrokeWidth(1.2f);p.setColor(tint(STEEL_H));
+            c.drawLine(-11,-117,12,-117,p);
+            // Moving plume and steel shoulder spikes.
+            path.reset();path.moveTo(-7,-133);
+            path.cubicTo(-19,-151,-3+sw,-156,9+sw,-142);
+            path.lineTo(2,-136);path.close();
+            fill(path,0xffae3442,true);
+            for(int side=-1;side<=1;side+=2){
+                path.reset();path.moveTo(side*16,-89);
+                path.lineTo(side*29,-108);
+                path.lineTo(side*29,-86);
+                path.close();fill(path,STEEL_L,true);
+            }
+        }else{
+            // Mystic Arcanist: open ornate cowl, split ceremonial crown and
+            // orbiting runic gemstones with restrained bloom.
+            path.reset();path.moveTo(-19,-103);path.lineTo(-21,-120);
+            path.lineTo(-13,-135);path.lineTo(-3,-124);
+            path.lineTo(9,-139);path.lineTo(20,-123);
+            path.lineTo(18,-101);path.lineTo(14,-114);
+            path.lineTo(8,-119);path.lineTo(-8,-118);
+            path.lineTo(-14,-113);path.close();
+            fill(path,0xff453366,true);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2.2f);
+            p.setColor(tint(0xffb5a1e9));
+            c.drawLine(-19,-116,-11,-133,p);
+            c.drawLine(10,-136,18,-116,p);
+            p.setStyle(Paint.Style.FILL);p.setColor(tint(0xff9cf6f9));
+            path.reset();path.moveTo(1,-138);path.lineTo(7,-130);
+            path.lineTo(1,-122);path.lineTo(-5,-130);path.close();
+            c.drawPath(path,p);
+            for(int side=-1;side<=1;side+=2){
+                // Separate tall collar leaves room for the original face.
+                path.reset();path.moveTo(side*17,-96);
+                path.lineTo(side*28,-119);path.lineTo(side*29,-84);
+                path.lineTo(side*18,-78);path.close();
+                fill(path,0xff51417c,true);
+                ball(c,side*23,-90,2.8f,0xffaeedff);
+            }
+            p.setStyle(Paint.Style.STROKE);
+            p.setColor(tint(0xff81ddf5));p.setStrokeWidth(1.8f);
+            c.drawCircle(-2,-75,5.4f+Math.abs(sw)*.15f,p);
+        }
+        // Every Ascension step adds a distinct visible equipment piece; the
+        // purchased armor tier remains authoritative (never preview state).
+        if(armorTier>=2){
+            for(int side=-1;side<=1;side+=2){
+                path.reset();path.moveTo(side*18,-85);
+                path.lineTo(side*23,-91);path.lineTo(side*30,-80);
+                path.lineTo(side*22,-72);path.close();
+                fill(path,armorTier>=4?0xffd2dce6:STEEL_M,true);
+                p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(1.6f);
+                p.setColor(tint(GOLD));c.drawLine(side*19,-83,side*26,-79,p);
+            }
+        }
+        if(armorTier>=4){
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2.1f);
+            p.setColor(tint(0xff9ef2ff));
+            c.drawArc(-18,-96,16,-61,218,100,false,p);
+        }
+        p.setStyle(Paint.Style.FILL);p.setAlpha(255);
     }
 
     /** Upgrade effects physically belong to the armor's moving torso group.
