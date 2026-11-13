@@ -11,17 +11,29 @@ if len(shots)<5 or any(f.stat().st_size<2000 for f in shots):
 gfx=(folder/"gfxinfo-framestats.txt").read_text(errors="replace")
 frames=[]
 inside=False
+indices=None
 for line in gfx.splitlines():
-    if line.strip()=="---PROFILEDATA---":
+    stripped=line.strip()
+    if stripped=="---PROFILEDATA---":
         inside=not inside
+        indices=None
         continue
-    if not inside:
+    if not inside or not stripped:
         continue
-    parts=line.strip().split(",")
-    if len(parts)<14 or not parts[0].strip().isdigit():
+    parts=[part.strip() for part in stripped.split(",")]
+    # Android 10 uses legacy field ordering; Android 16 adds a
+    # FrameTimelineVsyncId and extra CPU/GPU columns. Resolve by the
+    # CSV column *names*, never hardcoded offsets.
+    if "IntendedVsync" in parts and "FrameCompleted" in parts:
+        indices=(parts.index("IntendedVsync"),parts.index("FrameCompleted"))
+        continue
+    if indices is None or not parts[0].isdigit():
         continue
     try:
-        intended=int(parts[1]); completed=int(parts[13])
+        i,j=indices
+        if len(parts)<=max(i,j):
+            continue
+        intended=int(parts[i]);completed=int(parts[j])
         if intended>0 and completed>intended:
             ms=(completed-intended)/1_000_000
             if 0<ms<5000: frames.append(ms)
