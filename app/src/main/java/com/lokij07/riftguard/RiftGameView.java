@@ -41,7 +41,7 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, WIN, LOSE }
+    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, WIN, LOSE, CAVE_CHOICE, CAVE_END }
     private Scene scene=Scene.HOME;
     private static final float TREE_LEFT=75f,TREE_TOP=148f,TREE_RIGHT=906f,
             TREE_BOTTOM=592f;
@@ -57,6 +57,9 @@ public final class RiftGameView extends View {
     private boolean treeDragging=false;
     private boolean treeTouchActive=false;
     private boolean briefingOpen=false;
+    private boolean caveMode=false;
+    private boolean caveWinRecorded=false;
+    private int caveEnding=StoryProgress.ENDING_NONE;
     private boolean storyOpen=false;
     private StoryScript.Line[] storyLines;
     private int storyIndex;
@@ -268,6 +271,12 @@ public final class RiftGameView extends View {
         selectedLevel=Campaign.level(Math.min(unlocked,299));
         setFocusable(true);
     }
+    private void startEclipseCave(){
+        if(!storyProgress.caveUnlocked())return;
+        start(299);caveMode=true;trial=null;trialPassed=false;trialAwarded=false;
+        remaining=1;wave=1;waiting=false;spawnTimer=1.8f;
+        openStory(StoryScript.eclipseCaveOpening(storyProgress.wardenName()));
+    }
     private void clearTouchControls() {
         joyPointer=-1;
         attackPointer=-1;
@@ -292,6 +301,9 @@ public final class RiftGameView extends View {
             scene=Scene.MAP;
             clearTouchControls();
             return true;
+        }
+        if(scene==Scene.CAVE_CHOICE||scene==Scene.CAVE_END){
+            scene=Scene.HOME;caveMode=false;dismissStory();return true;
         }
         if (scene==Scene.PLAY) {
             paused=!paused;
@@ -350,6 +362,8 @@ public final class RiftGameView extends View {
         else {
             drawBattle(canvas);
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
+            else if(scene==Scene.CAVE_CHOICE)drawCaveChoice(canvas);
+            else if(scene==Scene.CAVE_END)drawCaveEnding(canvas);
             else if (paused) drawPause(canvas);
             else if (scene==Scene.PLAY && briefingOpen) drawMissionBriefing(canvas);
         }
@@ -374,6 +388,7 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
+        caveMode=false;caveWinRecorded=false;caveEnding=StoryProgress.ENDING_NONE;
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
         focusedEnemy=null;
@@ -675,6 +690,10 @@ public final class RiftGameView extends View {
                         }
                     }
                     e.bossPhase=newPhase;
+                    if(caveMode){
+                        if(newPhase==2)openStory(StoryScript.eclipsePhaseTwo());
+                        if(newPhase==3)openStory(StoryScript.eclipsePhaseThree());
+                    }
                     audio.play(GameAudio.BOSS_PHASE);
                     announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
                 }
@@ -939,6 +958,7 @@ public final class RiftGameView extends View {
             }
         }
         if(remaining==0 && enemies.isEmpty()) {
+            if(caveMode){completeEclipseCave();return;}
             if(!waiting){waiting=true;
                 intermission=WavePacingV065.seconds(difficultyMode,
                         DifficultyRules.worldBoss(stage)&&wave+1==
@@ -964,6 +984,14 @@ public final class RiftGameView extends View {
         if(early)announce("EARLY WAVE • +"+bonus+" BATTLE GOLD");
     }
     private void spawnEnemy() {
+        if(caveMode){
+            float hp=BattleRules.enemyHealth(299,5)*
+                    DifficultyRules.health(difficultyMode)*3.6f;
+            Enemy caer=new Enemy(LaneRules.ENEMY_SPAWN_X-120,BASE_Y+70,5,hp,1.4f);
+            caer.boss=true;caer.variant=3;caer.bossPhase=1;
+            caer.specialTimer=3.5f;enemies.add(caer);
+            announce("CAEL • THE FIRST WARDEN");return;
+        }
         float x=LaneRules.ENEMY_SPAWN_X-random.nextFloat()*26f;
         float y=LaneRules.stageEnemyY(stage,random.nextFloat()*96f-48f);
         int pool=Math.min(6,2+Campaign.world(stage)/2+(wave>=3?1:0));
@@ -1319,6 +1347,7 @@ public final class RiftGameView extends View {
         // Full stage art, light shafts and shadows are cached at load time.
         // Only sparse weather/actor effects are painted on each battle frame.
         deployedMap.draw(c,stage,gameTime,combatFeel.reducedMotion());
+        if(caveMode)drawEclipseCaveArena(c);
         // Architecture is generated natively and world-positioned.\n        // Mission identity, terrain props and lanes are now generated by
         // NativeDeployedMapArt from the same seed as real enemy AI.
         drawStageHazards(c);
@@ -1356,7 +1385,8 @@ public final class RiftGameView extends View {
         for(DepthItem entry:drawQueue) {
             if(entry.type==DECOR)drawDecor(c,(Decor)entry.entity,biome);
             else if(entry.type==KEEP) {
-                drawBase(c,biome);
+                if(caveMode)drawEclipseSanctum(c);
+                else drawBase(c,biome);
                 FortressDamageFx.draw(c,BASE_X,BASE_Y,fortressRank,baseHp,
                         Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp(),
                         gameTime);
@@ -2412,7 +2442,8 @@ public final class RiftGameView extends View {
     private boolean drawBossHud(Canvas c) {
         for(Enemy e:enemies)if(e.boss&&e.hp>0) {
             round(c,415,109,865,166,14,0xe91f2536);
-            String name=DifficultyRules.worldBoss(stage)?
+            String name=caveMode?"CAEL • THE FIRST WARDEN":
+                    DifficultyRules.worldBoss(stage)?
                     DifficultyRules.worldBossName(stage):"ELITE SIEGE COMMANDER";
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
@@ -2432,7 +2463,7 @@ public final class RiftGameView extends View {
     }
     private void drawHudTop(Canvas c,int biome) {
         round(c,15,12,1250,102,22,0xee13252c);
-        text(c,Campaign.title(stage),45,48,25,GOLD,false);
+        text(c,caveMode?"ECLIPSE CAVE • FINAL BATTLE":Campaign.title(stage),45,48,25,GOLD,false);
         text(c,Campaign.worldName(stage),45,82,20,INK,false);
         text(c,"CORE",319,38,15,0xffafc6c6,false);
         bar(c,316,47,243,18,baseHp/coreMaxHp(),0xff79cfad);
