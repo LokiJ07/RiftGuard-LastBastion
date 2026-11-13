@@ -540,6 +540,11 @@ public final class RiftGameView extends View {
     }
 
     private void update(float dt) {
+        // Production frames update OUTRO from onDraw. Physics-only tests and
+        // headless simulation also step here, so the result must finish even
+        // without a Canvas / UI thread. Never run combat after the outcome.
+        if(scene==Scene.OUTRO){updateOutro(dt);return;}
+        if(scene!=Scene.PLAY)return;
         if(revival.tick(dt)){
             heroHp=heroMaxHp()*.55f;heroAnimation.reset();
             hurtCooldown=1.5f;
