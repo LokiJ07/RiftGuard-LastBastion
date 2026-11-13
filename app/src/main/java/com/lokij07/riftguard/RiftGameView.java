@@ -3264,6 +3264,20 @@ public final class RiftGameView extends View {
                 WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
         action(c,attackHudX(),attackHudY(),70,0xffb3684c,"ATTACK","FIRE");
+        // Visual feedback uses the SAME mutable layout as touch handling.
+        // Only show the rings while unavailable or actively charging:
+        // no persistent text clutter and no shifted/mismatched tap targets.
+        HudActionFeedbackV067.cooldown(c,dodgeHudX(),dodgeHudY(),
+                hudLayout.radius(HudLayoutV065.DODGE),dodgeCooldown,
+                DodgeRules.COOLDOWN,0xffa6e9f2);
+        HudActionFeedbackV067.cooldown(c,pulseHudX(),pulseHudY(),
+                hudLayout.radius(HudLayoutV065.SKILL),pulseCooldown,
+                Math.max(3f,WardenSkills.effectiveCooldown(equippedSkill,
+                        kingdom.shopRank(3))-ascension.spellCooldownReduction()),
+                0xffddc6ff);
+        HudActionFeedbackV067.charge(c,attackHudX(),attackHudY(),
+                hudLayout.radius(HudLayoutV065.ATTACK),
+                attackGesture&&attackPointer>=0,heldAttackSeconds);
         if(waiting && (firstWavePending||wave<DifficultyRules.waves(stage,difficultyMode))){
             boolean bossNext=!firstWavePending&&DifficultyRules.worldBoss(stage)&&
                     wave+1==DifficultyRules.waves(stage,difficultyMode);
