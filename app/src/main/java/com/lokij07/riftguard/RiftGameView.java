@@ -166,6 +166,9 @@ public final class RiftGameView extends View {
     private boolean defeatedElite;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
+    private final float[] allyCooldown=new float[AllySupportV065.COUNT];
+    private float garrickBlessing=0f,miraScoutTimer=0f;
+    private Enemy miraScoutTarget;
     private float fortressArsenalTimer;
     private int fortressArsenalShots;
     // UI-only preview; never modifies purchased ranks or save data.
@@ -446,6 +449,9 @@ public final class RiftGameView extends View {
         bannerTime=0;bannerTick=0;trapTime=0;meteorTime=0;
         waveNotice=2.6f; noticeTimer=0;
         gold=DifficultyRules.startingGold(fortressRank,difficultyMode)+ascension.startingGold();kills=0;
+        for(int ally=0;ally<allyCooldown.length;ally++)
+            allyCooldown[ally]=AllySupportV065.initialDelay(ally);
+        garrickBlessing=0f;miraScoutTimer=0f;miraScoutTarget=null;
         enemies.clear();shots.clear();hostileBolts.clear();sparks.clear();
         decor.clear();pickups.clear();
         deaths.clear();impacts.clear();
@@ -550,6 +556,7 @@ public final class RiftGameView extends View {
         // one follow-up attack released after the deliberate charge window.
         if(!revival.isDown()&&(!attackGesture&&(firing||bufferedAttackTime>0)))fire();
         updateSkillObjects(dt);
+        updateAllySupport(dt);
         if (!waiting) {
             spawnTimer-=dt;
             if (remaining>0 && spawnTimer<=0) {
@@ -1120,6 +1127,109 @@ public final class RiftGameView extends View {
             }
         }
     }
+    /**
+     * Each ally is recruited through an actual world boss clear and has a real,
+     * time-bounded action in the existing combat simulation.
+     */
+    private void updateAllySupport(float dt){
+        garrickBlessing=Math.max(0,garrickBlessing-dt);
+        miraScoutTimer=Math.max(0,miraScoutTimer-dt);
+        if(miraScoutTimer<=0)miraScoutTarget=null;
+        for(int ally=0;ally<AllySupportV065.COUNT;ally++){
+            if(!AllySupportV065.unlocked(storyProgress,ally))continue;
+            allyCooldown[ally]-=dt;
+            if(allyCooldown[ally]>0)continue;
+            allyCooldown[ally]=AllySupportV065.interval(ally);
+            switch(ally){
+                case AllySupportV065.DORIN:{
+                    int repair=-1;float worst=.01f;
+                    for(int pad=0;pad<activeTowerCount;pad++)if(towers[pad]>0){
+                        float max=TowerDurability.maxHp(towers[pad],fortressRank);
+                        float missing=max-towerHp[pad];
+                        if(missing>worst){worst=missing;repair=pad;}
+                    }
+                    if(repair>=0){
+                        towerHp[repair]=AllySupportV065.heal(towerHp[repair],
+                                TowerDurability.maxHp(towers[repair],fortressRank),35f);
+                        puff(towerX[repair],towerY[repair]-31,8,0xffa9efc7);
+                        announce("DORIN • FIELD REPAIRS");
+                    }
+                    break;
+                }
+                case AllySupportV065.MIRA:{
+                    if(focusedEnemy==null||focusedEnemy.hp<=0){
+                        Enemy target=null;float best=900f*900f;
+                        for(Enemy e:enemies)if(e.hp>0){
+                            float dx=e.x-BASE_X,dy=e.y-BASE_Y;
+                            float d=dx*dx+dy*dy;
+                            if(d<best){target=e;best=d;}
+                        }
+                        miraScoutTarget=target;
+                        miraScoutTimer=9f;
+                        if(target!=null){
+                            puff(target.x,target.y-50,7,0xffd8e6a6);
+                            announce("MIRA • ENEMY MARKED");
+                        }
+                    }
+                    break;
+                }
+                case AllySupportV065.HALE:{
+                    if(!revival.isDown()&&heroHp<heroMaxHp()){
+                        heroHp=AllySupportV065.heal(heroHp,heroMaxHp(),16f);
+                        puff(heroX,heroY-31,10,0xffb6f4db);
+                    }
+                    break;
+                }
+                case AllySupportV065.GARRICK:{
+                    garrickBlessing=9f;
+                    puff(heroX,heroY-65,10,0xffffc481);
+                    announce("GARRICK • FORGE BLESSING");
+                    break;
+                }
+                case AllySupportV065.YSOLDE:{
+                    if(baseHp<coreMaxHp()){
+                        baseHp=AllySupportV065.heal(baseHp,coreMaxHp(),26f);
+                        puff(BASE_X,BASE_Y-72,9,0xffc9d6ff);
+                    }
+                    break;
+                }
+                case AllySupportV065.PELL:{
+                    Enemy target=closest(BASE_X,BASE_Y,520f);
+                    if(target!=null&&shots.size()<110){
+                        Shot support=new Shot(BASE_X-78,BASE_Y-104,
+                                34f+fortressRank*9f,720,target,true);
+                        support.towerSlot=0;
+                        shots.add(support);
+                        puff(BASE_X-78,BASE_Y-104,10,0xffffbc84);
+                    }
+                    break;
+                }
+                case AllySupportV065.LUME:{
+                    if(pulseCooldown>0){
+                        pulseCooldown=Math.max(0,pulseCooldown-2.5f);
+                        puff(heroX,heroY-75,6,0xffbfa4ed);
+                    }
+                    break;
+                }
+                case AllySupportV065.NESSA:{
+                    Enemy first=closest(BASE_X,BASE_Y,510f);
+                    if(first!=null){
+                        int hit=0;
+                        for(Enemy e:enemies)if(e.hp>0&&
+                                distance(e.x,e.y,first.x,first.y)<150f&&hit<3){
+                            e.hp-=21f+fortressRank*4f;
+                            e.hitReaction=.16f;
+                            puff(e.x,e.y-38,6,0xffaee4ff);
+                            hit++;
+                        }
+                        if(hit>0)announce("NESSA • STORM STRIKE");
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     private float bossArmorMultiplier(Enemy e){
         return e.boss&&e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
     }
@@ -1173,6 +1283,10 @@ public final class RiftGameView extends View {
         if(focusedEnemy!=null&&focusedEnemy.hp>0&&enemies.contains(focusedEnemy) &&
                 distance(focusedEnemy.x,focusedEnemy.y,x,y)<range)
             return focusedEnemy;
+        if(miraScoutTarget!=null&&miraScoutTimer>0&&miraScoutTarget.hp>0&&
+                enemies.contains(miraScoutTarget)&&
+                distance(miraScoutTarget.x,miraScoutTarget.y,x,y)<range)
+            return miraScoutTarget;
         Enemy pick=null;float min=range*range;
         for(Enemy e:enemies) {
             if(e.hp<=0)continue;
@@ -1191,7 +1305,8 @@ public final class RiftGameView extends View {
         heroDir=(float)Math.atan2(target.y-heroY,target.x-heroX);
         if(!heroAnimation.attack(equippedWeapon))return;
         activeComboHit=combo.attack(equippedWeapon,gameTime,chargeNext);
-        float comboPower=activeComboHit.multiplier;
+        float comboPower=activeComboHit.multiplier*
+                AllySupportV065.wardenDamageMultiplier(garrickBlessing>0);
         bufferedAttackTime=0;
         // Spawn the projectile precisely at the displayed weapon's rotating tip,
         // not at the center of the player sprite. This must use the same animation
@@ -2671,6 +2786,8 @@ public final class RiftGameView extends View {
                 617,50,26,INK,false);
         text(c,"GOLD  "+gold,618,83,21,GOLD,false);
         text(c,"KILLS "+kills,870,51,21,INK,false);
+        text(c,"ALLIES "+AllySupportV065.recruited(storyProgress)+"/8",
+                1080,137,16,0xffa5daca,true);
         if(activeComboHit!=null)text(c,"COMBO "+activeComboHit.step+
                 (activeComboHit.charged?" • CHARGED":""),872,133,17,0xffeac98b,false);
         textFit(c,"ENEMY ORDER: "+SquadTacticsV065.name(squadPlan),
@@ -2699,8 +2816,9 @@ public final class RiftGameView extends View {
                 storyProgress.caveUnlocked()?0xff795479:0xff3c414e);
         rect(c,656,522,1209,630,0xd0142b33);
         text(c,"GREENHAVEN  /  THE LAST BASTION",679,563,24,GOLD,false);
-        text(c,"A kingdom in danger. Your fortress grows with every victory.",
-                679,595,16,INK,false);
+        textFit(c,"A kingdom in danger • "+
+                AllySupportV065.recruited(storyProgress)+" allied defenders recruited",
+                679,595,500,16,INK,false);
         round(c,54,65,628,650,25,0xe6183039);
         text(c,"RIFTGUARD",87,183,80,GOLD,false);
         round(c,1010,42,1213,97,14,0xff324f5c);
