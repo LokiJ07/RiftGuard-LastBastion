@@ -124,6 +124,11 @@ public final class CinematicDirectionV065Test {
         assertTrue(progress.claimMemory(memoryStage,true,true));
         RiftGameView view=new RiftGameView(ctx);
         view.layout(0,0,1280,720);
+        long now=android.os.SystemClock.uptimeMillis();
+        android.view.MotionEvent open=android.view.MotionEvent.obtain(
+                now,now,android.view.MotionEvent.ACTION_DOWN,472f,455f,0);
+        view.onTouchEvent(open);open.recycle();
+        assertEquals("CHRONICLE",value(view,"scene").toString());
         value(view,"chronicleWorld",8);
         call(view,"tapChronicle",new Class<?>[]{float.class,float.class},665f,235f);
         assertEquals(memoryStage,value(view,"chronicleMemoryStage"));
