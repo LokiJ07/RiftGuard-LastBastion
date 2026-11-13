@@ -4714,15 +4714,22 @@ public final class RiftGameView extends View {
             else if(revival.isDown()){clearTouchControls();}
             else if(waiting && x>452 && x<828 && y>216 && y<270)
                 advanceWave(true);
-            else if(hudLayout.hit(HudLayoutV065.MOVE,x,y,12)) {joyPointer=id;updateStick(x,y);}
-            else if(hudLayout.hit(HudLayoutV065.ATTACK,x,y,12)) {
-                attackPointer=id;attackGesture=true;heldAttackSeconds=0f;
-                firing=true;bufferedAttackTime=0f;chargeNext=false;fire();
+            else {
+                // One hit-test using the same positions that draw the controls.
+                // A relocated control never silently uses its original hitbox.
+                int control=hudLayout.hitControl(x,y);
+                switch(control){
+                    case HudLayoutV065.MOVE:
+                        joyPointer=id;updateStick(x,y);break;
+                    case HudLayoutV065.ATTACK:
+                        attackPointer=id;attackGesture=true;heldAttackSeconds=0f;
+                        firing=true;bufferedAttackTime=0f;chargeNext=false;fire();break;
+                    case HudLayoutV065.SKILL:pulse();break;
+                    case HudLayoutV065.BUILD:build();break;
+                    case HudLayoutV065.DODGE:triggerDodge();break;
+                    default:selectTowerPadAt(x,y);
+                }
             }
-            else if(hudLayout.hit(HudLayoutV065.SKILL,x,y,13)) pulse();
-            else if(hudLayout.hit(HudLayoutV065.BUILD,x,y,15)) build();
-            else if(hudLayout.hit(HudLayoutV065.DODGE,x,y,12)) triggerDodge();
-            else selectTowerPadAt(x,y);
         }else if(action==MotionEvent.ACTION_MOVE) {
             if(joyPointer!=-1){
                 int at=ev.findPointerIndex(joyPointer);
