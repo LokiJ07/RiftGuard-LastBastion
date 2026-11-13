@@ -16,7 +16,7 @@ public final class TowerDurability {
     }
     public static int repairCost(float hp,float maxHp){
         if(maxHp<=0||hp>=maxHp)return 0;
-        return Math.max(8,(int)Math.ceil((maxHp-Math.max(0,hp))*.20f));
+        return Math.max(8,(int)Math.ceil(Math.min(maxHp*.40f,maxHp-Math.max(0,hp))*.20f));
     }
     public static float repair(float hp,float maxHp){
         return Math.min(maxHp,Math.max(0,hp)+maxHp*.40f);
