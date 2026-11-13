@@ -2,6 +2,15 @@
 
 Status: **development / draft PR #23**. This document is an acceptance checklist, not a declaration of release readiness.
 
+## v0.66.0-alpha2 — Corrected emulator QA and on-device frame diagnostics
+
+- [x] QA screenshot audit found the Evolution emulator's old "04-battle" and "05-touch-combat" pictures were actually **STORY 1/7 and STORY 5/7**. Its earlier green reports verified navigation, NOT accepted battle controls. Do not cite those screenshots as actual combat proof.
+- [x] Updated the emulator workflow to dismiss story with Android BACK, reset gfxinfo after gameplay starts, capture actual battle imagery, and require debug-only game logs proving `scene=PLAY,story=false,paused=false,briefing=false` and received MOVE/DODGE/BUILD/SKILL/ATTACK touches. Missing state or any control now **fails** CI.
+- [x] Runtime diagnostics appear ONLY in debuggable builds; they are not cheat buttons, network analytics or release backdoors.
+- [x] In the real Pause screen, report rolling (120-frame) Android frame-gap and onDraw CPU P50/P95 alongside recent battle FPS and the selected quality target. This is a useful actual-device beta QA signal, NOT a GPU timer or FPS guarantee.
+- [ ] Re-run and confirm that both Android 10 and Android 16 emulator workflows pass the stricter gameplay conditions. Cross-device physical phone testing remains mandatory.
+- [ ] Compare high/mid/low quality modes on the same physical devices for thermal stability, gameplay responsiveness, software and GPU render pacing; early virtualized/software reports have varied and should not be interpreted as improvement certification.
+
 ## v0.66.0-alpha2 — Actual graphics quality tiers for Android publication
 
 - [x] HIGH retains full 1900×1050 static battlefield raster (3.99 MB RGB_565 bitmap); BALANCED 1596×882 (~2.82 MB), PERFORMANCE 1292×714 (~1.84 MB). CPU-side bitmap footprint alone is ~54% lower in PERFORMANCE. GPU drivers may expand texture formats, so this is **not** a measured GPU-memory or FPS claim.
