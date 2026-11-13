@@ -53,7 +53,9 @@ public class EnemySpriteFrameCacheV060Test {
             assertEquals(1,cache.frameBuilds());
             assertEquals(1,cache.cachedFrames());
             // Real image proof in the CI gallery.
-            File dir=new File(System.getProperty("user.dir"),"build/screenshots");
+            File cwd=new File(System.getProperty("user.dir"));
+            File dir=new File(cwd,new File(cwd,"app/build.gradle").exists()
+                    ?"app/build/screenshots":"build/screenshots");
             if(!dir.isDirectory())assertTrue(dir.mkdirs());
             try(FileOutputStream out=new FileOutputStream(new File(dir,
                     "133-v060-cached-skeletal-enemy.png"))){
