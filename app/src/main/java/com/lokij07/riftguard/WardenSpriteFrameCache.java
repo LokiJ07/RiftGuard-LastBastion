@@ -26,6 +26,7 @@ public final class WardenSpriteFrameCache {
     private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private final LinkedHashMap<Integer,Bitmap> frames=new LinkedHashMap<>(64,.75f,true);
     private int builds=0;
+    private int cacheLimit=MAX_CACHED_FRAMES;
     private boolean disabled=false;
 
     public WardenSpriteFrameCache(WardenRig rig) {
@@ -33,6 +34,11 @@ public final class WardenSpriteFrameCache {
         this.rig=rig;
     }
     public int cachedFrames(){return frames.size();}
+    public int cacheLimit(){return cacheLimit;}
+    public void setCacheLimit(int limit){
+        int bounded=Math.max(16,Math.min(MAX_CACHED_FRAMES,limit));
+        if(cacheLimit!=bounded){cacheLimit=bounded;clear();}
+    }
     public int frameBuilds(){return builds;}
     public boolean isDisabled(){return disabled;}
     /** Drop references, not native bitmaps still in use by RenderThread. */
@@ -82,7 +88,7 @@ public final class WardenSpriteFrameCache {
                         sample,heading,running,-1f,-1f,false,
                         weapon,mastery,form,armor,-1f);
                 if(!okay){bitmap.recycle();return false;}
-                if(frames.size()>=MAX_CACHED_FRAMES){
+                if(frames.size()>=cacheLimit){
                     Iterator<Map.Entry<Integer,Bitmap>> it=frames.entrySet().iterator();
                     if(it.hasNext()){it.next();it.remove();}
                 }
