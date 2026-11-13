@@ -110,9 +110,15 @@ public final class PersistentWaveCheckpointV065 {
             if(stage>unlocked)throw new IllegalArgumentException("locked");
             int difficulty=data.getInt("difficulty");
             if(difficulty<0||difficulty>3)throw new IllegalArgumentException("difficulty");
-            int wave=data.getInt("wave");
-            if(wave<1||wave>DifficultyRules.waves(stage,difficulty))
+            int savedWave=data.getInt("wave");
+            int newCap=DifficultyRules.waves(stage,difficulty);
+            // Before the formation rebalance, Expert had up to five bonus
+            // waves. Preserve old legitimate saves by restarting from the
+            // latest CURRENT final wave, not deleting purchases and HP.
+            if(savedWave<1||savedWave>Math.max(newCap,
+                    SiegeBalanceV066.legacyWaveCeiling(stage,difficulty)))
                 throw new IllegalArgumentException("wave");
+            int wave=Math.min(savedWave,newCap);
             int retries=data.getInt("retriesUsed");
             if(retries<0||retries>WaveCheckpointV065.retries(difficulty))
                 throw new IllegalArgumentException("retries");
