@@ -505,7 +505,11 @@ public final class RiftGameView extends View {
             // detailed environments, character rigs, and real-time combat.
             android.view.Display display=getDisplay();
             float refresh=display==null?60f:display.getRefreshRate();
-            long delay=GraphicsProfileV065.nextFrameDelayMs(graphicsMode,refresh);
+            boolean demandingFrame=scene==Scene.OUTRO||storyOpen||
+                    (scene==Scene.PLAY&&!paused&&!briefingOpen);
+            long delay=demandingFrame?
+                    GraphicsProfileV065.nextFrameDelayMs(graphicsMode,refresh):
+                    GraphicsProfileV065.idleFrameDelayMs(refresh);
             if(delay==0)postInvalidateOnAnimation();
             else postInvalidateDelayed(delay);
         }
