@@ -6,8 +6,11 @@ import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
@@ -50,7 +53,7 @@ public final class NativeDeployedMapArt {
         {34,0,14,10,2,3,4},{14,0,30,4,2,6,2},
         {12,4,12,22,4,6,10},{16,4,18,3,8,2,0},
         {12,4,12,22,4,6,10},{22,10,12,3,8,10,0}};
-    private static final Paint P=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+    private static final Paint P=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG|Paint.DITHER_FLAG);
     private Bitmap cached;
     private int stage=-1, builds=0;
     private final LinkedHashMap<Integer,Bitmap> thumbnails=new LinkedHashMap<>(12,.75f,true);
@@ -172,6 +175,17 @@ public final class NativeDeployedMapArt {
         P.setShader(new LinearGradient(0,0,0,H,shade(GROUND[world],1.12f),
                 shade(DARK[world],.93f),Shader.TileMode.CLAMP));
         c.drawRect(0,0,W,H,P);P.setShader(null);
+        // Soft light/dark ground patches stop the field looking like one flat
+        // gradient. Own RNG, so the existing hills/props keep their layout.
+        Random soil=new Random(((long)seed<<9)^0x5011c0deL);
+        for(int i=0;i<30;i++){
+            float px=soil.nextFloat()*W,py=290+soil.nextFloat()*760,rad=90+soil.nextFloat()*190;
+            boolean light=soil.nextBoolean();
+            P.setShader(new RadialGradient(px,py,rad,light?0x16ffffdc:0x22001408,
+                    0x00000000,Shader.TileMode.CLAMP));
+            c.drawCircle(px,py,rad,P);
+        }
+        P.setShader(null);
         // Geometric ridge silhouettes from the HTML, scaled to world width.
         for(int layer=0;layer<3;layer++){
             Path mountain=new Path();
@@ -244,6 +258,7 @@ public final class NativeDeployedMapArt {
             padsX[slot]=TowerPadLayout.x(stage,slot);
             padsY[slot]=TowerPadLayout.y(stage,slot);
         }
+        final ArrayList<float[]> props=new ArrayList<>();
         int[] mix=MIX[world];
         for(int family=0;family<7;family++){
             int amount=mix[family]*(family==3?1:3);
@@ -256,10 +271,16 @@ public final class NativeDeployedMapArt {
                 for(int k=0;k<activePads;k++)if(sq(x-padsX[k])+sq(y-padsY[k])<sq(74))
                     nearPad=true;
                 if(nearPad)continue;
-                prop(c,family,x,y,randomScale(r),world,r);
+                props.add(new float[]{family,x,y,randomScale(r),r.nextInt(1<<30)});
                 placed++;
             }
         }
+        // Draw back-to-front (by foot Y) so a nearer rock or bush is never
+        // hidden by a tree standing behind it. Each prop keeps its own seed,
+        // so the picture is identical every time the same stage is built.
+        Collections.sort(props,(p1,p2)->Float.compare(p1[2],p2[2]));
+        for(float[] it:props)
+            prop(c,(int)it[0],it[1],it[2],it[3],world,new Random((long)it[4]));
         // Each drawn construction pad is functional: matches the combat layout.
         for(int i=0;i<activePads;i++)pad(c,padsX[i],padsY[i]);
         // A painted core-footprint shadow holds the existing interactive fort.
