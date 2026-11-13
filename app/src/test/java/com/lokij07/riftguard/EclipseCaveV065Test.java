@@ -72,7 +72,14 @@ public class EclipseCaveV065Test {
         assertEquals(10,story.restoredSeals());
     }
     @Test public void allThreeEndingScriptsRemainLinkedToSourceCharacters(){
-        assertEquals(6,StoryScript.eclipseCaveOpening("Warden").length);
+        StoryScript.Line[] opening=StoryScript.eclipseCaveOpening("Warden");
+        assertTrue("Chapter may expand without invalidating continuity",opening.length>=6);
+        boolean findsCael=false,findsWarden=false;
+        for(StoryScript.Line line:opening){
+            if("CAEL".equals(line.speaker))findsCael=true;
+            if("WARDEN".equals(line.speaker))findsWarden=true;
+        }
+        assertTrue(findsCael&&findsWarden);
         assertTrue(StoryScript.eclipsePhaseTwo().length>=2);
         assertTrue(StoryScript.eclipsePhaseThree().length>=2);
         for(int ending=1;ending<=3;ending++){
