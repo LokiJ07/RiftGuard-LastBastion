@@ -47,7 +47,7 @@ if not (folder/"06-relaunch-with-continue.png").is_file() or not (
 if not re.search(r"scene=HOME story=false paused=false briefing=false",recovery):
     raise SystemExit("FAIL: No fresh HOME state after Android force-stop")
 if not re.search(r"scene=PLAY story=false paused=true briefing=false "
-                 r"stage=\\d+ wave=[1-9]\\d*",recovery):
+                 r"stage=\d+ wave=[1-9]\d*",recovery):
     raise SystemExit("FAIL: Continue failed to restore a paused playable wave")
 if len(frames)<8:
     raise SystemExit("FAIL: Insufficient Android graphics frame measurements")
