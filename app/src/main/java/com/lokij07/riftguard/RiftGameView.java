@@ -2367,7 +2367,7 @@ public final class RiftGameView extends View {
         // Warden previously occluded upgraded side bastions and weapon
         // mounts, so reserve the entire preview for the actual fortress.
         if(!workshop){
-            float heroX=left+width*.79f,heroY=top+height*.81f;
+            float heroX=left+width*.74f,heroY=top+height*.63f;
             // Home preview uses the SAME earned detailed rig as live combat.
             boolean rendered=(USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
                     gameTime,-2.2f,false,-1,-1,false,equippedWeapon,
@@ -2381,14 +2381,14 @@ public final class RiftGameView extends View {
             EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
             EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             if(!USE_VECTOR_ENEMIES||!enemyRig.enemy(c,0,biome,1,
-                    left+width*.91f,top+height*.86f,gameTime,
+                    left+width*.96f,top+height*.65f,gameTime,
                     true,-1,false,-1))
-                motionArt.enemy(c,0,left+width*.91f,top+height*.86f,gameTime,
+                motionArt.enemy(c,0,left+width*.96f,top+height*.65f,gameTime,
                         true,-1,false);
             if(!USE_VECTOR_ENEMIES||!enemyRig.enemy(c,6,biome,2,
-                    left+width*.87f,top+height*.58f,gameTime,
+                    left+width*.89f,top+height*.44f,gameTime,
                     true,-1,false,-1))
-                motionArt.enemy(c,6,left+width*.87f,top+height*.58f,gameTime,
+                motionArt.enemy(c,6,left+width*.89f,top+height*.44f,gameTime,
                         true,-1,false);
         }
         for(int i=0;i<16;i++) {
