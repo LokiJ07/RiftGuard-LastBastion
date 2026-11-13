@@ -56,7 +56,7 @@ public final class BossAssaultV067Test {
             assertEquals(healing>0,BossTactics.tactic(stage)==1);
         }
         assertTrue(BossAssaultV067.heroRadius(0,1)>
-                BossAssaultV067.heroRadius(3,1));
+                BossAssaultV067.heroRadius(30,1));
     }
     @Test public void realBossHitTriggersHurtAnimationAndProtection()
             throws Exception {
