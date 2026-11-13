@@ -68,6 +68,8 @@ public final class RiftGameView extends View {
     private int chronicleWorld=0;
     private MemoryTrial.Objective trial;
     private boolean trialPassed=false,trialAwarded=false;
+    private int towersDestroyedInBattle=0;
+    private float relicHp=0,relicMaxHp=0,relicX=0,relicY=0;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
     private final CharacterArt characterArt;
@@ -391,6 +393,11 @@ public final class RiftGameView extends View {
         caveMode=false;caveWinRecorded=false;caveEnding=StoryProgress.ENDING_NONE;
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
+        towersDestroyedInBattle=0;
+        relicX=BASE_X+240;relicY=BASE_Y+150;
+        relicMaxHp=trial!=null&&trial.type==MemoryTrial.RELIC?
+                260f+Campaign.world(s)*38f:0f;
+        relicHp=relicMaxHp;
         focusedEnemy=null;
         revival.reset(difficultyMode);
         // First-play mission controls must stay unchanged; the illustrated
@@ -758,7 +765,18 @@ public final class RiftGameView extends View {
             }
             int siegeTower=(!hunt&&(e.kind==2||e.kind==4||e.kind==5))?
                     nearestBuiltTower(e.x,e.y,174f):-1;
-            if(siegeTower>=0){
+            if(!hunt&&relicHp>0&&trial!=null&&trial.type==MemoryTrial.RELIC&&
+                    (e.kind==1||e.kind==4||e.kind==5)&&
+                    distance(e.x,e.y,relicX,relicY)<195f){
+                e.attackTimer-=dt;
+                if(e.attackTimer<=0){
+                    relicHp=Math.max(0,relicHp-
+                            (e.kind==5?38f:22f)*DifficultyRules.enemyDamage(difficultyMode));
+                    e.attackAnim=.42f;e.attackTimer=1.9f;
+                    puff(relicX,relicY-29,12,0xffecbb91);
+                    if(relicHp<=0)announce("MEMORY TRIAL FAILED • RELIC DESTROYED");
+                }
+            }else if(siegeTower>=0){
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0){
                     damageTower(siegeTower,(e.kind==2?46f:e.kind==5?32f:26f)*
@@ -1236,6 +1254,7 @@ public final class RiftGameView extends View {
         towerHp[slot]=TowerDurability.damage(towerHp[slot],amount);
         puff(towerX[slot],towerY[slot]-30,12,0xffff9d7d);
         if(towerHp[slot]<=0){
+            towersDestroyedInBattle++;
             destroyedTowerTier[slot]=towers[slot];
             towers[slot]=0;towerTimers[slot]=0;
             announce("TOWER "+(slot+1)+" DESTROYED • REBUILD!");
@@ -1313,7 +1332,8 @@ public final class RiftGameView extends View {
         prefs.edit().putInt("unlocked",unlocked).putInt("supplies",supplies).apply();
         trialPassed=MemoryTrial.evaluate(trial,missionBuilds,kills,
                 baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
-                defeatedElite);
+                defeatedElite,relicMaxHp>0?relicHp/relicMaxHp:0f,
+                towersDestroyedInBattle);
         trialAwarded=storyProgress.claimMemory(stage,trialPassed,true);
         if(firstClear&&DifficultyRules.worldBoss(stage))
             openStory(StoryScript.afterWorldBoss(Campaign.world(stage)));
@@ -1352,6 +1372,7 @@ public final class RiftGameView extends View {
         // NativeDeployedMapArt from the same seed as real enemy AI.
         drawStageHazards(c);
         drawPlacedSkills(c);
+        if(trial!=null&&trial.type==MemoryTrial.RELIC)drawMemoryRelic(c);
         if(selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
             float sx=towerX[selectedTowerPad],sy=towerY[selectedTowerPad];
             float pulse=(float)Math.sin(gameTime*3.4f)*4;
@@ -1586,6 +1607,35 @@ public final class RiftGameView extends View {
         }
     }
     /** Environmental systems are independent terrain elements, never poster pixels. */
+
+    private void drawMemoryRelic(Canvas c){
+        float x=relicX,y=relicY,scale=.92f+(float)Math.sin(gameTime*2f)*.03f;
+        oval(c,x-60,y+12,x+60,y+40,0x99070c19);
+        c.save();c.translate(x,y);c.scale(scale,scale);
+        if(relicHp>0){
+            round(c,-38,-18,38,25,7,0xff594c49);
+            round(c,-29,-40,29,-5,5,0xff92765b);
+            polygon(c,new float[]{-24,-38,0,-72,24,-38},0xffc3ab7f);
+            circle(c,0,-33,21,0x99fee2a0);
+            circle(c,0,-33,13,Campaign.world(stage)>=6?0xffaaddf8:0xffffd58e);
+            for(int side=-1;side<=1;side+=2){
+                line(c,side*33,-24,side*33,10,0xffe2c19d,5);
+                circle(c,side*33,-29,5,0xffeac79a);
+            }
+        }else{
+            polygon(c,new float[]{-40,15,-12,-10,7,13,42,4,52,28,-42,28},
+                    0xff645d5e);
+            circle(c,-18,-15,7,0x667e7b8b);
+        }
+        c.restore();
+        float fraction=relicMaxHp<=0?0:Math.max(0,relicHp/relicMaxHp);
+        rect(c,x-69,y+48,x+69,y+59,0xff242c38);
+        rect(c,x-67,y+50,x-67+134*fraction,y+57,
+                fraction>.35f?0xffa9deb0:0xffec817a);
+        textFit(c,MemoryTrial.relicName(stage),x,y-95,310,18,
+                relicHp>0?0xfff5dfad:0xffea9696,true);
+    }
+
     private void drawStageHazards(Canvas c) {
         int kind=StageHazards.kind(stage);
         int color=StageHazards.COLORS[kind];
@@ -2413,10 +2463,13 @@ public final class RiftGameView extends View {
         if(noticeTimer>0 && !bossActive)
             text(c,notice,640,207,30,GOLD,true);
         if(!bossActive && waveNotice<=0 && noticeTimer<=0){
-            String challenge=MissionObjectives.name(stage)+" • "+
+            String challenge=trial==null?MissionObjectives.name(stage)+" • "+
                     MissionObjectives.status(stage,missionBuilds,
                             baseHp/Math.max(1f,coreMaxHp()),
-                            heroHp/Math.max(1f,heroMaxHp()),defeatedElite);
+                            heroHp/Math.max(1f,heroMaxHp()),defeatedElite):
+                    "MEMORY TRIAL  •  "+trial.title+
+                    (trial.type==MemoryTrial.RELIC?"  "+(int)(relicHp/Math.max(1f,relicMaxHp)*100)+"% RELIC":
+                    trial.type==MemoryTrial.NO_LOSS?"  "+towersDestroyedInBattle+" TOWERS LOST":"");
             round(c,448,119,830,153,8,0xcc203941);
             textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
         }
