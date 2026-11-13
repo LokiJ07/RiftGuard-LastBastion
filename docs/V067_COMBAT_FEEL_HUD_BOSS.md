@@ -47,6 +47,23 @@ This is a targeted early v0.67 milestone, not the complete art/story/release ove
 - Boss warning ring is **visual feedback for real damage**, not an additional
   damaging attack or a fake warning shape.
 
+## QA loop finding: distinguish real defeat from a lost checkpoint
+
+- The first alpha2 Android 16 rerun entered a **genuine PLAY wave with
+  six enemies and all five accepted controls**, but the virtual player was
+  left unattended for slow gfxinfo/memory/logcat collection. Monsters nearly
+  killed the Warden in the combat screenshot; a defeated run correctly clears
+  the Continue checkpoint. This was a **test ordering flaw**, not proof of
+  save loss.
+- The emulator now force-stops immediately after capturing a live first-wave
+  screenshot, verifies HOME -> CONTINUE -> paused PLAY, then presses the real
+  RESUME button and exercises the five controls. Expensive diagnostics are
+  collected only at the very end.
+- A Python regression test enforces this script order, so the QA cannot
+  silently regress to clearing real battle saves by allowing unattended defeats.
+- Full player progress is still intentionally lost for a legitimately defeated
+  run; this is existing game design, not a bypass.
+
 ## Loop engineering acceptance
 
 1. All existing plus new boss/hud/performance/story skip unit tests pass.
