@@ -94,12 +94,17 @@ public final class BiomeAtmosphere {
         drawFront(c,biome,stage,time,false);
     }
     public static void drawFront(Canvas c,int biome,int stage,float time,boolean lean) {
+        drawFront(c,biome,stage,time,GraphicsProfileV065.HIGH,lean);
+    }
+    /** Preserve each realm's weather identity with device-adjusted density. */
+    public static void drawFront(Canvas c,int biome,int stage,float time,
+                                 int quality,boolean lean) {
         int id=Math.max(0,Math.min(9,biome));
         if(!Float.isFinite(time))return;
         prepareParticles(stage);
         int color=LIGHT[id];
-        int particles=id==SNOW||id==TEMPEST?64:44;
-        if(lean)particles=(particles+1)/2;
+        int particles=TerrainQualityV066.weatherParticles(
+                quality,lean,id==SNOW||id==TEMPEST?64:44);
         for(int i=0;i<particles;i++){
             float seed=SEED[i];
             float x=X[i];
