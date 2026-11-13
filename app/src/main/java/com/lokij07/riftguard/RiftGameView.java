@@ -41,7 +41,7 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, WIN, LOSE, CAVE_CHOICE, CAVE_END }
+    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, OUTRO, WIN, LOSE, CAVE_CHOICE, CAVE_END }
     private Scene scene=Scene.HOME;
     private static final float TREE_LEFT=75f,TREE_TOP=148f,TREE_RIGHT=906f,
             TREE_BOTTOM=592f;
@@ -65,6 +65,11 @@ public final class RiftGameView extends View {
     private int storyIndex;
     private final List<StoryScript.Line[]> pendingStory=new ArrayList<>();
     private boolean bossIntroSeen=false;
+    private boolean bossSpawnWarned=false;
+    private float bossWarningCountdown=0f;
+    private boolean firstWavePending=false;
+    private BattleOutroV065 outro;
+    private final List<StoryScript.Line[]> outcomeStory=new ArrayList<>();
     private int chronicleWorld=0;
     private MemoryTrial.Objective trial;
     private boolean trialPassed=false,trialAwarded=false;
@@ -309,7 +314,7 @@ public final class RiftGameView extends View {
         if(!storyProgress.caveUnlocked())return;
         start(299);caveMode=true;trial=null;trialPassed=false;trialAwarded=false;
         terrain=null;focusedTerrain=null;pendingMeleeTerrain=null;terrainBolts.clear();
-        remaining=1;wave=1;waiting=false;spawnTimer=1.8f;
+        remaining=1;wave=1;waiting=false;firstWavePending=false;spawnTimer=1.8f;
         openStory(StoryScript.eclipseCaveOpening(storyProgress.wardenName()));
     }
     private void clearTouchControls() {
@@ -335,6 +340,7 @@ public final class RiftGameView extends View {
     public boolean handleBack() {
         if(storyOpen){dismissStory();return true;}
         if(scene==Scene.CHRONICLE){scene=Scene.HOME;return true;}
+        if(scene==Scene.OUTRO)return true;
         if (scene==Scene.PLAY && briefingOpen) {
             briefingOpen=false;
             scene=Scene.MAP;
@@ -371,6 +377,8 @@ public final class RiftGameView extends View {
                 liveRenderStep=true;
                 update(dt);
                 liveRenderStep=false;
+            }else if(scene==Scene.OUTRO){
+                updateOutro(dt);
             }else if(scene==Scene.LOSE){
                 heroAnimation.advance(animationDelta,false);
             }
@@ -401,6 +409,7 @@ public final class RiftGameView extends View {
         else {
             drawBattle(canvas);
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
+            else if(scene==Scene.OUTRO)drawOutroOverlay(canvas);
             else if(scene==Scene.CAVE_CHOICE)drawCaveChoice(canvas);
             else if(scene==Scene.CAVE_END)drawCaveEnding(canvas);
             else if (paused) {
@@ -430,6 +439,9 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
+        outro=null;outcomeStory.clear();
+        bossSpawnWarned=false;bossWarningCountdown=0f;
+        firstWavePending=true;
         waveCheckpoint=null;waveRetriesUsed=0;
         caveMode=false;caveWinRecorded=false;caveEnding=StoryProgress.ENDING_NONE;
         dismissStory();bossIntroSeen=false;
@@ -466,7 +478,9 @@ public final class RiftGameView extends View {
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
         baseHp=coreMaxHp();
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
-        spawnTimer=3.2f; intermission=0; waiting=false;
+        spawnTimer=2f;
+        intermission=WavePacingV065.seconds(difficultyMode,false);
+        waiting=true;
         shotTimer=0; pulseCooldown=0; pulseFlash=0; hurtCooldown=0; fireFlash=0;
         fortressArsenalTimer=.95f;fortressArsenalShots=0;
         bufferedAttackTime=0;
@@ -586,11 +600,28 @@ public final class RiftGameView extends View {
         updateTerrainBolts(dt);
         updateAllySupport(dt);
         if (!waiting) {
-            spawnTimer-=dt;
-            if (remaining>0 && spawnTimer<=0) {
-                spawnEnemy();
-                remaining--;
-                spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
+            if(bossWarningCountdown>0){
+                bossWarningCountdown=Math.max(0,bossWarningCountdown-dt);
+                if(bossWarningCountdown<=0)spawnTimer=0;
+            }else{
+                spawnTimer-=dt;
+                if(remaining>0 && spawnTimer<=0){
+                    boolean finalBoss=DifficultyRules.eliteFinalWave(stage,wave,difficultyMode)
+                            &&remaining==1;
+                    if(finalBoss&&!bossSpawnWarned){
+                        bossSpawnWarned=true;bossWarningCountdown=3.1f;
+                        spawnTimer=0;
+                        announce(DifficultyRules.worldBoss(stage)?
+                                "WARNING • "+DifficultyRules.worldBossName(stage)+
+                                        " APPROACHING!":
+                                "WARNING • FINAL ELITE INCOMING!");
+                        audio.play(GameAudio.HURT);
+                    }else{
+                        spawnEnemy();
+                        remaining--;
+                        spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
+                    }
+                }
             }
         }
         for (int i=0;i<activeTowerCount;i++) {
@@ -1057,6 +1088,11 @@ public final class RiftGameView extends View {
                 drops.remove();
             }
         }
+        if(waiting&&firstWavePending){
+            intermission=Math.max(0,intermission-dt);
+            if(intermission<=0)advanceWave(false);
+            return;
+        }
         if(remaining==0 && enemies.isEmpty()) {
             if(caveMode){completeEclipseCave();return;}
             if(!waiting){waiting=true;
@@ -1074,13 +1110,19 @@ public final class RiftGameView extends View {
     private void advanceWave(boolean early){
         if(!waiting)return;
         int cap=DifficultyRules.waves(stage,difficultyMode);
-        if(wave>=cap){complete();return;}
-        boolean bossIncoming=DifficultyRules.worldBoss(stage)&&wave+1==cap;
+        if(!firstWavePending&&wave>=cap){complete();return;}
+        boolean first=firstWavePending;
+        boolean bossIncoming=!first&&DifficultyRules.worldBoss(stage)&&wave+1==cap;
         int bonus=early?WavePacingV065.earlyBonus(intermission,difficultyMode,bossIncoming):0;
         gold+=bonus;
-        wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
-        squadPlan=SquadTacticsV065.plan(stage,wave,countArmedTowers(),difficultyMode);
-        announce("INCOMING: "+SquadTacticsV065.name(squadPlan));
+        if(!first){
+            wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
+            squadPlan=SquadTacticsV065.plan(stage,wave,countArmedTowers(),difficultyMode);
+        }
+        firstWavePending=false;
+        bossSpawnWarned=false;bossWarningCountdown=0f;
+        announce(bossIncoming?"WARNING • WORLD BOSS IN NEXT WAVE":
+                "INCOMING: "+SquadTacticsV065.name(squadPlan));
         spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
         intermission=0;waiting=false;waveNotice=2.2f;
         captureWaveCheckpoint();
@@ -1138,6 +1180,10 @@ public final class RiftGameView extends View {
         if(wave>=2 && random.nextFloat()<.15f)kind=6;
         boolean elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)
                 && remaining==1;
+        // World bosses are only the final enemy of the FINAL wave.
+        if(DifficultyRules.worldBoss(stage)&&wave<DifficultyRules.waves(stage,difficultyMode))
+            elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)&&
+                    difficultyMode>=DifficultyRules.HARD&&remaining==1;
         if(elite)kind=5;
         float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
@@ -1914,6 +1960,7 @@ public final class RiftGameView extends View {
         // Atmospheric particles are already drawn below the HUD.
         c.restore();
         if(scene==Scene.PLAY)drawHud(c,biome);
+        else if(scene==Scene.OUTRO)drawHudTop(c,biome);
         else drawHudTop(c,biome);
     }
 
@@ -2902,20 +2949,37 @@ public final class RiftGameView extends View {
                 WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
         action(c,attackHudX(),attackHudY(),70,0xffb3684c,"ATTACK","FIRE");
-        if(waiting && wave<DifficultyRules.waves(stage,difficultyMode)){
-            boolean bossNext=DifficultyRules.worldBoss(stage)&&
+        if(waiting && (firstWavePending||wave<DifficultyRules.waves(stage,difficultyMode))){
+            boolean bossNext=!firstWavePending&&DifficultyRules.worldBoss(stage)&&
                     wave+1==DifficultyRules.waves(stage,difficultyMode);
             int bonus=WavePacingV065.earlyBonus(intermission,difficultyMode,bossNext);
-            button(c,452,216,828,270,"NEXT WAVE  •  "+
+            button(c,452,216,828,270,
+                    (firstWavePending?"BEGIN WAVE 1":"NEXT WAVE")+"  •  "+
                     (int)Math.ceil(intermission)+"s  •  +"+bonus+" GOLD",0xff77604d);
+            if(bossNext){
+                polygon(c,new float[]{610,178,640,127,670,178},0xffffcc69);
+                text(c,"!",640,170,31,0xff522c2b,true);
+                text(c,"WARNING • WORLD BOSS NEXT WAVE",640,200,24,0xffffb989,true);
+            }
         }
-        if(waveNotice>0 && !bossActive) {
+        if(bossWarningCountdown>0){
+            rect(c,390,147,890,239,0xe1392632);
+            border(c,390,147,890,239,12,0xffff9b71,3);
+            polygon(c,new float[]{439,219,465,165,491,219},0xffffbd64);
+            text(c,"!",465,208,29,0xff472626,true);
+            String incoming=DifficultyRules.worldBoss(stage)?
+                    DifficultyRules.worldBossName(stage):"FINAL ELITE";
+            textFit(c,"INCOMING BOSS • "+incoming,679,188,360,27,0xffffddbd,true);
+            text(c,"ENTRANCE IN "+(int)Math.ceil(bossWarningCountdown)+"s",
+                    680,221,20,INK,true);
+        }
+        if(waveNotice>0 && !bossActive && bossWarningCountdown<=0){
             String text=waiting?"WAVE CLEARED!  +25 GOLD":"WAVE "+wave+"  •  DEFEND THE CORE";
             text(c,text,640,159,34,0xfff2e4bf,true);
         }
-        if(noticeTimer>0 && !bossActive)
+        if(noticeTimer>0 && !bossActive && bossWarningCountdown<=0)
             text(c,notice,640,207,30,GOLD,true);
-        if(!bossActive && waveNotice<=0 && noticeTimer<=0){
+        if(!bossActive && bossWarningCountdown<=0&&waveNotice<=0 && noticeTimer<=0){
             String challenge=trial==null?MissionObjectives.name(stage)+" • "+
                     MissionObjectives.status(stage,missionBuilds,
                             baseHp/Math.max(1f,coreMaxHp()),
@@ -4557,6 +4621,7 @@ public final class RiftGameView extends View {
             return true;
         }
         if(action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) {
+            if(scene==Scene.OUTRO){invalidate();return true;}
             if(scene!=Scene.PLAY) { tapMenu(x,y);invalidate();return true; }
             if(paused) {
                 if(x>450 && x<830 && y>245 && y<322) { paused=false;clearTouchControls(); }
