@@ -447,6 +447,13 @@ public final class NativeDeployedMapArt {
                         2,0xff503e38);
         }
     }
+    /** Preserve the direct pixel-copy hot path on HIGH graphics. */
+    private void drawCachedWorld(Canvas c){
+        fill(c,Color.WHITE);
+        if(cached.getWidth()==W&&cached.getHeight()==H)
+            c.drawBitmap(cached,0,0,P);
+        else c.drawBitmap(cached,null,worldRect,P);
+    }
     public synchronized void draw(Canvas c,int chosen,float time){
         draw(c,chosen,time,false);
     }
@@ -463,8 +470,7 @@ public final class NativeDeployedMapArt {
                                   boolean reducedMotion,int quality,boolean lean){
         setGraphicsQuality(quality);
         prepare(chosen);
-        fill(c,Color.WHITE);
-        c.drawBitmap(cached,null,worldRect,P);
+        drawCachedWorld(c);
         int col=GLOW[world(chosen)];
         // Preserve static kingdom details on all quality modes.
         // Only noninteractive animation/ambience scales back.
@@ -484,8 +490,7 @@ public final class NativeDeployedMapArt {
         prepare(chosen);
         c.save();c.translate(left,top);c.clipRect(0,0,width,height);
         c.scale(width/1150f,height/655f);c.translate(-690,-121);
-        fill(c,Color.WHITE);
-        c.drawBitmap(cached,null,worldRect,P);
+        drawCachedWorld(c);
         fort(c,950,510,1,0,1);
         c.restore();
     }
