@@ -28,6 +28,8 @@ import java.util.Random;
  */
 public final class RiftGameView extends View {
     private static final float W=1280f, H=720f;
+    private static final float STORY_SKIP_LEFT=1020f,STORY_SKIP_TOP=37f,
+            STORY_SKIP_RIGHT=1240f,STORY_SKIP_BOTTOM=105f;
     private static final float WORLD_W=1900f, WORLD_H=1050f;
     private static final float BASE_X=950f, BASE_Y=510f;
     private static final Typeface FONT=Typeface.create("sans-serif-condensed",Typeface.BOLD);
@@ -4612,7 +4614,15 @@ public final class RiftGameView extends View {
                 (captionAlpha<<24)|(INK&0x00ffffff));
         text(c,memory?"MEMORY REVEALED":"SCENE "+(storyIndex+1)+" / "+storyLines.length,
                 83,76,19,0xffffe2ae,false);
-        text(c,"TAP TO CONTINUE  •  BACK TO SKIP",1010,650,17,0xffb9d2d3,true);
+        text(c,"TAP ANYWHERE TO CONTINUE",982,650,17,0xffb9d2d3,true);
+        // BACK gestures are not reliable on every Android 16 immersive phone.
+        // Make chapter skipping an obvious, accessible on-screen action;
+        // does not erase any unlocked memories or permanent progress.
+        round(c,STORY_SKIP_LEFT,STORY_SKIP_TOP,
+                STORY_SKIP_RIGHT,STORY_SKIP_BOTTOM,13,0xd3243949);
+        border(c,STORY_SKIP_LEFT,STORY_SKIP_TOP,
+                STORY_SKIP_RIGHT,STORY_SKIP_BOTTOM,13,0xffd6c6a3,2);
+        text(c,"SKIP CHAPTER",1130,81,20,0xffffdfaf,true);
         cinematic.drawCutOverlay(c,seconds,memory,dramatic);
     }
 
@@ -4917,7 +4927,12 @@ public final class RiftGameView extends View {
             invalidate();return true;
         }
         if(storyOpen){
-            if(action==MotionEvent.ACTION_DOWN)advanceStoryLine();
+            if(action==MotionEvent.ACTION_DOWN){
+                if(x>=STORY_SKIP_LEFT&&x<=STORY_SKIP_RIGHT&&
+                        y>=STORY_SKIP_TOP&&y<=STORY_SKIP_BOTTOM)
+                    dismissStory();
+                else advanceStoryLine();
+            }
             invalidate();return true;
         }
         if(scene==Scene.CAVE_CHOICE){
