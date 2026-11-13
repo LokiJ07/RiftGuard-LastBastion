@@ -118,6 +118,7 @@ public final class RiftGameView extends View {
     private final int[] towerTypes=new int[TowerPadLayout.MAX];
     private final int[] destroyedTowerTier=new int[TowerPadLayout.MAX];
     private Enemy focusedEnemy;
+    private int focusedBossPart=BossAnatomyV065.ARMOR;
     private final StoryProgress storyProgress;
     private final KingdomMeta kingdom;
     private final AscensionTree ascension;
@@ -186,6 +187,7 @@ public final class RiftGameView extends View {
                 burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
                 hitReaction;
         boolean moving,boss;
+        BossAnatomyV065 anatomy;
         int kind,bossPhase=1,variant=0;
         float faceX=-1f;
         Enemy(float x,float y,int kind,float hp,float phase) {
@@ -400,7 +402,7 @@ public final class RiftGameView extends View {
         relicMaxHp=trial!=null&&trial.type==MemoryTrial.RELIC?
                 260f+Campaign.world(s)*38f:0f;
         relicHp=relicMaxHp;
-        focusedEnemy=null;
+        focusedEnemy=null;focusedBossPart=BossAnatomyV065.ARMOR;
         revival.reset(difficultyMode);
         // First-play mission controls must stay unchanged; the illustrated
         // prologue is available explicitly in the Chronicle until the
@@ -682,12 +684,13 @@ public final class RiftGameView extends View {
                     e.y=BASE_Y+(wallDy<0?-134:134);
             }
             if(e.boss){
+                if(e.anatomy==null)e.anatomy=new BossAnatomyV065(Campaign.world(stage),e.maxHp);
                 int newPhase=BossTactics.phase(e.hp,e.maxHp);
                 if(newPhase>e.bossPhase){
                     // Each threshold summons *real* enemies with health,
                     // pathfinding, collision and combat like a normal wave.
                     for(int phase=e.bossPhase+1;phase<=newPhase;phase++){
-                        int num=BossTactics.minions(phase);
+                        int num=e.anatomy.canSummon()?BossTactics.minions(phase):0;
                         for(int k=0;k<num&&enemies.size()+reinforcements.size()<35;k++){
                             int kind=BossTactics.minionKind(stage);
                             float x=Math.min(LaneRules.ENEMY_SPAWN_X-30,e.x+90+k*46);
@@ -716,7 +719,8 @@ public final class RiftGameView extends View {
                     e.specialCharge-=dt;
                     if(e.specialCharge<=0){
                         float strength=DifficultyRules.enemyDamage(difficultyMode)*
-                                BossTactics.damageMultiplier(e.bossPhase);
+                                BossTactics.damageMultiplier(e.bossPhase)*
+                                e.anatomy.siegeMultiplier();
                         int tactic=BossTactics.tactic(stage);
                         if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
                             baseHp-=(tactic==1?20f:28f)*strength;
@@ -809,7 +813,9 @@ public final class RiftGameView extends View {
             if(shot.life<=0 || shot.target.hp<=0){sit.remove();continue;}
             float d=distance(shot.x,shot.y,shot.target.x,shot.target.y-10);
             if(d<24) {
-                shot.target.hp-=shot.damage;
+                float actualDamage=shot.damage*bossArmorMultiplier(shot.target);
+                shot.target.hp-=actualDamage;
+                damageBossPart(shot.target,shot.damage);
                 shot.target.hitReaction=.21f;
                 if(!shot.tower)
                     combatFeel.onDamage(shot.target.x,shot.target.y-16,
@@ -1009,6 +1015,7 @@ public final class RiftGameView extends View {
                     DifficultyRules.health(difficultyMode)*3.6f;
             Enemy caer=new Enemy(LaneRules.ENEMY_SPAWN_X-120,BASE_Y+70,5,hp,1.4f);
             caer.boss=true;caer.variant=3;caer.bossPhase=1;
+            caer.anatomy=new BossAnatomyV065(9,caer.maxHp);
             caer.specialTimer=3.5f;enemies.add(caer);
             announce("CAEL • THE FIRST WARDEN");return;
         }
@@ -1028,7 +1035,10 @@ public final class RiftGameView extends View {
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
-        if(elite)enemy.specialTimer=5.0f;
+        if(elite){
+            enemy.anatomy=new BossAnatomyV065(Campaign.world(stage),enemy.maxHp);
+            enemy.specialTimer=5.0f;
+        }
         enemies.add(enemy);
         if(elite) {
             waveNotice=2.7f;
@@ -1041,6 +1051,45 @@ public final class RiftGameView extends View {
             }
         }
     }
+    private float bossArmorMultiplier(Enemy e){
+        return e.boss&&e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
+    }
+    private void damageBossPart(Enemy e,float damage){
+        if(!e.boss||damage<=0)return;
+        if(e.anatomy==null)e.anatomy=new BossAnatomyV065(Campaign.world(stage),e.maxHp);
+        int part=e==focusedEnemy?focusedBossPart:e.anatomy.nextIntact(BossAnatomyV065.ARMOR);
+        if(part<0)return;
+        if(e.anatomy.damage(part,damage)){
+            puff(e.x,e.y-62,24,part==BossAnatomyV065.CORE?0xffc0a8ff:0xffffc18d);
+            e.hitReaction=.28f;
+            announce(e.anatomy.name(part)+" DESTROYED!");
+            if(e==focusedEnemy){
+                int next=e.anatomy.nextIntact((part+1)%BossAnatomyV065.PARTS);
+                if(next>=0)focusedBossPart=next;
+            }
+        }
+    }
+    private void drawBossDamage(Canvas c,Enemy e){
+        BossAnatomyV065 body=e.anatomy;
+        for(int part=0;part<BossAnatomyV065.PARTS;part++){
+            float x=e.x+(part==BossAnatomyV065.WEAPON?45:part==BossAnatomyV065.ARMOR?-40:0);
+            float y=e.y-(part==BossAnatomyV065.CORE?58:part==BossAnatomyV065.WEAPON?95:80);
+            if(body.broken(part)){
+                // Cracked fragments and detached component silhouette persist.
+                line(c,x-15,y-19,x+14,y+14,0xff1a1c27,6);
+                line(c,x+12,y-22,x-12,y+19,0xfff0a078,3);
+                circle(c,x,y+25,6,0x88e6a077);
+            }else if(body.fraction(part)<.60f){
+                line(c,x-10,y-10,x+9,y+8,0xff382934,4);
+                circleStroke(c,x,y,16,0x77fac08f,2);
+            }
+            if(e==focusedEnemy&&part==focusedBossPart&&!body.broken(part)){
+                circleStroke(c,x,y,29,0xfff7d18c,3);
+                bar(c,x-28,y-38,56,5,body.fraction(part),0xffffc481);
+            }
+        }
+    }
+
     private Enemy closest(float x,float y,float range) {
         // Player-assigned tactical focus marker overrides ordinary turret AI
         // only when the requested target is alive and in true weapon range.
@@ -1104,8 +1153,10 @@ public final class RiftGameView extends View {
             if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,
                     weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon),
                     e.x,e.y))continue;
-            e.hp-=weapon.damage*ascension.attackMultiplier()*
+            float meleeDamage=weapon.damage*ascension.attackMultiplier()*
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
+            e.hp-=meleeDamage*bossArmorMultiplier(e);
+            damageBossPart(e,meleeDamage);
             if(weaponMastery.mastered(pendingMeleeWeapon)) {
                 // Titan Splitter has a concussive shockwave; Phoenix Drive
                 // applies actual burning pressure on each sword contact.
@@ -2202,6 +2253,7 @@ public final class RiftGameView extends View {
             // movement, boss phase and hit clocks as the illustrated sprite.
             EnemyAnimationPolish.draw(c,e.kind,e.x,e.y,e.phase,attack,
                     e.hitReaction,e.boss,e.bossPhase);
+            if(e.boss&&e.anatomy!=null)drawBossDamage(c,e);
             CombatImpactPolish.statuses(c,e.x,e.y,gameTime,
                     e.slowTimer,e.burnTimer);
             if(e.hp<e.maxHp) {
@@ -2418,7 +2470,9 @@ public final class RiftGameView extends View {
             float py=360+(focusedEnemy.y-LaneRules.VIEW_CENTER_Y)*BATTLE_ZOOM;
             circleStroke(c,px,py-49,31,0xffffd18b,3);
             line(c,px-37,py-49,px-23,py-49,0xffffe1a2,3);
-            text(c,"FOCUS FIRE",px,py-92,16,0xffffe1a2,true);
+            String focusName=focusedEnemy.anatomy!=null?
+                    focusedEnemy.anatomy.name(focusedBossPart):"FOCUS FIRE";
+            textFit(c,"FOCUS: "+focusName,px,py-92,200,16,0xffffe1a2,true);
         }else if(focusedEnemy!=null)focusedEnemy=null;
         // Separate safe-area panel keeps game props behind—not over—touch controls.
         p.setShader(new LinearGradient(0,510,0,H,0x00112631,0xe8172b37,
@@ -4052,8 +4106,16 @@ public final class RiftGameView extends View {
             }
         }
         for(Enemy e:enemies)if(e.hp>0&&distance(worldX,worldY-20,e.x,e.y-20)<66){
+            if(e.boss){
+                if(e.anatomy==null)e.anatomy=new BossAnatomyV065(Campaign.world(stage),e.maxHp);
+                focusedBossPart=e==focusedEnemy?
+                        (focusedBossPart+1)%BossAnatomyV065.PARTS:
+                        BossAnatomyV065.ARMOR;
+                int part=e.anatomy.nextIntact(focusedBossPart);
+                focusedBossPart=part>=0?part:BossAnatomyV065.CORE;
+                announce("FOCUS FIRE • "+e.anatomy.name(focusedBossPart));
+            }else announce("FOCUS FIRE • MARKED ENEMY");
             focusedEnemy=e;selectedTowerPad=-1;
-            announce(e.boss?"FOCUS FIRE • BOSS":"FOCUS FIRE • MARKED ENEMY");
             return;
         }
         if(focusedEnemy!=null){focusedEnemy=null;announce("FOCUS FIRE CLEARED");}
