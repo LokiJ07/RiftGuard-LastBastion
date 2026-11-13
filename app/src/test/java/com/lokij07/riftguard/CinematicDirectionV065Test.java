@@ -112,4 +112,26 @@ public final class CinematicDirectionV065Test {
         early.recycle();
         settled.recycle();
     }
+
+    @Test public void chronicleReplayUsesMemorysOriginalWorldAndResetsOverride()
+            throws Exception{
+        Context ctx=RuntimeEnvironment.getApplication();
+        android.content.SharedPreferences prefs=ctx.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE);
+        prefs.edit().clear().commit();
+        int memoryStage=Campaign.stage(81,2); // C-stage, world nine
+        StoryProgress progress=new StoryProgress(prefs);
+        assertTrue(progress.claimMemory(memoryStage,true,true));
+        RiftGameView view=new RiftGameView(ctx);
+        view.layout(0,0,1280,720);
+        value(view,"chronicleWorld",8);
+        call(view,"tapChronicle",new Class<?>[]{float.class,float.class},665f,235f);
+        assertEquals(memoryStage,value(view,"chronicleMemoryStage"));
+        assertTrue((Boolean)value(view,"storyOpen"));
+        Bitmap scene=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
+        view.draw(new Canvas(scene));
+        scene.recycle();
+        call(view,"dismissStory",new Class<?>[0]);
+        assertEquals(-1,value(view,"chronicleMemoryStage"));
+    }
 }
