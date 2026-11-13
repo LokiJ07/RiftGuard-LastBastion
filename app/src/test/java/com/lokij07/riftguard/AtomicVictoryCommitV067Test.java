@@ -51,6 +51,42 @@ public final class AtomicVictoryCommitV067Test {
         Method m=RiftGameView.class.getDeclaredMethod(name,signature);
         m.setAccessible(true);m.invoke(view,values);
     }
+    @Test public void lateWinCallbackCannotPayOutAfterDefeat()
+            throws Exception{
+        Context ctx=RuntimeEnvironment.getApplication();
+        SharedPreferences prefs=ctx.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE);
+        prefs.edit().clear().commit();
+        RiftGameView game=new RiftGameView(ctx);
+        call(game,"start",new Class[]{int.class},0);
+        int before=(Integer)get(game,"supplies");
+        call(game,"markDefeat",new Class<?>[0]);
+        assertEquals("OUTRO",get(game,"scene").toString());
+        call(game,"complete",new Class<?>[0]);
+        assertEquals(before,get(game,"supplies"));
+        assertEquals(before,prefs.getInt("supplies",0));
+        call(game,"updateOutro",new Class[]{float.class},60f);
+        assertEquals("LOSE",get(game,"scene").toString());
+        call(game,"complete",new Class<?>[0]);
+        assertEquals(before,prefs.getInt("supplies",0));
+        game.releaseAudio();
+    }
+    @Test public void lateDeathCannotReverseACommittedVictory()
+            throws Exception{
+        Context ctx=RuntimeEnvironment.getApplication();
+        SharedPreferences prefs=ctx.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE);
+        prefs.edit().clear().commit();
+        RiftGameView game=new RiftGameView(ctx);
+        call(game,"start",new Class[]{int.class},0);
+        call(game,"complete",new Class<?>[0]);
+        int winningSupplies=prefs.getInt("supplies",0);
+        assertTrue(winningSupplies>0);
+        call(game,"markDefeat",new Class<?>[0]);
+        assertEquals("OUTRO",get(game,"scene").toString());
+        assertEquals(winningSupplies,prefs.getInt("supplies",0));
+        game.releaseAudio();
+    }
     @Test public void failedCommitCannotGrantVictoryOrEraseRecovery()
             throws Exception{
         Context context=RuntimeEnvironment.getApplication();
