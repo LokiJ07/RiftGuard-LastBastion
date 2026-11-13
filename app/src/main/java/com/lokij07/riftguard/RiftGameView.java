@@ -1161,6 +1161,8 @@ public final class RiftGameView extends View {
         revival.restoreUsed(snap.revivalsUsed);
         remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
         squadPlan=SquadTacticsV065.plan(stage,wave,countArmedTowers(),difficultyMode);
+        firstWavePending=false;
+        bossSpawnWarned=false;bossWarningCountdown=0f;
         spawnTimer=2f;intermission=0;waiting=false;
         waveCheckpoint=snap;
         clearTouchControls();heroAnimation.reset();
