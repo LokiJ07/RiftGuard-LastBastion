@@ -89,4 +89,18 @@ adb shell dumpsys gfxinfo "$PKG" framestats > emulator-qa/gfxinfo-framestats.txt
 adb shell dumpsys meminfo "$PKG" > emulator-qa/memory.txt
 adb shell dumpsys activity processes > emulator-qa/processes.txt
 adb shell logcat -d -v threadtime > emulator-qa/logcat.txt
+# Process-death acceptance: the wave-boundary checkpoint must survive an
+# actual Android force-stop/new Activity, not just a Robolectric new View.
+# Run AFTER battle captures, so the combat screenshots remain unaltered.
+adb shell am force-stop "$PKG"
+adb shell am start -W -n "$PKG/.MainActivity" > emulator-qa/relaunch.txt
+sleep 4
+adb shell screencap -p /sdcard/rg-recovered-home.png
+adb pull /sdcard/rg-recovered-home.png emulator-qa/06-relaunch-with-continue.png
+# The continue affordance has its own hit region at 682..1189 x 309..375.
+adb shell input tap 950 338
+sleep 4
+adb shell screencap -p /sdcard/rg-recovered-wave.png
+adb pull /sdcard/rg-recovered-wave.png emulator-qa/07-restored-wave-paused.png
+adb shell logcat -d -v brief -s RiftGuardQA:I > emulator-qa/qa-recovery-state.txt
 python3 scripts/analyze_emulator_qa.py emulator-qa
