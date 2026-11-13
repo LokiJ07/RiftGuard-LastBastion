@@ -26,3 +26,39 @@ The earlier experimental `LivingRigArt.java` and its regression test were explic
 3. Check frame latency and memory under the dense combat scenarios; avoid claiming optimized when not measured.
 4. Additional authored/painterly texture and skeleton-specific animation polish, and biome-exclusive enemy anatomies, remain future v0.60 tasks, not completed claims.
 5. Keep draft branch unmerged until visual QA and performance are acceptable.
+
+## v0.60.0-dev3 — Three original character styles and enemy equipment families
+
+**Asset reference audit:** The user's CraftPix archive contains 3 distinct knights,
+each with 7 named action clips (Idle, Walk, Run, Jump, Attack, Hurt, Die) and
+10 PNG frames per clip = 210 reference animation frames, plus separate
+body-part vectors and Spriter/SCML data.
+
+**Licensing:** CraftPix free assets may be used within game projects, but raw
+or reusable source artwork must not be redistributed. Since this project
+is a public repository, do not add those PNG/AI/EPS/SCML sources or
+repackaged source atlases to git. This update uses their animation and
+silhouette *ideas only* and includes **no CraftPix graphics**.
+See https://craftpix.net/file-licenses/ (Freebie products section).
+
+**Implemented original game changes:**
+- Ranger (crossbow/repeater): evergreen hood, quiver, leather breast strap.
+- Vanguard (greatsword/sabre): heavy T-visor helmet, steel crests, crimson
+  mantle, shoulder spikes.
+- Arcanist (staff/frost lance): purple cowl, split ceremonial crown, arcane
+  crystals and ornamental glowing collar.
+- All three styles retain the original WardenIK body, targeted weapon pose,
+  purchased armor geometry, thirty earned weapon silhouettes and combat state.
+- Ten-step seven-action clip clocks now drive character secondary gear motion
+  without quantizing hit detection or input processing.
+- Four physical gear loadouts per existing enemy species: normal, raider,
+  armored and elite/royal. Armor and headgear change geometry, not only hue.
+- Keep all ten biome themes and boss-phase anatomy.
+- `WardenStylesV060Test` verifies three Warden rendered identities,
+  all 7 x 4 enemy appearance combinations, animation clip boundaries, and
+  pixel differences in live Canvas renders.
+
+**Not claimed:** This is a first *sprite-sheet-inspired* pass based on
+original rig illustrations, **not** a bundled 210-frame image-sprite system.
+Original painted art/animation authoring and a genuinely textured
+asset pipeline remain the next visual-quality milestone.
