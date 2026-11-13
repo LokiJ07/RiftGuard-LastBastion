@@ -679,6 +679,9 @@ public final class RiftGameView extends View {
                         if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
                             baseHp-=(tactic==1?20f:28f)*strength;
                             puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
+                            // Telegraphed boss siege impacts can destroy artillery.
+                            int t=nearestBuiltTower(BASE_X,BASE_Y,365f);
+                            if(t>=0)damageTower(t,55f*strength);
                         }
                         if(distance(e.x,e.y,heroX,heroY)<265&&
                                 !DodgeRules.invulnerable(dodgeTime)){
@@ -722,7 +725,17 @@ public final class RiftGameView extends View {
                 audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;markDefeat();return;}
             }
-            if(!hunt && (distance(e.x,e.y,BASE_X,BASE_Y)<190 || (e.kind==5 &&
+            int siegeTower=(!hunt&&(e.kind==2||e.kind==4||e.kind==5))?
+                    nearestBuiltTower(e.x,e.y,174f):-1;
+            if(siegeTower>=0){
+                e.attackTimer-=dt;
+                if(e.attackTimer<=0){
+                    damageTower(siegeTower,(e.kind==2?46f:e.kind==5?32f:26f)*
+                            DifficultyRules.enemyDamage(difficultyMode));
+                    e.attackAnim=.42f;
+                    e.attackTimer=e.kind==2?1.55f:2.05f;
+                }
+            }else if(!hunt && (distance(e.x,e.y,BASE_X,BASE_Y)<190 || (e.kind==5 &&
                     distance(e.x,e.y,BASE_X,BASE_Y)<275))) {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
@@ -958,6 +971,11 @@ public final class RiftGameView extends View {
         }
     }
     private Enemy closest(float x,float y,float range) {
+        // Player-assigned tactical focus marker overrides ordinary turret AI
+        // only when the requested target is alive and in true weapon range.
+        if(focusedEnemy!=null&&focusedEnemy.hp>0&&enemies.contains(focusedEnemy) &&
+                distance(focusedEnemy.x,focusedEnemy.y,x,y)<range)
+            return focusedEnemy;
         Enemy pick=null;float min=range*range;
         for(Enemy e:enemies) {
             if(e.hp<=0)continue;
@@ -2276,6 +2294,13 @@ public final class RiftGameView extends View {
 
     private void drawHud(Canvas c,int biome) {
         drawHudTop(c,biome);
+        if(focusedEnemy!=null&&focusedEnemy.hp>0&&enemies.contains(focusedEnemy)){
+            float px=640+(focusedEnemy.x-LaneRules.VIEW_CENTER_X)*BATTLE_ZOOM;
+            float py=360+(focusedEnemy.y-LaneRules.VIEW_CENTER_Y)*BATTLE_ZOOM;
+            circleStroke(c,px,py-49,31,0xffffd18b,3);
+            line(c,px-37,py-49,px-23,py-49,0xffffe1a2,3);
+            text(c,"FOCUS FIRE",px,py-92,16,0xffffe1a2,true);
+        }else if(focusedEnemy!=null)focusedEnemy=null;
         // Separate safe-area panel keeps game props behind—not over—touch controls.
         p.setShader(new LinearGradient(0,510,0,H,0x00112631,0xe8172b37,
                 Shader.TileMode.CLAMP));
@@ -3769,6 +3794,12 @@ public final class RiftGameView extends View {
                 return;
             }
         }
+        for(Enemy e:enemies)if(e.hp>0&&distance(worldX,worldY-20,e.x,e.y-20)<66){
+            focusedEnemy=e;selectedTowerPad=-1;
+            announce(e.boss?"FOCUS FIRE • BOSS":"FOCUS FIRE • MARKED ENEMY");
+            return;
+        }
+        if(focusedEnemy!=null){focusedEnemy=null;announce("FOCUS FIRE CLEARED");}
     }
     /** Dash input is responsive but cannot be chained or used while paused. */
     private void triggerDodge(){
