@@ -42,6 +42,21 @@ public final class HudLayoutV065 {
         check(control);
         return Math.hypot(px-x[control],py-y[control])<RADIUS[control]+extra;
     }
+    /**
+     * Resolve an actual gameplay touch against the closest rendered control.
+     * This is shared by the scene with all moveable buttons; old fixed screen
+     * coordinates do not participate in hit testing.
+     */
+    public int hitControl(float px,float py){
+        int hit=-1;
+        float best=Float.POSITIVE_INFINITY;
+        for(int i=0;i<COUNT;i++){
+            float d=(float)Math.hypot(px-x[i],py-y[i]);
+            float extra=i==MOVE?12f:i==ATTACK?12f:i==BUILD?15f:13f;
+            if(d<=RADIUS[i]+extra&&d<best){hit=i;best=d;}
+        }
+        return hit;
+    }
     /** Return nearest control for editing rather than following legacy tap order. */
     public int nearest(float px,float py){
         int result=-1;
@@ -52,10 +67,20 @@ public final class HudLayoutV065 {
         }
         return result;
     }
+    /**
+     * Avoid unreachable overlapped buttons: a placement is accepted only
+     * when the drawn circular controls retain independent tap areas.
+     */
     public void move(int control,float px,float py){
         check(control);
-        x[control]=clamp(px,95,1182);
-        y[control]=clamp(py,220,625);
+        float newX=clamp(px,95,1182),newY=clamp(py,290,625);
+        for(int other=0;other<COUNT;other++){
+            if(other==control)continue;
+            float minimum=RADIUS[control]+RADIUS[other]+12f;
+            if(Math.hypot(newX-x[other],newY-y[other])<minimum)return;
+        }
+        x[control]=newX;
+        y[control]=newY;
     }
     public void save(){
         SharedPreferences.Editor e=prefs.edit();
