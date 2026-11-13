@@ -35,7 +35,7 @@ public final class CinematicDirectionV065 {
     public static float storyPanX(float seconds,int beat,boolean memory,boolean titan) {
         float direction=(beat&1)==0?1f:-1f;
         float travel=(titan?31f:memory?21f:15f)*ease(seconds/5f);
-        return direction*(travel-11f);
+        return direction*(3f+travel);
     }
     public static float storyPanY(float seconds,int beat) {
         return (float)Math.sin(seconds*.36f+beat*.79f)*5f;
