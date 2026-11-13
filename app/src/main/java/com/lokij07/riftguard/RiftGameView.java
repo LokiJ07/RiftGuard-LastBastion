@@ -69,6 +69,7 @@ public final class RiftGameView extends View {
     private MemoryTrial.Objective trial;
     private boolean trialPassed=false,trialAwarded=false;
     private int towersDestroyedInBattle=0;
+    private int squadPlan=SquadTacticsV065.FLANK;
     private float relicHp=0,relicMaxHp=0,relicX=0,relicY=0;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
@@ -188,7 +189,7 @@ public final class RiftGameView extends View {
                 hitReaction;
         boolean moving,boss;
         BossAnatomyV065 anatomy;
-        int kind,bossPhase=1,variant=0;
+        int kind,bossPhase=1,variant=0,squadRole=SquadTacticsV065.RAIDER;
         float faceX=-1f;
         Enemy(float x,float y,int kind,float hp,float phase) {
             this.x=x; this.y=y; this.kind=kind; this.hp=hp; this.maxHp=hp; this.phase=phase;
@@ -473,6 +474,7 @@ public final class RiftGameView extends View {
             if(crowded)continue;
             decor.add(new Decor(x,y,.75f+r.nextFloat()*.30f,kind));
         }
+        squadPlan=SquadTacticsV065.plan(stage,1,countArmedTowers(),difficultyMode);
         random.setSeed(Campaign.seed(stage)^0xDDEEFF);
         combatFeel.reset();
         audio.play(GameAudio.AMBIENT);
@@ -596,6 +598,12 @@ public final class RiftGameView extends View {
                 puff(spawnX,spawnY,8,keepArsenal>=3?0xffb4edfb:0xffffca8e);
             }
         }
+        // A commander can strengthen its squad until eliminated; computed once
+        // per simulation update rather than using hidden-input targeting.
+        boolean commanderAlive=false;
+        for(Enemy unit:enemies)if(unit.hp>0&&unit.squadRole==SquadTacticsV065.COMMANDER){
+            commanderAlive=true;break;
+        }
         // Boss reinforcements are collected separately so the active enemy
         // iterator cannot be invalidated by a phase-transition summon.
         final List<Enemy> reinforcements=new ArrayList<>();
@@ -665,6 +673,7 @@ public final class RiftGameView extends View {
             if(e.moving) {
                 float speedFactor=(e.kind==3?1.15f:1f)*
                         DifficultyRules.enemySpeed(difficultyMode)*
+                        SquadTacticsV065.speed(e.squadRole,squadPlan,commanderAlive)*
                         (e.slowTimer>0?.64f:1f)*
                         EnemySpecials.mobilityMultiplier(e.dashWindup,e.dashTime);
                 float step=Math.min(d-stop,BattleRules.enemySpeed(e.kind)*speedFactor*dt);
@@ -698,6 +707,7 @@ public final class RiftGameView extends View {
                             float hp=BattleRules.enemyHealth(stage,kind)*
                                     DifficultyRules.health(difficultyMode);
                             Enemy ally=new Enemy(x,y,kind,hp,(k+1)*1.2f);
+                            ally.squadRole=SquadTacticsV065.role(kind,false,Campaign.world(stage));
                             reinforcements.add(ally);
                         }
                     }
@@ -769,8 +779,9 @@ public final class RiftGameView extends View {
                 audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;handleWardenDown();return;}
             }
-            int siegeTower=(!hunt&&(e.kind==2||e.kind==4||e.kind==5))?
-                    nearestBuiltTower(e.x,e.y,174f):-1;
+            int siegeTower=(!hunt&&(e.kind==4||
+                    SquadTacticsV065.attacksTowers(e.squadRole,squadPlan)))?
+                    nearestBuiltTower(e.x,e.y,squadPlan==SquadTacticsV065.SIEGE?205f:174f):-1;
             if(!hunt&&relicHp>0&&trial!=null&&trial.type==MemoryTrial.RELIC&&
                     (e.kind==1||e.kind==4||e.kind==5)&&
                     distance(e.x,e.y,relicX,relicY)<195f){
@@ -786,7 +797,9 @@ public final class RiftGameView extends View {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0){
                     damageTower(siegeTower,(e.kind==2?46f:e.kind==5?32f:26f)*
-                            DifficultyRules.enemyDamage(difficultyMode));
+                            DifficultyRules.enemyDamage(difficultyMode)*
+                            SquadTacticsV065.towerAttackMultiplier(
+                                    e.squadRole,squadPlan,commanderAlive));
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.55f:2.05f;
                 }
@@ -813,7 +826,9 @@ public final class RiftGameView extends View {
             if(shot.life<=0 || shot.target.hp<=0){sit.remove();continue;}
             float d=distance(shot.x,shot.y,shot.target.x,shot.target.y-10);
             if(d<24) {
-                float actualDamage=shot.damage*bossArmorMultiplier(shot.target);
+                float actualDamage=shot.damage*bossArmorMultiplier(shot.target)*
+                        SquadTacticsV065.incomingDamage(shot.target.squadRole,
+                                squadPlan,commanderPresent());
                 shot.target.hp-=actualDamage;
                 damageBossPart(shot.target,shot.damage);
                 shot.target.hitReaction=.21f;
@@ -1005,6 +1020,8 @@ public final class RiftGameView extends View {
         int bonus=early?WavePacingV065.earlyBonus(intermission,difficultyMode,bossIncoming):0;
         gold+=bonus;
         wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
+        squadPlan=SquadTacticsV065.plan(stage,wave,countArmedTowers(),difficultyMode);
+        announce("INCOMING: "+SquadTacticsV065.name(squadPlan));
         spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
         intermission=0;waiting=false;waveNotice=2.2f;
         if(early)announce("EARLY WAVE • +"+bonus+" BATTLE GOLD");
@@ -1015,6 +1032,7 @@ public final class RiftGameView extends View {
                     DifficultyRules.health(difficultyMode)*3.6f;
             Enemy caer=new Enemy(LaneRules.ENEMY_SPAWN_X-120,BASE_Y+70,5,hp,1.4f);
             caer.boss=true;caer.variant=3;caer.bossPhase=1;
+            caer.squadRole=SquadTacticsV065.COMMANDER;
             caer.anatomy=new BossAnatomyV065(9,caer.maxHp);
             caer.specialTimer=3.5f;enemies.add(caer);
             announce("CAEL • THE FIRST WARDEN");return;
@@ -1032,6 +1050,7 @@ public final class RiftGameView extends View {
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
         enemy.variant=random.nextInt(4);
+        enemy.squadRole=SquadTacticsV065.role(kind,elite,Campaign.world(stage));
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
@@ -1090,6 +1109,14 @@ public final class RiftGameView extends View {
         }
     }
 
+    private int countArmedTowers(){
+        int n=0;for(int i=0;i<activeTowerCount;i++)if(towers[i]>0)n++;
+        return n;
+    }
+    private boolean commanderPresent(){
+        for(Enemy e:enemies)if(e.hp>0&&e.squadRole==SquadTacticsV065.COMMANDER)return true;
+        return false;
+    }
     private Enemy closest(float x,float y,float range) {
         // Player-assigned tactical focus marker overrides ordinary turret AI
         // only when the requested target is alive and in true weapon range.
@@ -1155,7 +1182,8 @@ public final class RiftGameView extends View {
                     e.x,e.y))continue;
             float meleeDamage=weapon.damage*ascension.attackMultiplier()*
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
-            e.hp-=meleeDamage*bossArmorMultiplier(e);
+            e.hp-=meleeDamage*bossArmorMultiplier(e)*
+                    SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
             damageBossPart(e,meleeDamage);
             if(weaponMastery.mastered(pendingMeleeWeapon)) {
                 // Titan Splitter has a concussive shockwave; Phoenix Drive
@@ -2582,6 +2610,8 @@ public final class RiftGameView extends View {
                 617,50,26,INK,false);
         text(c,"GOLD  "+gold,618,83,21,GOLD,false);
         text(c,"KILLS "+kills,870,51,21,INK,false);
+        textFit(c,"ENEMY ORDER: "+SquadTacticsV065.name(squadPlan),
+                180,135,335,16,0xffffce9e,true);
         text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
         text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
         round(c,1146,25,1223,89,16,0xff344c55);
