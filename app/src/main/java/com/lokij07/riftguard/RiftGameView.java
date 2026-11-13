@@ -2769,8 +2769,7 @@ public final class RiftGameView extends View {
         oval(c,x-43,y+17,x+43,y+41,0x99091218);
         // Load-bearing parapet joins the tower to the castle structure.
         round(c,x-37,y-13,x+37,y+26,8,0xff455c64);
-        polygon(c,new float[]{x-43,y-12,x-28,y-29,x+29,y-29,x+43,y-12},
-                0xff829193);
+        polygon(c,x-43,y-12,x-28,y-29,x+29,y-29,x+43,y-12,0xff829193);
         rect(c,x-34,y+9,x+34,y+20,0xffb0aba1);
         for(int i=0;i<4;i++)
             rect(c,x-36+i*22,y-22,x-24+i*22,y-12,0xffc0c5b9);
@@ -2795,7 +2794,7 @@ public final class RiftGameView extends View {
         float top=y-42-tier*5;
         // Same base frame but four completely different gun assemblies.
         round(c,x-29,top-7,x+29,y-4,7,0xff6d8083);
-        polygon(c,new float[]{x-31,top-6,x,top-26,x+31,top-6},0xff334c5e);
+        polygon(c,x-31,top-6,x,top-26,x+31,top-6,0xff334c5e);
         round(c,x-19,top+4,x+20,top+24,5,0xff253b48);
         circle(c,x,top+12,10,accent);
         c.save();
@@ -2804,11 +2803,11 @@ public final class RiftGameView extends View {
         float back=recoil*13;
         if(towerFamily(slot)==0) { // Mounted ballista: twin limbs and visible bow string.
             rect(c,-20-back,-8,30-back,8,0xff9a7858);
-            polygon(c,new float[]{-14,0,-36,-30,-47,-22,-32,4},0xffcda877);
-            polygon(c,new float[]{-14,0,-36,30,-47,22,-32,-4},0xffcda877);
+            polygon(c,-14,0,-36,-30,-47,-22,-32,4,0xffcda877);
+            polygon(c,-14,0,-36,30,-47,22,-32,-4,0xffcda877);
             line(c,-44,-23,30,0,0xfff6d6a0,2);
             line(c,-44,23,30,0,0xfff6d6a0,2);
-            polygon(c,new float[]{47-back,0,27-back,-7,27-back,7},0xffdbe9ec);
+            polygon(c,47-back,0,27-back,-7,27-back,7,0xffdbe9ec);
         } else if(towerFamily(slot)==1) { // Siege cannon: blackened iron barrel and orange vent.
             round(c,-25-back,-15,38-back,15,5,0xff414852);
             round(c,-11-back,-19,27-back,19,4,0xff6f747a);
@@ -2818,10 +2817,8 @@ public final class RiftGameView extends View {
             for(int bolt=-1;bolt<=1;bolt++)
                 circle(c,bolt*14-back,-14,3,0xffecc27c);
         } else if(towerFamily(slot)==2) { // Frost launcher: icy prongs and rotating crystal.
-            polygon(c,new float[]{-22,-18,8,-18,37-back,0,8,18,-22,18},
-                    0xff8cb8ca);
-            polygon(c,new float[]{48-back,0,18-back,-18,-1,-2,18-back,18},
-                    0xffb7f0fb);
+            polygon(c,-22,-18,8,-18,37-back,0,8,18,-22,18,0xff8cb8ca);
+            polygon(c,48-back,0,18-back,-18,-1,-2,18-back,18,0xffb7f0fb);
             circle(c,14-back,0,9+(float)Math.sin(gameTime*4)*2,0xffdffeff);
         } else { // Arc coil: forked electrodes and crackling voltaic orb.
             rect(c,-16,-11,20-back,11,0xff635a86);
@@ -2835,10 +2832,8 @@ public final class RiftGameView extends View {
         c.restore();
         // Each purchase physically modifies the gun, not just its level text.
         if(tier>=2) {
-            polygon(c,new float[]{x-34,top-2,x-17,top-20,x-14,top+18,x-35,top+30},
-                    0xff9daeb0);
-            polygon(c,new float[]{x+34,top-2,x+17,top-20,x+14,top+18,x+35,top+30},
-                    0xff75898e);
+            polygon(c,x-34,top-2,x-17,top-20,x-14,top+18,x-35,top+30,0xff9daeb0);
+            polygon(c,x+34,top-2,x+17,top-20,x+14,top+18,x+35,top+30,0xff75898e);
             circle(c,x-27,top+4,5,accent);
             circle(c,x+27,top+4,5,accent);
         }
@@ -2859,7 +2854,7 @@ public final class RiftGameView extends View {
             }
         }
         if(tier>=5) {
-            polygon(c,new float[]{x-15,top-32,x,top-54,x+15,top-32},accent);
+            polygon(c,x-15,top-32,x,top-54,x+15,top-32,accent);
             line(c,x-5,top-31,x-5,top-48,0xffe5f7ef,2);
             circle(c,x,top-44,5,0xffefffff);
             circle(c,x,top-19,13,accent&0x55ffffff);
@@ -5220,6 +5215,36 @@ public final class RiftGameView extends View {
     private void line(Canvas c,float x,float y,float x2,float y2,int color,float width) {
         p.setShader(null);p.setColor(color);p.setStrokeWidth(width);p.setStrokeCap(Paint.Cap.ROUND);
         c.drawLine(x,y,x2,y2,p);
+    }
+    /**
+     * Hot-path polygon overloads: draw actual bought turret meshes without
+     * allocating a float[] for every barrel, prong and upgrade detail.
+     */
+    private void polygon(Canvas c,float x1,float y1,float x2,float y2,
+                         float x3,float y3,int color){
+        p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.FILL);
+        reusablePolygonPath.reset();
+        reusablePolygonPath.moveTo(x1,y1);reusablePolygonPath.lineTo(x2,y2);
+        reusablePolygonPath.lineTo(x3,y3);reusablePolygonPath.close();
+        c.drawPath(reusablePolygonPath,p);
+    }
+    private void polygon(Canvas c,float x1,float y1,float x2,float y2,
+                         float x3,float y3,float x4,float y4,int color){
+        p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.FILL);
+        reusablePolygonPath.reset();
+        reusablePolygonPath.moveTo(x1,y1);reusablePolygonPath.lineTo(x2,y2);
+        reusablePolygonPath.lineTo(x3,y3);reusablePolygonPath.lineTo(x4,y4);
+        reusablePolygonPath.close();c.drawPath(reusablePolygonPath,p);
+    }
+    private void polygon(Canvas c,float x1,float y1,float x2,float y2,
+                         float x3,float y3,float x4,float y4,
+                         float x5,float y5,int color){
+        p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.FILL);
+        reusablePolygonPath.reset();
+        reusablePolygonPath.moveTo(x1,y1);reusablePolygonPath.lineTo(x2,y2);
+        reusablePolygonPath.lineTo(x3,y3);reusablePolygonPath.lineTo(x4,y4);
+        reusablePolygonPath.lineTo(x5,y5);
+        reusablePolygonPath.close();c.drawPath(reusablePolygonPath,p);
     }
     private void polygon(Canvas c,float[] pts,int color) {
         p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.FILL);
