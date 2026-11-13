@@ -108,8 +108,8 @@ public final class PersistentWaveCheckpointV065Test {
         tap(reopened,950,338);
         assertEquals("PLAY",get(reopened,"scene").toString());
         assertTrue((Boolean)get(reopened,"paused"));
-        assertEquals(before.snapshot.wave,(Integer)get(reopened,"wave"));
-        assertEquals(before.snapshot.gold,(Integer)get(reopened,"gold"));
+        assertEquals(before.snapshot.wave,((Integer)get(reopened,"wave")).intValue());
+        assertEquals(before.snapshot.gold,((Integer)get(reopened,"gold")).intValue());
         assertEquals(before.snapshot.heroHp,(Float)get(reopened,"heroHp"),.01f);
         // Deliberately leaving the paused run must remove resume affordance.
         tap(reopened,640,369);
