@@ -1968,24 +1968,32 @@ public final class RiftGameView extends View {
     }
     private void complete() {
         if(scene==Scene.OUTRO||scene==Scene.WIN)return;
+        boolean firstClear=stage>=unlocked;
+        int reward=Progression.stageReward(stage,firstClear);
+        int earnedObjective=MissionObjectives.completed(stage,missionBuilds,
+                baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
+                defeatedElite)?MissionObjectives.bonus(stage):0;
+        int newSupplies=supplies+reward+
+                DifficultyRules.supplyBonus(difficultyMode,reward)+earnedObjective;
+        int newUnlocked=Campaign.unlockedAfter(unlocked,stage);
+        // Permanent rewards, new unlocks and deleting the replayable
+        // checkpoint are one durable transaction. A failed commit must NOT
+        // show the victory scene or change any in-memory permanent balance.
+        if(!durableBattle.commitVictory(newUnlocked,newSupplies)){
+            paused=true;
+            clearTouchControls();
+            announce("SAVE FAILED • FREE SPACE, THEN RESUME TO RETRY");
+            return;
+        }
+        supplies=newSupplies;
+        unlocked=newUnlocked;
+        objectiveBonus=earnedObjective;
+        savedWave=null;
         recordBattleResult(true);
         outro=new BattleOutroV065(stage,true,heroX,heroY);
         scene=Scene.OUTRO;paused=false;
         heroAnimation.reset();
         clearTouchControls();
-        boolean firstClear=stage>=unlocked;
-        int reward=Progression.stageReward(stage,firstClear);
-        objectiveBonus=MissionObjectives.completed(stage,missionBuilds,
-                baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
-                defeatedElite)?MissionObjectives.bonus(stage):0;
-        supplies+=reward+DifficultyRules.supplyBonus(difficultyMode,reward)
-                +objectiveBonus;
-        unlocked=Campaign.unlockedAfter(unlocked,stage);
-        // Money, progression and recovery invalidation must land together
-        // in the same durable commit; never grant supplies then leave a
-        // replayable unfinished-wave checkpoint behind.
-        durableBattle.commitVictory(unlocked,supplies);
-        savedWave=null;
         trialPassed=MemoryTrial.evaluate(trial,missionBuilds,kills,
                 baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
                 defeatedElite,relicMaxHp>0?relicHp/relicMaxHp:0f,
