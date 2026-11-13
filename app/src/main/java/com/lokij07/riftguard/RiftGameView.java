@@ -58,6 +58,9 @@ public final class RiftGameView extends View {
     private final PaintedArt painted;
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
+    // v0.60 runtime actor rig; keep MotionArt as a safe non-destructive fallback.
+    private final LivingRigArt livingRig=new LivingRigArt();
+    private static final boolean USE_LIVING_RIG=true;
     private final BiomeProps biomeProps;
     private final LivingBattlefield livingWorld=new LivingBattlefield();
     private final NativeDeployedMapArt deployedMap=new NativeDeployedMapArt();
@@ -151,7 +154,8 @@ public final class RiftGameView extends View {
                 burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
                 hitReaction;
         boolean moving,boss;
-        int kind,bossPhase=1;
+        int kind,bossPhase=1,variant=0;
+        float faceX=-1f;
         Enemy(float x,float y,int kind,float hp,float phase) {
             this.x=x; this.y=y; this.kind=kind; this.hp=hp; this.maxHp=hp; this.phase=phase;
         }
@@ -183,6 +187,8 @@ public final class RiftGameView extends View {
     private static final class DeathEcho {
         final float x,y,phase;
         final int kind;
+        int variant=0;
+        float faceX=-1f;
         float life=.64f;
         DeathEcho(float x,float y,int kind,float phase){
             this.x=x;this.y=y;this.kind=kind;this.phase=phase;
@@ -515,7 +521,11 @@ public final class RiftGameView extends View {
                 if(pickups.size()<28 && random.nextFloat()<.22f)
                     pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
                 puff(e.x,e.y,9,GLOWS[Campaign.world(stage)]);
-                if(deaths.size()<32)deaths.add(new DeathEcho(e.x,e.y,e.kind,e.phase));
+                if(deaths.size()<32){
+                    DeathEcho echo=new DeathEcho(e.x,e.y,e.kind,e.phase);
+                    echo.variant=e.variant;echo.faceX=e.faceX;
+                    deaths.add(echo);
+                }
                 if(impacts.size()<64)impacts.add(new Impact(e.x,e.y,
                         GLOWS[Campaign.world(stage)],e.boss?86:41));
                 it.remove();continue;
@@ -562,6 +572,7 @@ public final class RiftGameView extends View {
             // determines how close monsters may stop to attack.
             float stop=traveling?3f:MovementRules.enemyStopDistance(hunt,e.kind);
             e.moving=d>stop;
+            if(e.moving&&Math.abs(tx-e.x)>1.5f)e.faceX=tx<e.x?-1f:1f;
             if(e.moving) {
                 float speedFactor=(e.kind==3?1.15f:1f)*
                         DifficultyRules.enemySpeed(difficultyMode)*
@@ -880,6 +891,7 @@ public final class RiftGameView extends View {
         float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
+        enemy.variant=random.nextInt(4);
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
@@ -1236,8 +1248,10 @@ public final class RiftGameView extends View {
             c.save();
             c.rotate(70f*progress,d.x,d.y);
             int layer=c.saveLayerAlpha(d.x-100,d.y-150,d.x+100,d.y+40,alpha);
-            motionArt.enemy(c,d.kind,d.x,d.y+progress*22f,d.phase,
-                    false,-1,true);
+            if(!USE_LIVING_RIG || !livingRig.enemy(c,d.kind,Campaign.world(stage),
+                    d.variant,d.x,d.y+progress*22f,d.phase,false,-1,true,d.faceX))
+                motionArt.enemy(c,d.kind,d.x,d.y+progress*22f,d.phase,
+                        false,-1,true);
             c.restoreToCount(layer);
             c.restore();
             CombatVfx.hit(c,d.x,d.y-16,progress,
@@ -1916,8 +1930,11 @@ public final class RiftGameView extends View {
             float jerk=(float)Math.sin(t*Math.PI*2f)*11f*t;
             c.rotate(jerk,e.x,e.y-48);
         }
-        boolean painted=motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,
-                attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
+        boolean painted=(USE_LIVING_RIG&&livingRig.enemy(c,e.kind,
+                Campaign.world(stage),e.variant,e.x,e.y,e.phase,e.moving,
+                attack,e.hitReaction>0||e.hp<e.maxHp*.20f,e.faceX))
+                ||motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,
+                        attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
                 ||characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,
                         e.hitReaction>0||e.hp<e.maxHp*.20f);
         c.restore();
@@ -2054,6 +2071,13 @@ public final class RiftGameView extends View {
         float castProgress=heroAnimation.castProgress();
         if(castProgress<0&&!interrupted&&pulseFlash>0)
             castProgress=1-pulseFlash/.55f;
+        float deathProgress=heroAnimation.state()==WardenAnimationMachine.State.DEATH
+                ?heroAnimation.deathProgress():-1f;
+        if(USE_LIVING_RIG&&livingRig.hero(c,heroX,heroY,
+                heroMoving?walkClock:gameTime,heroDir,heroMoving,
+                attackProgress,castProgress,
+                forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,
+                equippedWeapon,weaponForm(equippedWeapon),deathProgress))return;
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
