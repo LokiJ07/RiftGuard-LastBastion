@@ -1,33 +1,28 @@
-# RiftGuard v0.60.0 — Living Siege implementation plan and checkpoint
+# RiftGuard v0.60 — Authentic Character Rig Integration
 
-**Current candidate**: `0.60.0-dev1`, not yet a finished v0.60.0 release.
+**Status:** v0.60.0-dev1, draft branch, subject to Android CI and visual/performance QA. NOT the finished v0.60 game.
 
-## Integrated in this first checkpoint
+## User-provided code is the visual baseline
 
-- New `LivingRigArt` creates an articulated Warden with separately animated legs, cape, torso, gauntlets, helmet, shield and moving weapon hand.
-- Weapon in that hand is rendered by existing `EvolvedWeaponArt` with the **purchased form** from `EvolutionProgress.weaponForm` (six families x five tiers). Attack movement uses the actual `WeaponRig.aimedPose`, preserving combat/muzzle coordinate logic.
-- All seven current enemy species have distinct vector silhouettes, limb/wings/quadraped gait, per-species weapons and attack poses, size variants, biome-specific colors for all ten worlds, real facing and hit flash.
-- Runtime `RiftGameView` integration preserves enemy HP, attack timers, boss logic, contact/muzzle rules, tower pad positions, old save data, upgrade trees, paid arsenal, and stage progression.
-- Original `MotionArt` + `CharacterArt` remain fallbacks; `USE_LIVING_RIG` can be flipped for regression comparison.
-- Enemy variant and facing are carried into their death echoes.
-- Robolectric visual tests exercise 30 actual held-weapon forms, seven enemy species and ten realm palettes, producing images in the CI screenshot gallery.
-- Android versionCode increments from 47 to 48, using versionName `0.60.0-dev1` to avoid implying final release.
+The 713-line original `WardenRig.java` and 1,054-line original `EnemyRig.java` from the user's supplied ZIPs are integrated **in their actual detailed form**, rather than redrawn into flat placeholder figures.
 
-## Design provenance
+- `WardenRig.java`: preserves 2-bone leg IK, planted feet, directional stride, torso and head movement, separate gauntlet and shoulder pieces, cloth and cape secondary animation, slash tip trails, weapon-specific upper-body travel, cast/hurt/death states and detailed original multi-tone armor drawing.
+- The Warden's actual held weapon is upgraded from the older `WorldArt.drawHeldWeapon` call to the v0.51 save-backed `EvolvedWeaponArt.draw` with **six weapon families x five mastery forms**. Exact arm socket and attack clock still use `WeaponRig.aimedPose`.
+- A small articulated extra armor detail layer follows the existing purchased Ascension armor tier without replacing existing `EvolutionEffects.armor`.
+- `EnemyRig.java`: preserves species-specific articulated attack anatomy (dagger, sling, club, magic orb, staff, slam, boar tusks), biome-specific horns/ice/mushrooms/moss/metal/crystals/lightning/bone/gold, glow veins, and themed particles.
+- New seeded per-enemy physical equipment adornments distinguish variants beyond the original size-only scale; boss phases 1–3 gain visible body-anchored ornament / horns / crystals.
+- `RiftGameView.java` retains existing enemy HP, combat behavior, camera, collisions, 300 campaign stages, 66 weapon mastery nodes, 40 Ascension nodes, 5 fortress ranks, arsenal gating and save keys. Only actor rendering is swapped using two reversible fallbacks (`USE_VECTOR_WARDEN`, `USE_VECTOR_ENEMIES`).
+- Enemy-facing, per-enemy variant and boss phase survive into death echoes.
+- `DetailedActorRigV060Test` renders 30 equipped forms, 5 armor looks, seven species, ten realms, four variants and three live boss-phase visual states into CI screenshot gallery.
 
-The user supplied `WardenRig.java` and `EnemyRig.java` as references. This implementation adapts their articulated-body and biome-variety ideas into a smaller renderer rather than copying their older `RiftGameView.java`, which would revert v0.40/v0.51 gameplay, UI and progression work.
+## Removed
 
-## Further required work for v0.60.0
+The earlier experimental `LivingRigArt.java` and its regression test were explicitly removed. Their visual fidelity did not match the user-provided detailed rigs.
 
-1. Character detail pass: better layered armor shading, cape simulation, directional idle/walk, dodge/hurt/death readability, individually selected Mastery/Ascension armor surfaces.
-2. Enemy variety pass: biome-exclusive anatomical variants, elite silhouettes, bosses with specific skeletons and telegraphed attack phases rather than palette-only changes.
-3. Combat feel: animation event markers, anticipation/contact/recovery for all six weapons, readable combat FX without overwhelming HUD.
-4. Realm environment and fortress machinery integration; retain all current rank/arsenal purchases and saves.
-5. Performance: compare frame times and memory against v0.51 on Android emulator, reduce per-frame primitive count or bake static layers as needed, then test actual midrange phone.
-6. QA: no GitHub merge until CI build, Robolectric, screenshot review and emulator interaction are verified.
+## Next required release gates
 
-## Known limits
-
-- Procedural Canvas shapes still require better authored/illustrated detailing to reach the target premium 2D/2.5D style.
-- The seven enemy families are enhanced but the proposed 20–30 truly independent enemy archetypes are **not implemented** here.
-- No physical handset performance guarantee is made.
+1. Confirm Android Java compilation, all Robolectric regression tests and emulator screen capture on this candidate SHA.
+2. Visually inspect the **actual** screenshots, rather than relying on class names, source assumptions or generated concepts.
+3. Check frame latency and memory under the dense combat scenarios; avoid claiming optimized when not measured.
+4. Additional authored/painterly texture and skeleton-specific animation polish, and biome-exclusive enemy anatomies, remain future v0.60 tasks, not completed claims.
+5. Keep draft branch unmerged until visual QA and performance are acceptable.
