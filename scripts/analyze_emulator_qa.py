@@ -33,6 +33,22 @@ if not re.search(r"scene=PLAY story=false paused=false briefing=false "
 for control in ("MOVE","DODGE","BUILD","SKILL","ATTACK"):
     if f"control={control} scene=PLAY story=false" not in state:
         raise SystemExit(f"FAIL: Actual battle never received {control} touch")
+# Actual Android process death / fresh Activity acceptance. Enforce a
+# restarted HOME with saved CONTINUE, then a paused PLAY at wave 1.
+relaunch=(folder/"relaunch.txt").read_text(errors="replace") if (
+    folder/"relaunch.txt").exists() else ""
+recovery=(folder/"qa-recovery-state.txt").read_text(errors="replace") if (
+    folder/"qa-recovery-state.txt").exists() else ""
+if "Error:" in relaunch or "Exception" in relaunch or "Status:" not in relaunch:
+    raise SystemExit("FAIL: Could not relaunch RiftGuard after process force-stop")
+if not (folder/"06-relaunch-with-continue.png").is_file() or not (
+    folder/"07-restored-wave-paused.png").is_file():
+    raise SystemExit("FAIL: Real Android process-death recovery screenshots missing")
+if not re.search(r"scene=HOME story=false paused=false briefing=false",recovery):
+    raise SystemExit("FAIL: No fresh HOME state after Android force-stop")
+if not re.search(r"scene=PLAY story=false paused=true briefing=false "
+                 r"stage=\\d+ wave=[1-9]\\d*",recovery):
+    raise SystemExit("FAIL: Continue failed to restore a paused playable wave")
 if len(frames)<8:
     raise SystemExit("FAIL: Insufficient Android graphics frame measurements")
 p50=statistics.median(frames)
@@ -48,6 +64,7 @@ summary={
     "actual_playing_battle_verified":True,
     "enemy_wave_spawn_verified":True,
     "accepted_touch_controls":["MOVE","DODGE","BUILD","SKILL","ATTACK"],
+    "android_force_stop_relaunch_recovery_verified":True,
     "frame_count":len(frames),
     "frame_ms_p50":round(p50,2),
     "frame_ms_p95":round(p95,2),
