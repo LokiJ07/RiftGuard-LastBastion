@@ -1153,23 +1153,56 @@ public final class RiftGameView extends View {
             if (towers[i]>0 && distance(x,y,towerX[i],towerY[i])<29) return true;
         return false;
     }
-    private void build() {
+    private void repairTower(int choice){
+        float max=TowerDurability.maxHp(towers[choice],fortressRank);
+        int cost=TowerDurability.repairCost(towerHp[choice],max);
+        if(cost<=0)return;
+        if(gold<cost){announce("REPAIR NEEDS "+(cost-gold)+" MORE GOLD");return;}
+        gold-=cost;towerHp[choice]=TowerDurability.repair(towerHp[choice],max);
+        puff(towerX[choice],towerY[choice],12,0xffb4e5cc);
+        audio.play(GameAudio.BUILD);announce("TOWER REPAIRED • "+cost+" GOLD");
+    }
+    private void damageTower(int slot,float amount){
+        if(slot<0||slot>=activeTowerCount||towers[slot]<=0)return;
+        towerHp[slot]=TowerDurability.damage(towerHp[slot],amount);
+        puff(towerX[slot],towerY[slot]-30,12,0xffff9d7d);
+        if(towerHp[slot]<=0){
+            destroyedTowerTier[slot]=towers[slot];
+            towers[slot]=0;towerTimers[slot]=0;
+            announce("TOWER "+(slot+1)+" DESTROYED • REBUILD!");
+        }else announce("TOWER "+(slot+1)+" DAMAGED • REPAIR!");
+    }
+    private int nearestBuiltTower(float x,float y,float range){
+        int index=-1;float best=range*range;
+        for(int pad=0;pad<activeTowerCount;pad++)if(towers[pad]>0){
+            float dx=x-towerX[pad],dy=y-towerY[pad],d=dx*dx+dy*dy;
+            if(d<best){index=pad;best=d;}
+        }
+        return index;
+    }
+    private void build(){
         int choice=selectedTowerPad;
         if(choice<0||choice>=activeTowerCount){
-            // Auto-build still works when no pad has been selected.
             choice=-1;
             for(int i=0;i<activeTowerCount;i++)
                 if(choice==-1||towers[i]<towers[choice])choice=i;
         }
-        if(choice<0 || towers[choice]>=BattleRules.MAX_TOWER_TIER) {
-            announce(selectedTowerPad>=0?"SELECTED TOWER IS MAXED":
-                    "ALL TOWERS MAXED");
-            return;
+        if(choice<0){announce("NO TOWER SLOT AVAILABLE");return;}
+        if(towers[choice]>0&&towerHp[choice]<
+                TowerDurability.maxHp(towers[choice],fortressRank)-.01f){
+            repairTower(choice);return;
         }
-        int cost=BattleRules.towerCost(towers[choice]);
+        if(towers[choice]>=BattleRules.MAX_TOWER_TIER){
+            announce("SELECTED TOWER IS MAXED");return;
+        }
+        int cost=destroyedTowerTier[choice]>0&&towers[choice]==0?
+                TowerDurability.rebuildCost(destroyedTowerTier[choice]):
+                BattleRules.towerCost(towers[choice]);
         if(gold<cost){announce("NEED "+(cost-gold)+" MORE GOLD");return;}
         if(towers[choice]==0)missionBuilds++;
         gold-=cost;towers[choice]++;
+        destroyedTowerTier[choice]=0;
+        towerHp[choice]=TowerDurability.maxHp(towers[choice],fortressRank);
         audio.play(GameAudio.BUILD);
         puff(towerX[choice],towerY[choice],18,GOLD);
         announce(towers[choice]==1?"TURRET BUILT":"TURRET LEVEL "+towers[choice]);
@@ -2259,8 +2292,17 @@ public final class RiftGameView extends View {
         action(c,dodgeHudX(),590,42,
                 dodgeTime>0?0xff66b8bc:0xff487d95,"DODGE",
                 dodgeCooldown>0?""+(int)Math.ceil(dodgeCooldown)+"s":"READY");
-        action(c,buildHudX(),589,50,0xff4c837d,"BUILD",
-                nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":""+BattleRules.towerCost(nextTier));
+        int chosen=selectedTowerPad;
+        boolean canRepair=chosen>=0&&chosen<activeTowerCount&&towers[chosen]>0&&
+                towerHp[chosen]<TowerDurability.maxHp(towers[chosen],fortressRank);
+        boolean rubble=chosen>=0&&chosen<activeTowerCount&&destroyedTowerTier[chosen]>0;
+        action(c,buildHudX(),589,50,canRepair?0xff4d937d:0xff4c837d,
+                canRepair?"REPAIR":rubble?"REBUILD":"BUILD",
+                canRepair?""+TowerDurability.repairCost(towerHp[chosen],
+                        TowerDurability.maxHp(towers[chosen],fortressRank)):
+                        rubble?""+TowerDurability.rebuildCost(destroyedTowerTier[chosen]):
+                        nextTier>=BattleRules.MAX_TOWER_TIER?"MAX":
+                        ""+BattleRules.towerCost(nextTier));
         action(c,pulseHudX(),593,49,WardenSkills.SKILLS[equippedSkill].color,
                 WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
@@ -3405,6 +3447,8 @@ public final class RiftGameView extends View {
                 TowerPadLayout.count(stage)+" PADS • "+MissionObjectives.name(stage),
                 134,604,413,16,0xffffd7a1,false);
         drawStoryParagraph(c,story.warning,594,523,538,19,26,0xffffc38f);
+        button(c,688,460,1134,510,"FORMATION "+(selectedLoadout+1)+" : "+
+                defenseLoadouts.name(selectedLoadout)+"  (CHANGE)",0xff546478);
         button(c,700,586,1130,652,"BEGIN BATTLE",0xffa46a45);
         text(c,"BACK TO ATLAS",141,634,20,0xffcad5cc,false);
     }
@@ -3563,6 +3607,7 @@ public final class RiftGameView extends View {
         text(c,"PAUSED",640,282,66,GOLD,true);
         button(c,456,332,825,414,"RESUME BATTLE",0xffae7652);
         button(c,456,439,825,517,"RETURN TO MAP",0xff42616b);
+        button(c,456,526,825,581,"SAVE FORMATION "+(selectedLoadout+1),0xff766347);
     }
     /**
      * Fixed, accessible upgrade navigation across Armory, Skills, Fortress,
@@ -3660,7 +3705,11 @@ public final class RiftGameView extends View {
             invalidate();return true;
         }
         if(scene==Scene.PLAY && briefingOpen) {
-            if(action==MotionEvent.ACTION_DOWN && x>680 && x<1150 && y>570 && y<670) {
+            if(action==MotionEvent.ACTION_DOWN && x>680 && x<1150 && y>460 && y<512){
+                selectedLoadout=(selectedLoadout+1)%DefenseLoadouts.COUNT;
+                prefs.edit().putInt("fort.v065.active",selectedLoadout).commit();
+                start(stage);briefingOpen=true;
+            } else if(action==MotionEvent.ACTION_DOWN && x>680 && x<1150 && y>570 && y<670) {
                 briefingOpen=false;
                 clearTouchControls();
             } else if(action==MotionEvent.ACTION_DOWN && x>106 && x<364 && y>592 && y<656) {
@@ -3676,6 +3725,11 @@ public final class RiftGameView extends View {
             if(paused) {
                 if(x>450 && x<830 && y>330 && y<421) { paused=false;clearTouchControls(); }
                 else if(x>450 && x<830 && y>435 && y<525) {scene=Scene.MAP;paused=false;clearTouchControls();}
+                else if(x>450 && x<830 && y>525 && y<589){
+                    defenseLoadouts.save(selectedLoadout,towers,towerTypes,activeTowerCount);
+                    announce("FORMATION "+(selectedLoadout+1)+" SAVED");
+                    paused=false;clearTouchControls();
+                }
             }else if(x>1138 && y<112) {paused=true;clearTouchControls();}
             else if(distance(x,y,stickHudX(),568)<150) {joyPointer=id;updateStick(x,y);}
             else if(distance(x,y,attackHudX(),560)<82) {
