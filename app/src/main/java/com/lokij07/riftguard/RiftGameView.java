@@ -1787,16 +1787,22 @@ public final class RiftGameView extends View {
         markDefeat();
     }
     private void markDefeat() {
+        if(scene==Scene.OUTRO||scene==Scene.LOSE)return;
         recordBattleResult(false);
         audio.play(GameAudio.HURT);
-        scene=Scene.LOSE;paused=false;
+        outro=new BattleOutroV065(stage,false,heroX,heroY);
+        scene=Scene.OUTRO;paused=false;
+        heroMoving=false;
         heroAnimation.die();
         clearTouchControls();
     }
     private void complete() {
+        if(scene==Scene.OUTRO||scene==Scene.WIN)return;
         recordBattleResult(true);
-        audio.play(GameAudio.VICTORY);
-        scene=Scene.WIN;paused=false;
+        outro=new BattleOutroV065(stage,true,heroX,heroY);
+        scene=Scene.OUTRO;paused=false;
+        heroAnimation.reset();
+        clearTouchControls();
         boolean firstClear=stage>=unlocked;
         int reward=Progression.stageReward(stage,firstClear);
         objectiveBonus=MissionObjectives.completed(stage,missionBuilds,
@@ -1812,11 +1818,60 @@ public final class RiftGameView extends View {
                 towersDestroyedInBattle);
         trialAwarded=storyProgress.claimMemory(stage,trialPassed,true);
         if(firstClear&&DifficultyRules.worldBoss(stage))
-            openStory(StoryScript.afterWorldBoss(Campaign.world(stage)));
-        if(trialAwarded)openStory(StoryScript.memory(KeyMemories.forStage(stage)));
+            outcomeStory.add(StoryScript.afterWorldBoss(Campaign.world(stage)));
+        if(trialAwarded)outcomeStory.add(StoryScript.memory(KeyMemories.forStage(stage)));
         selectedLevel=Campaign.level(Math.min(stage+1,299));
         selectedMap=Campaign.map(Math.min(stage+1,299));
     }
+
+    private void updateOutro(float dt){
+        if(outro==null)return;
+        outro.advance(dt);
+        if(outro.victory){
+            heroX=outro.positionX();
+            heroY=outro.positionY();
+            heroDir=outro.direction();
+            heroMoving=outro.walking();
+            if(heroMoving)walkClock+=dt;
+            heroAnimation.advance(dt,heroMoving);
+        }else{
+            heroMoving=false;
+            heroAnimation.advance(dt,false);
+        }
+        if(outro.finished()){
+            scene=outro.victory?Scene.WIN:Scene.LOSE;
+            if(outro.victory)audio.play(GameAudio.VICTORY);
+            clearTouchControls();
+        }
+    }
+    /** This is drawn over the live battlefield, before any result menu. */
+    private void drawOutroOverlay(Canvas c){
+        if(outro==null)return;
+        float progress=outro.progress();
+        if(outro.victory){
+            rect(c,0,0,W,111,0xb01b3737);
+            text(c,"THE ROAD IS CLEAR",640,67,33,GOLD,true);
+            text(c,"WARDEN RETURNS FROM THE LAST STAND",640,100,17,INK,true);
+            // Victory movement is rendered by the same live Warden rig
+            // at its interpolated world coordinates in drawBattle().
+            for(int i=0;i<10;i++){
+                float x=180+i*105f;
+                float y=188+(float)Math.sin(gameTime*1.7f+i)*26;
+                circle(c,x,y,2f+(i%3),0x66ffe4a8);
+            }
+        }else{
+            int darkness=(int)(0x45+0x5e*progress);
+            rect(c,0,0,W,H,(darkness<<24)|0x0d111d);
+            if(progress>.31f){
+                text(c,caveMode?"THE ECLIPSE CONSUMES THE WARDEN":
+                        baseHp<=0?"THE LAST BASTION GOES SILENT":
+                        "THE WARDEN HAS FALLEN",
+                        640,140,33,0xffe9c4ba,true);
+                text(c,"THE FORTRESS WILL REMEMBER THIS STAND",640,185,20,INK,true);
+            }
+        }
+    }
+
     private void announce(String text) {notice=text;noticeTimer=1.7f;}
     private void puff(float x,float y,int count,int color) {
         for(int i=0;i<count && sparks.size()<380;i++) {
@@ -4104,7 +4159,8 @@ public final class RiftGameView extends View {
             textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES",640,418,
                     430,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
         boolean waveRetry=canRetryWave();
-        button(c,435,429,845,502,scene==Scene.WIN?"NEXT STAGE":
+        button(c,435,429,845,502,scene==Scene.WIN?
+                (outcomeStory.isEmpty()?"NEXT STAGE":"VIEW STORY"):
                 waveRetry?"RETRY WAVE  ("+
                 (WaveCheckpointV065.retries(difficultyMode)-waveRetriesUsed)+" LEFT)":
                 "RETRY STAGE",0xffae7652);
@@ -4844,7 +4900,10 @@ public final class RiftGameView extends View {
             else if(action==3)upgradeFortress();
         }else if(scene==Scene.WIN || scene==Scene.LOSE) {
             if(x>420 && x<860 && y>425 && y<510) {
-                if(scene==Scene.WIN && stage==299)scene=Scene.MAP;
+                if(scene==Scene.WIN&&!outcomeStory.isEmpty()){
+                    for(StoryScript.Line[] lines:outcomeStory)openStory(lines);
+                    outcomeStory.clear();
+                }else if(scene==Scene.WIN && stage==299)scene=Scene.MAP;
                 else if(scene==Scene.WIN) {
                     start(Math.min(299,stage+1));
                     briefingOpen=true;
