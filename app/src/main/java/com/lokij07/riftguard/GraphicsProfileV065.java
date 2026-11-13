@@ -3,8 +3,8 @@ package com.lokij07.riftguard;
 import java.util.Locale;
 
 /**
- * User-visible quality presets. High defaults on the TECNO POVA 5 (LH7n),
- * but never assumes 120Hz panel refresh means 120 FPS is affordable.
+ * User-visible quality presets for Android devices of different RAM classes.
+ * A 90/120Hz panel does not guarantee the game can render at 90/120 FPS.
  * Gameplay physics, weapons, player hitboxes and storyline are identical
  * across presets: only render pacing and noninteractive ambience change.
  */
@@ -16,6 +16,19 @@ public final class GraphicsProfileV065 {
     public static int safe(int mode){
         return mode>=HIGH&&mode<=PERFORMANCE?mode:BALANCED;
     }
+    /**
+     * Android's ActivityManager memory class measures the per-app heap budget,
+     * not total installed RAM. Avoid identifying performance by phone brand.
+     * Dynamic overload detection still reduces noninteractive effects if
+     * the GPU is weaker than its RAM class suggests.
+     */
+    public static int recommended(int memoryClassMb,boolean lowRamDevice){
+        if(lowRamDevice||memoryClassMb<=96)return PERFORMANCE;
+        if(memoryClassMb<256)return BALANCED;
+        return HIGH;
+    }
+
+    /** Legacy reference-profile helper retained for existing compatibility tests. */
     public static int recommended(String manufacturer,String model){
         String maker=manufacturer==null?"":manufacturer.toLowerCase(Locale.ROOT);
         String device=model==null?"":model.toLowerCase(Locale.ROOT);
