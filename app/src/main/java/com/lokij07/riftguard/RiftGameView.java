@@ -367,11 +367,9 @@ public final class RiftGameView extends View {
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
-        if(s==0 && prefs.getInt("unlocked",0)==0 &&
-                !prefs.getBoolean("story.v065.prologueSeen",false)){
-            prefs.edit().putBoolean("story.v065.prologueSeen",true).commit();
-            openStory(StoryScript.prologue(storyProgress.wardenName()));
-        }
+        // First-play mission controls must stay unchanged; the illustrated
+        // prologue is available explicitly in the Chronicle until the
+        // cinematic-first-launch flow has its own dedicated acceptance tests.
         activeTowerCount=TowerPadLayout.count(stage);
         selectedTowerPad=-1;
         for(int pad=0;pad<activeTowerCount;pad++){
