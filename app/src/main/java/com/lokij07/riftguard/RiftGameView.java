@@ -85,6 +85,7 @@ public final class RiftGameView extends View {
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RenderBudgetV065 renderBudget=new RenderBudgetV065();
     private int graphicsMode=GraphicsProfileV065.BALANCED;
+    private float lastCombatFps=0f;
     private Shader gutterShader;
     private int gutterShaderW=-1,gutterShaderH=-1;
     private final PaintedArt painted;
@@ -448,6 +449,13 @@ public final class RiftGameView extends View {
         }
         canvas.restore();
         renderBudget.sample((System.nanoTime()-now)/1000000f,frameGapMs);
+        // Actual frame cadence, not an invented FPS estimate from the CPU-only
+        // test runner. Report the recent live battle cadence on the pause menu.
+        if(active&&scene==Scene.PLAY&&!paused&&!briefingOpen&&!storyOpen&&
+                frameGapMs>=8f&&frameGapMs<500f){
+            float fps=Math.min(144f,1000f/frameGapMs);
+            lastCombatFps=lastCombatFps==0f?fps:lastCombatFps*.90f+fps*.10f;
+        }
         if(active){
             // At 120Hz we need not paint twice as often just because the
             // POVA 5 display supports it. This leaves more GPU headroom for
@@ -4657,6 +4665,9 @@ public final class RiftGameView extends View {
         rect(c,0,0,W,H,0xc3001117);
         round(c,390,114,890,696,27,0xff1f3741);
         text(c,"PAUSED",640,199,59,GOLD,true);
+        textFit(c,lastCombatFps<1f?"BATTLE FPS: MEASURING":
+                        "LAST BATTLE: "+Math.round(lastCombatFps)+" FPS  /  TARGET 60",
+                640,231,447,18,0xffb9dbe0,true);
         button(c,456,245,825,321,"RESUME BATTLE",0xffae7652);
         button(c,456,332,825,405,"RETURN TO MAP",0xff42616b);
         button(c,456,415,825,493,"SAVE FORMATION "+(selectedLoadout+1),0xff766347);
