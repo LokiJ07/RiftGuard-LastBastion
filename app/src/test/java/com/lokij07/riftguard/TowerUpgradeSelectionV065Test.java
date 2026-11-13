@@ -69,6 +69,11 @@ public final class TowerUpgradeSelectionV065Test {
         b.recycle();
         tap(v,x,y); // same tower toggles off
         assertEquals(-1,get(v,"selectedTowerPad"));
+        // The raised Lv4 cannon body must also be a valid tap target.
+        tap(v,x,y-87);
+        assertEquals(0,get(v,"selectedTowerPad"));
+        tap(v,x,y-87);
+        assertEquals(-1,get(v,"selectedTowerPad"));
     }
     @Test public void cappedTowerNeverChargesGoldOrUpgradesBeyondFive()throws Exception{
         RiftGameView v=new RiftGameView(RuntimeEnvironment.getApplication());
