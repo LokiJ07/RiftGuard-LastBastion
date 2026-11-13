@@ -309,9 +309,16 @@ public final class RiftGameView extends View {
                 context.getSystemService(Context.ACTIVITY_SERVICE);
         int heap=am==null?128:am.getMemoryClass();
         boolean lowRam=am!=null&&am.isLowRamDevice();
+        int defaultQuality=GraphicsProfileV065.recommended(heap,lowRam);
         graphicsMode=GraphicsProfileV065.safe(prefs.getInt(
-                GraphicsProfileV065.SAVE_KEY,
-                GraphicsProfileV065.recommended(heap,lowRam)));
+                GraphicsProfileV065.SAVE_KEY,defaultQuality));
+        // Actual RAM tier controls native raster cache ownership separately
+        // from user graphics preference: HIGH must not OOM a low-end phone.
+        enemyFrames.setCacheLimit(defaultQuality==GraphicsProfileV065.PERFORMANCE?
+                56:defaultQuality==GraphicsProfileV065.BALANCED?104:160);
+        wardenFrames.setCacheLimit(defaultQuality==GraphicsProfileV065.PERFORMANCE?
+                24:defaultQuality==GraphicsProfileV065.BALANCED?40:64);
+        fortressFrames.setCacheLimit(defaultQuality==GraphicsProfileV065.PERFORMANCE?1:2);
         storyProgress=new StoryProgress(prefs);
         defenseLoadouts=new DefenseLoadouts(prefs);
         hudLayout=new HudLayoutV065(prefs);
