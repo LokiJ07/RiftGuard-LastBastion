@@ -10,8 +10,8 @@ android {
         applicationId 'com.lokij07.riftguard'
         minSdk 24
         targetSdk 36
-        versionCode 63
-        versionName '0.66.0-beta1'
+        versionCode 64
+        versionName '0.67.0-alpha1'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     buildTypes {
