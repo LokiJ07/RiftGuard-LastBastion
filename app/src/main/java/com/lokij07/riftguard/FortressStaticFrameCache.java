@@ -23,9 +23,14 @@ public final class FortressStaticFrameCache {
     private final Paint bitmapPaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private final Paint accent=new Paint(Paint.ANTI_ALIAS_FLAG);
     private boolean disabled=false;
+    private int cacheLimit=MAX_FRAMES;
     private int builds=0;
 
     public int cachedFrames(){return frames.size();}
+    public void setCacheLimit(int limit){
+        int bounded=Math.max(1,Math.min(MAX_FRAMES,limit));
+        if(cacheLimit!=bounded){cacheLimit=bounded;clear();}
+    }
     public int frameBuilds(){return builds;}
     public boolean isDisabled(){return disabled;}
     /** Never recycle cached bitmaps while the GPU may be presenting a frame. */
@@ -62,7 +67,7 @@ public final class FortressStaticFrameCache {
                 Canvas art=new Canvas(image);
                 drawOriginal(art,WIDTH*.5f,BASELINE_Y,rank,arsenal,
                         core,treasury,0f);
-                if(frames.size()>=MAX_FRAMES){
+                if(frames.size()>=cacheLimit){
                     Iterator<Map.Entry<Integer,Bitmap>> it=frames.entrySet().iterator();
                     if(it.hasNext()){it.next();it.remove();}
                 }
