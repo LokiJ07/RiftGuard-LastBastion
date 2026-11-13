@@ -1851,32 +1851,56 @@ public final class RiftGameView extends View {
             clearTouchControls();
         }
     }
-    /** This is drawn over the live battlefield, before any result menu. */
+    /** Cinematic battle-to-result bridge; input stays locked until completion. */
     private void drawOutroOverlay(Canvas c){
         if(outro==null)return;
-        float progress=outro.progress();
+        float elapsed=outro.elapsed();
+        float bars=CinematicDirectionV065.outroLetterbox(outro);
+        float title=CinematicDirectionV065.outroTitleAlpha(outro);
+        int titleInk=Math.round(255f*title);
+        // Pan and zoom live in drawBattle; these film bars sit ABOVE the action.
+        int barHeight=Math.round(38f*bars);
+        rect(c,0,0,W,barHeight,0xf3091019);
+        rect(c,0,H-barHeight,W,H,0xf3091019);
         if(outro.victory){
-            rect(c,0,0,W,111,0xb01b3737);
-            text(c,"THE ROAD IS CLEAR",640,67,33,GOLD,true);
-            text(c,"WARDEN RETURNS FROM THE LAST STAND",640,100,17,INK,true);
-            // Victory movement is rendered by the same live Warden rig
-            // at its interpolated world coordinates in drawBattle().
-            for(int i=0;i<10;i++){
-                float x=180+i*105f;
-                float y=188+(float)Math.sin(gameTime*1.7f+i)*26;
-                circle(c,x,y,2f+(i%3),0x66ffe4a8);
+            // Sunrise breaks slowly over the road the Warden actually walks.
+            int beam=Math.round(66f*bars);
+            rect(c,0,barHeight,W,barHeight+4,(beam<<24)|0x00f8d29a);
+            for(int i=0;i<11;i++){
+                float px=180+i*103f+(float)Math.sin(elapsed*1.4+i)*8;
+                float py=200+(float)Math.sin(elapsed*1.5f+i)*35f;
+                int amber=Math.round((24f+42f*bars)*(1f-.38f*title));
+                circle(c,px,py,2+(i%3),((Math.max(0,amber))<<24)|0x00ffe2a3);
+            }
+            if(titleInk>0){
+                rect(c,0,82,1280,157,(Math.round(125f*title)<<24)|0x0010222a);
+                text(c,"THE ROAD IS CLEAR",640,121,35,
+                        (titleInk<<24)|0x00ffdf9b,true);
+                text(c,"THE WARDEN WALKS TOWARD THE DAWN",
+                        640,153,18,(titleInk<<24)|0x00f6ecdb,true);
             }
         }else{
-            int darkness=(int)(0x45+0x5e*progress);
-            rect(c,0,0,W,H,(darkness<<24)|0x0d111d);
-            if(progress>.31f){
-                text(c,caveMode?"THE ECLIPSE CONSUMES THE WARDEN":
+            // Hold on the fallen Warden; do not cover the death pose with a
+            // game-over menu until the last beat of this timed cutscene.
+            int shade=Math.round(49f+91f*CinematicDirectionV065.ease(elapsed/2.2f));
+            rect(c,0,0,W,H,(shade<<24)|0x00090d19);
+            float glow=1f-CinematicDirectionV065.ease(elapsed/1.5f);
+            if(glow>0){
+                int ember=Math.round(72f*glow);
+                rect(c,0,H-150,W,H-148,(ember<<24)|0x00df796b);
+            }
+            if(titleInk>0){
+                rect(c,0,100,W,205,(Math.round(120f*title)<<24)|0x000c1522);
+                text(c,caveMode?"THE ECLIPSE CLAIMS THE WARDEN":
                         baseHp<=0?"THE LAST BASTION GOES SILENT":
-                        "THE WARDEN HAS FALLEN",
-                        640,140,33,0xffe9c4ba,true);
-                text(c,"THE FORTRESS WILL REMEMBER THIS STAND",640,185,20,INK,true);
+                        "THE WARDEN HAS FALLEN",640,148,33,
+                        (titleInk<<24)|0x00f4c8ba,true);
+                text(c,"THE FORTRESS WILL REMEMBER THIS STAND",640,187,19,
+                        (titleInk<<24)|0x00f5e9db,true);
             }
         }
+        int finalShade=CinematicDirectionV065.outroCurtainAlpha(outro);
+        if(finalShade>0)rect(c,0,0,W,H,(finalShade<<24)|0x00070c15);
     }
 
     private void announce(String text) {notice=text;noticeTimer=1.7f;}
@@ -1894,12 +1918,20 @@ public final class RiftGameView extends View {
     private void drawBattle(Canvas c) {
         int biome=Campaign.world(stage);
         // Stable one-route composition: fortress left, incoming enemies right.
-        float camX=LaneRules.VIEW_CENTER_X,camY=LaneRules.VIEW_CENTER_Y;
+        float camX=scene==Scene.OUTRO?
+                CinematicDirectionV065.outroCameraX(outro,LaneRules.VIEW_CENTER_X):
+                LaneRules.VIEW_CENTER_X;
+        float camY=LaneRules.VIEW_CENTER_Y;
+        float sceneZoom=scene==Scene.OUTRO?
+                CinematicDirectionV065.outroZoom(outro,BATTLE_ZOOM):BATTLE_ZOOM;
         c.save();
-        // Shake the WORLD only; HUD and touch hitboxes stay fixed.
-        c.translate(combatFeel.shakeX(),combatFeel.shakeY());
-        c.translate(W*.5f-camX*BATTLE_ZOOM,H*.5f-camY*BATTLE_ZOOM);
-        c.scale(BATTLE_ZOOM,BATTLE_ZOOM);
+        // During the walk-out, the CAMERA follows the original live Warden,
+        // not a stand-in sprite. Regular combat and all touch mapping retain
+        // the exact same stationary camera and zoom as before.
+        c.translate(scene==Scene.OUTRO?0:combatFeel.shakeX(),
+                scene==Scene.OUTRO?0:combatFeel.shakeY());
+        c.translate(W*.5f-camX*sceneZoom,H*.5f-camY*sceneZoom);
+        c.scale(sceneZoom,sceneZoom);
         // The HTML map is now the actual game terrain and route; old
         // mountain/castle/lake scenery no longer overlays the battlefield.
         // Full stage art, light shafts and shadows are cached at load time.
@@ -1911,7 +1943,7 @@ public final class RiftGameView extends View {
         drawStageHazards(c);
         drawPlacedSkills(c);
         if(trial!=null&&trial.type==MemoryTrial.RELIC)drawMemoryRelic(c);
-        if(selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
+        if(scene==Scene.PLAY&&selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
             float sx=towerX[selectedTowerPad],sy=towerY[selectedTowerPad];
             float pulse=(float)Math.sin(gameTime*3.4f)*4;
             circleStroke(c,sx,sy,58+pulse,0xfff2d68e,5);
@@ -2022,8 +2054,8 @@ public final class RiftGameView extends View {
         // Atmospheric particles are already drawn below the HUD.
         c.restore();
         if(scene==Scene.PLAY)drawHud(c,biome);
-        else if(scene==Scene.OUTRO)drawHudTop(c,biome);
-        else drawHudTop(c,biome);
+        else if(scene!=Scene.OUTRO)drawHudTop(c,biome);
+        // The outro is a clean cinematic picture, without game HUD bars.
     }
 
 
@@ -4280,15 +4312,20 @@ public final class RiftGameView extends View {
         boolean bantay=ln.shot==StoryScript.BANTAY||who.equals("BANTAY");
         boolean boss=ln.shot==StoryScript.BOSS;
         boolean memory=who.endsWith("MEMORY");
+        boolean dramatic=cael||boss||ln.shot==StoryScript.CAVE||
+                ln.shot==StoryScript.EMPTY_CUP;
         float seconds=Math.max(0,gameTime-cinematicBeatStart);
         int world=Campaign.world(Math.max(0,Math.min(stage,299)));
         cinematic.drawStage(c,world,memory,cael||ln.shot==StoryScript.CAVE,
                 storyIndex,seconds);
+        float leftEntrance=CinematicDirectionV065.actorEntrance(seconds,false,dramatic);
+        float rightEntrance=CinematicDirectionV065.actorEntrance(seconds,true,dramatic);
 
         // Layered cast placement: opposing characters stay in the shot while
         // the speaking actor gains emphasis and subtle organic motion.
         c.save();
-        c.translate(282+(float)Math.sin(seconds*1.2f)*3,511);
+        c.translate(282+leftEntrance+(float)Math.sin(seconds*1.2f)*3,
+                511+(float)Math.sin(seconds*1.5f)*2);
         c.scale(.85f,.85f);
         wardenRig.hero(c,0,0,gameTime,-.2f,false,-1,-1,false,
                 equippedWeapon,weaponMastery.count(equippedWeapon),
@@ -4296,18 +4333,18 @@ public final class RiftGameView extends View {
         c.restore();
         if(cael){
             c.save();
-            c.translate(967+(float)Math.sin(seconds*.9f)*4,516);
+            c.translate(967+rightEntrance+(float)Math.sin(seconds*.9f)*4,516);
             c.scale(2.2f,2.2f);
             enemyRig.enemy(c,5,9,3,0,0,gameTime,true,-1,true,2);
             c.restore();
         }else if(tessa){
-            cinematic.drawTessa(c,925,325,1.0f,seconds);
+            cinematic.drawTessa(c,925+rightEntrance,325,1.0f,seconds);
             cinematic.drawTreasure(c,1035,468,seconds,0);
         }else if(bantay){
-            cinematic.drawBantay(c,910,380,1.1f,seconds);
+            cinematic.drawBantay(c,910+rightEntrance,380,1.1f,seconds);
         }else if(boss){
             c.save();
-            c.translate(975+(float)Math.sin(seconds*.8f)*3,529);
+            c.translate(975+rightEntrance+(float)Math.sin(seconds*.8f)*3,529);
             c.scale(1.95f,1.95f);
             enemyRig.enemy(c,5,world,2,0,0,gameTime,true,-1,false,-1,true,2);
             c.restore();
@@ -4324,16 +4361,21 @@ public final class RiftGameView extends View {
                     world<4?0:world<7?1:2);
         }
 
-        rect(c,0,492,1280,680,0xe60c1624);
+        int panelAlpha=Math.round(230f*CinematicDirectionV065.reveal(seconds,dramatic));
+        rect(c,0,492,1280,680,(panelAlpha<<24)|0x000c1624);
         rect(c,0,489,1280,492,cael?0xffab88dd:0xffd8aa73);
         String speaker=who.equals("WARDEN")?storyProgress.wardenName():who;
-        textFit(c,speaker.toUpperCase(),78,539,600,26,cael?0xffdabdff:GOLD,false);
-        // Word-wrap without artificially enlarging the panel and covering
-        // moving actors; scene advances only on the player's tap.
-        drawStoryParagraph(c,ln.text,78,583,1100,25,38,INK);
+        int captionAlpha=CinematicDirectionV065.subtitleAlpha(seconds,dramatic);
+        int accent=(cael?0x00dabdff:0x00ffcb68)|(captionAlpha<<24);
+        textFit(c,speaker.toUpperCase(),78,539,600,26,accent,false);
+        // Lines settle into frame after the camera cut. Preserve complete text
+        // and manual advance for accessibility and Chronicle replay.
+        drawStoryParagraph(c,ln.text,78,583,1100,25,38,
+                (captionAlpha<<24)|(INK&0x00ffffff));
         text(c,memory?"MEMORY REVEALED":"SCENE "+(storyIndex+1)+" / "+storyLines.length,
                 83,76,19,0xffffe2ae,false);
         text(c,"TAP TO CONTINUE  •  BACK TO SKIP",1010,650,17,0xffb9d2d3,true);
+        cinematic.drawCutOverlay(c,seconds,memory,dramatic);
     }
 
     private void drawChronicle(Canvas c){
