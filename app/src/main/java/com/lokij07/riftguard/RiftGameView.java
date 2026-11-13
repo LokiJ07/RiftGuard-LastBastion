@@ -58,6 +58,15 @@ public final class RiftGameView extends View {
     private final PaintedArt painted;
     private final CharacterArt characterArt;
     private final MotionArt motionArt;
+    // The user's original skeletal actor implementations, extended without
+    // replacing the v0.51 combat engine or any purchased-upgrade save keys.
+    private final WardenRig wardenRig=new WardenRig();
+    private boolean firstBattleActorDiag=false;
+    private final EnemyRig enemyRig=new EnemyRig();
+    private final EnemySpriteFrameCache enemyFrames=new EnemySpriteFrameCache(enemyRig);
+    // Independent, reversible switches for per-species visual QA.
+    private static final boolean USE_VECTOR_WARDEN=true;
+    private static final boolean USE_VECTOR_ENEMIES=true;
     private final BiomeProps biomeProps;
     private final LivingBattlefield livingWorld=new LivingBattlefield();
     private final NativeDeployedMapArt deployedMap=new NativeDeployedMapArt();
@@ -151,7 +160,8 @@ public final class RiftGameView extends View {
                 burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
                 hitReaction;
         boolean moving,boss;
-        int kind,bossPhase=1;
+        int kind,bossPhase=1,variant=0;
+        float faceX=-1f;
         Enemy(float x,float y,int kind,float hp,float phase) {
             this.x=x; this.y=y; this.kind=kind; this.hp=hp; this.maxHp=hp; this.phase=phase;
         }
@@ -183,6 +193,10 @@ public final class RiftGameView extends View {
     private static final class DeathEcho {
         final float x,y,phase;
         final int kind;
+        int variant=0;
+        float faceX=-1f;
+        boolean boss=false;
+        int bossPhase=1;
         float life=.64f;
         DeathEcho(float x,float y,int kind,float phase){
             this.x=x;this.y=y;this.kind=kind;this.phase=phase;
@@ -247,7 +261,7 @@ public final class RiftGameView extends View {
         if(active)audio.prepare();
         if (active) postInvalidateOnAnimation();
     }
-    public void releaseAudio(){audio.release();}
+    public void releaseAudio(){audio.release();enemyFrames.clear();}
     public boolean handleBack() {
         if (scene==Scene.PLAY && briefingOpen) {
             briefingOpen=false;
@@ -346,6 +360,7 @@ public final class RiftGameView extends View {
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         // Full Java version of deployed-map-generator.html. No old scenery.
         deployedMap.prepare(s);
+        enemyFrames.clear(); // release previous realm's rasterized animation clips
         walkClock=0;heroMoving=false;
         heroAnimation.reset();
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
@@ -515,7 +530,12 @@ public final class RiftGameView extends View {
                 if(pickups.size()<28 && random.nextFloat()<.22f)
                     pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
                 puff(e.x,e.y,9,GLOWS[Campaign.world(stage)]);
-                if(deaths.size()<32)deaths.add(new DeathEcho(e.x,e.y,e.kind,e.phase));
+                if(deaths.size()<32){
+                    DeathEcho echo=new DeathEcho(e.x,e.y,e.kind,e.phase);
+                    echo.variant=e.variant;echo.faceX=e.faceX;
+                    echo.boss=e.boss;echo.bossPhase=e.bossPhase;
+                    deaths.add(echo);
+                }
                 if(impacts.size()<64)impacts.add(new Impact(e.x,e.y,
                         GLOWS[Campaign.world(stage)],e.boss?86:41));
                 it.remove();continue;
@@ -562,6 +582,7 @@ public final class RiftGameView extends View {
             // determines how close monsters may stop to attack.
             float stop=traveling?3f:MovementRules.enemyStopDistance(hunt,e.kind);
             e.moving=d>stop;
+            if(e.moving&&Math.abs(tx-e.x)>1.5f)e.faceX=tx<e.x?-1f:1f;
             if(e.moving) {
                 float speedFactor=(e.kind==3?1.15f:1f)*
                         DifficultyRules.enemySpeed(difficultyMode)*
@@ -880,6 +901,7 @@ public final class RiftGameView extends View {
         float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
+        enemy.variant=random.nextInt(4);
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
@@ -1185,8 +1207,17 @@ public final class RiftGameView extends View {
         // Previously upper turret weapons were depth-sorted behind the castle art.
         layer(KEEP,BASE_Y-305,null,0);
         for(int i=0;i<activeTowerCount;i++)layer(TOWER,towerY[i]+31,null,i);
-        for(Enemy e:enemies)layer(MONSTER,e.y+8,e,0);
-        for(Pickup drop:pickups)layer(DROP,drop.y+12,drop,0);
+        // Only submit actors whose geometry intersects the world camera.
+        // Their movement, collisions, damage and boss AI are still updated
+        // independently; this avoids doing heavy skeletal drawing off-screen.
+        final float actorHalfW=W*.5f/BATTLE_ZOOM+145f;
+        final float actorHalfH=H*.5f/BATTLE_ZOOM+145f;
+        for(Enemy e:enemies)
+            if(Math.abs(e.x-camX)<=actorHalfW && Math.abs(e.y-camY)<=actorHalfH)
+                layer(MONSTER,e.y+8,e,0);
+        for(Pickup drop:pickups)
+            if(Math.abs(drop.x-camX)<=actorHalfW && Math.abs(drop.y-camY)<=actorHalfH)
+                layer(DROP,drop.y+12,drop,0);
         layer(WARDEN,heroY+9,null,0);
         drawQueue.sort((a,b)->Float.compare(a.depth,b.depth));
         for(DepthItem entry:drawQueue) {
@@ -1236,8 +1267,11 @@ public final class RiftGameView extends View {
             c.save();
             c.rotate(70f*progress,d.x,d.y);
             int layer=c.saveLayerAlpha(d.x-100,d.y-150,d.x+100,d.y+40,alpha);
-            motionArt.enemy(c,d.kind,d.x,d.y+progress*22f,d.phase,
-                    false,-1,true);
+            if(!USE_VECTOR_ENEMIES || !enemyRig.enemy(c,d.kind,Campaign.world(stage),
+                    d.variant,d.x,d.y+progress*22f,d.phase,false,-1,true,
+                    d.faceX,d.boss,d.bossPhase))
+                motionArt.enemy(c,d.kind,d.x,d.y+progress*22f,d.phase,
+                        false,-1,true);
             c.restoreToCount(layer);
             c.restore();
             CombatVfx.hit(c,d.x,d.y-16,progress,
@@ -1916,8 +1950,17 @@ public final class RiftGameView extends View {
             float jerk=(float)Math.sin(t*Math.PI*2f)*11f*t;
             c.rotate(jerk,e.x,e.y-48);
         }
-        boolean painted=motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,
-                attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
+        boolean painted=(USE_VECTOR_ENEMIES &&
+                (enemyFrames.draw(c,e.kind,Campaign.world(stage),e.variant,
+                        e.x,e.y,e.phase,e.moving,attack,
+                        e.hitReaction>0||e.hp<e.maxHp*.20f,
+                        e.faceX,e.boss,e.bossPhase)
+                ||enemyRig.enemy(c,e.kind,
+                        Campaign.world(stage),e.variant,e.x,e.y,e.phase,e.moving,
+                        attack,e.hitReaction>0||e.hp<e.maxHp*.20f,e.faceX,
+                        e.boss,e.bossPhase)))
+                ||motionArt.enemy(c,e.kind,e.x,e.y,e.phase,e.moving,
+                        attack,e.hitReaction>0||e.hp<e.maxHp*.20f)
                 ||characterArt.enemy(c,e.kind,e.x,e.y,gameTime+e.phase,
                         e.hitReaction>0||e.hp<e.maxHp*.20f);
         c.restore();
@@ -2054,6 +2097,25 @@ public final class RiftGameView extends View {
         float castProgress=heroAnimation.castProgress();
         if(castProgress<0&&!interrupted&&pulseFlash>0)
             castProgress=1-pulseFlash/.55f;
+        float deathProgress=heroAnimation.state()==WardenAnimationMachine.State.DEATH
+                ?heroAnimation.deathProgress():-1f;
+        final boolean rigRendered=USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
+                heroMoving?walkClock:gameTime,heroDir,heroMoving,
+                attackProgress,castProgress,
+                forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,
+                equippedWeapon,weaponMastery.count(equippedWeapon),
+                weaponForm(equippedWeapon),armorForm(),deathProgress);
+        if(!firstBattleActorDiag && scene==Scene.PLAY) {
+            firstBattleActorDiag=true;
+            android.util.Log.i("RiftGuardVisual",
+                    "hero-rig="+rigRendered+" weapon="+equippedWeapon+
+                    " form="+weaponForm(equippedWeapon)+
+                    " armor="+armorForm()+" facing="+heroDir+
+                    " clock="+(heroMoving?walkClock:gameTime)+
+                    " style="+WardenVisualStyles.name(
+                            WardenVisualStyles.forWeapon(equippedWeapon)));
+        }
+        if(rigRendered)return;
         if(motionArt.hero(c,heroX,heroY,heroMoving?walkClock:gameTime,
                 heroDir,heroMoving,attackProgress,castProgress,
                 forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f,equippedWeapon,
@@ -2324,18 +2386,29 @@ public final class RiftGameView extends View {
         // Warden previously occluded upgraded side bastions and weapon
         // mounts, so reserve the entire preview for the actual fortress.
         if(!workshop){
-            float heroX=left+width*.79f,heroY=top+height*.81f;
-            boolean rendered=motionArt.hero(c,heroX,heroY,gameTime,
+            float heroX=left+width*.74f,heroY=top+height*.63f;
+            // Home preview uses the SAME earned detailed rig as live combat.
+            boolean rendered=(USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
+                    gameTime,-2.2f,false,-1,-1,false,equippedWeapon,
+                    weaponMastery.count(equippedWeapon),
+                    weaponForm(equippedWeapon),armorForm(),-1))
+                    ||motionArt.hero(c,heroX,heroY,gameTime,
                     -2.2f,false,-1,-1,false,equippedWeapon,
                     weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
             if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
                     weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
             EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
             EvolutionEffects.greaves(c,heroX,heroY,speedForm());
-            motionArt.enemy(c,0,left+width*.91f,top+height*.86f,gameTime,
-                    true,-1,false);
-            motionArt.enemy(c,6,left+width*.87f,top+height*.58f,gameTime,
-                    true,-1,false);
+            if(!USE_VECTOR_ENEMIES||!enemyRig.enemy(c,0,biome,1,
+                    left+width*.96f,top+height*.65f,gameTime,
+                    true,-1,false,-1))
+                motionArt.enemy(c,0,left+width*.96f,top+height*.65f,gameTime,
+                        true,-1,false);
+            if(!USE_VECTOR_ENEMIES||!enemyRig.enemy(c,6,biome,2,
+                    left+width*.89f,top+height*.44f,gameTime,
+                    true,-1,false,-1))
+                motionArt.enemy(c,6,left+width*.89f,top+height*.44f,gameTime,
+                        true,-1,false);
         }
         for(int i=0;i<16;i++) {
             float px=left+(i*97+gameTime*(i%2==0?7:12))%width;

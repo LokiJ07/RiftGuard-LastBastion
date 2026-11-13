@@ -1,5 +1,15 @@
 # RIFTGUARD: Last Bastion
 
+## v0.60.0-dev4 — Living Warden & Enemy Style Variants (tested development build)
+
+- **Three distinct Warden combat appearances:** equipped crossbow/repeater = hooded Ranger, greatsword/sabre = armored Vanguard, staff/frost lance = crystal-crowned Arcanist. Distinct cloaks, helmets, shoulder geometry, gear and rune details render **on the real controllable Warden** in Home and battles.
+- **Seven enemy species × four real equipment loadouts:** normal, raider, forged and elite; each has biome-themed materials, physical armor/helm/horn/wing/boar-harness geometry, and actual boss-phase anatomy. Draw calls use existing movement/attack/HP/death state, not detached cosmetics.
+- **Animated actor foundation:** maintains the original 713-line Warden IK and 1,054-line EnemyRig reference geometry, then adds different styles and action-sensitive equipment movement. The 7-action/10-frame timing reference supports Idle, Walk, Run, Jump/Dodge, Attack, Hurt and Die. Real hit detection remains governed by existing WeaponRig and gameplay, not frame interpolation guesses.
+- **Actual runtime animation frames:** an LRU cache rasterizes each detailed EnemyRig state into reusable 10-pose transparent bitmaps at runtime. Maximum 72 cached frames (about 14 MB uncompressed), off-camera culling, stage reset, sprite-hit reactions, and safe fallback. This lowers recurring Canvas vector work; it is not third-party raster artwork. Performance is measured in CI rather than guaranteed on all phones.
+- **Equipment and save continuity:** six families × five mastered weapon forms, five fortress ranks and four ascension arsenal unlocks retain their own existing saved rules; Android versionCode advances for side-loading updates. Original MotionArt remains a safe fallback.
+- **Regressions:** tests render all 3 styles and 28 enemy loadouts, 30 equipped weapon forms, 5 armor ranks, 10 realm palettes and boss phases. CI build, Android emulator input/graphics QA and screenshot review are release gates. No claims of physical-phone FPS certification.
+- **Important asset/license boundary:** The user's CraftPix animation pack provided *design inspiration only* (three knight designs, 7 actions x 10 frames); no CraftPix art/source files are committed to this public repo because its license forbids redistributing reusable source artwork. These are original Java Canvas actor designs, **not** a complete new high-resolution PNG spritesheet library. A later original illustrated sprite atlas remains planned; see `docs/V060_LIVING_SIEGE.md`.
+
 ## v0.51.0-rc1 — Dramatic Fortress and Weapon Identity (under test)
 
 This update strengthens the existing saved progression without adding fake cosmetic items:
