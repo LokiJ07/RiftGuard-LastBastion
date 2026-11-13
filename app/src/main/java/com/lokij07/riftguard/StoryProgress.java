@@ -18,13 +18,15 @@ public final class StoryProgress {
     }
     public static String sanitizeName(String requested){
         if(requested==null)return "Warden";
-        StringBuilder sb=new StringBuilder();
-        for(int i=0;i<requested.length()&&sb.length()<16;i++){
+        StringBuilder clean=new StringBuilder();
+        for(int i=0;i<requested.length();i++){
             char ch=requested.charAt(i);
-            if(Character.isLetterOrDigit(ch)||ch==' '||ch=='-'||ch=='\'')sb.append(ch);
+            if(Character.isLetterOrDigit(ch)||ch==' '||ch=='-'||ch=='\'')
+                clean.append(ch);
         }
-        String name=sb.toString().trim().replaceAll(" +"," ");
-        return name.isEmpty()?"Warden":name;
+        String value=clean.toString().trim().replaceAll(" +"," ");
+        if(value.isEmpty())return "Warden";
+        return value.length()>16?value.substring(0,16).trim():value;
     }
     public void setWardenName(String requested){
         prefs.edit().putString(NAME,sanitizeName(requested)).commit();
