@@ -2,6 +2,9 @@ package com.lokij07.riftguard;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.app.AlertDialog;
+import android.text.InputFilter;
+import android.widget.EditText;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -38,7 +41,7 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, PLAY, WIN, LOSE }
+    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, WIN, LOSE }
     private Scene scene=Scene.HOME;
     private static final float TREE_LEFT=75f,TREE_TOP=148f,TREE_RIGHT=906f,
             TREE_BOTTOM=592f;
@@ -54,6 +57,14 @@ public final class RiftGameView extends View {
     private boolean treeDragging=false;
     private boolean treeTouchActive=false;
     private boolean briefingOpen=false;
+    private boolean storyOpen=false;
+    private StoryScript.Line[] storyLines;
+    private int storyIndex;
+    private final List<StoryScript.Line[]> pendingStory=new ArrayList<>();
+    private boolean bossIntroSeen=false;
+    private int chronicleWorld=0;
+    private MemoryTrial.Objective trial;
+    private boolean trialPassed=false,trialAwarded=false;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final PaintedArt painted;
     private final CharacterArt characterArt;
@@ -93,6 +104,7 @@ public final class RiftGameView extends View {
     }
 
     private final SharedPreferences prefs;
+    private final StoryProgress storyProgress;
     private final KingdomMeta kingdom;
     private final AscensionTree ascension;
     private final WeaponMastery weaponMastery;
@@ -229,6 +241,7 @@ public final class RiftGameView extends View {
         biomeProps=new BiomeProps(context);
         resourceState=ResourcePacks.state(context);
         prefs=context.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
+        storyProgress=new StoryProgress(prefs);
         kingdom=new KingdomMeta(prefs);
         ascension=new AscensionTree(prefs);
         weaponMastery=new WeaponMastery(prefs);
@@ -263,6 +276,8 @@ public final class RiftGameView extends View {
     }
     public void releaseAudio(){audio.release();enemyFrames.clear();}
     public boolean handleBack() {
+        if(storyOpen){dismissStory();return true;}
+        if(scene==Scene.CHRONICLE){scene=Scene.HOME;return true;}
         if (scene==Scene.PLAY && briefingOpen) {
             briefingOpen=false;
             scene=Scene.MAP;
@@ -288,7 +303,7 @@ public final class RiftGameView extends View {
         if (active) {
             // Hitstop freezes only painted-animation clocks, NOT real damage
             // simulation or touch handling. Feedback remains mobile-friendly.
-            boolean liveCombat=scene==Scene.PLAY&&!paused&&!briefingOpen;
+            boolean liveCombat=scene==Scene.PLAY&&!paused&&!briefingOpen&&!storyOpen;
             animationDelta=liveCombat?combatFeel.frame(dt):dt;
             gameTime+=animationDelta;
             evolutionRevealTimer=Math.max(0,evolutionRevealTimer-dt);
@@ -322,12 +337,14 @@ public final class RiftGameView extends View {
         else if (scene==Scene.WEAPON_TREE) drawWeaponMastery(canvas);
         else if (scene==Scene.RESOURCES) drawResources(canvas);
         else if (scene==Scene.KINGDOM) drawKingdom(canvas);
+        else if (scene==Scene.CHRONICLE) drawChronicle(canvas);
         else {
             drawBattle(canvas);
             if (scene==Scene.WIN || scene==Scene.LOSE) drawResult(canvas);
             else if (paused) drawPause(canvas);
             else if (scene==Scene.PLAY && briefingOpen) drawMissionBriefing(canvas);
         }
+        if(storyOpen)drawStoryScene(canvas);
         if(evolutionRevealTimer>0&&scene!=Scene.PLAY){
             drawEvolutionReveal(canvas);
         }
@@ -348,6 +365,13 @@ public final class RiftGameView extends View {
     private void start(int s) {
         Campaign.checkStage(s);
         stage=s; scene=Scene.PLAY; paused=false; briefingOpen=false;
+        dismissStory();bossIntroSeen=false;
+        trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
+        if(s==0 && prefs.getInt("unlocked",0)==0 &&
+                !prefs.getBoolean("story.v065.prologueSeen",false)){
+            prefs.edit().putBoolean("story.v065.prologueSeen",true).commit();
+            openStory(StoryScript.prologue(storyProgress.wardenName()));
+        }
         activeTowerCount=TowerPadLayout.count(stage);
         selectedTowerPad=-1;
         for(int pad=0;pad<activeTowerCount;pad++){
@@ -912,6 +936,10 @@ public final class RiftGameView extends View {
             announce(DifficultyRules.worldBoss(stage)?
                     "WORLD BOSS  •  "+DifficultyRules.worldBossName(stage):
                     "ELITE SIEGE COMMANDER INCOMING");
+            if(DifficultyRules.worldBoss(stage)&&!bossIntroSeen){
+                bossIntroSeen=true;
+                openStory(StoryScript.beforeWorldBoss(Campaign.world(stage)));
+            }
         }
     }
     private Enemy closest(float x,float y,float range) {
@@ -999,7 +1027,7 @@ public final class RiftGameView extends View {
 
     /** Every equipable skill has a distinct actual combat effect and world state. */
     private void castSkill() {
-        if(pulseCooldown>0||scene!=Scene.PLAY||paused||briefingOpen||
+        if(pulseCooldown>0||scene!=Scene.PLAY||paused||briefingOpen||storyOpen||
                 heroAnimation.locked())return;
         if(!WardenSkills.unlocked(fortressRank,equippedSkill))return;
         int skill=equippedSkill;
@@ -1157,6 +1185,13 @@ public final class RiftGameView extends View {
                 +objectiveBonus;
         unlocked=Campaign.unlockedAfter(unlocked,stage);
         prefs.edit().putInt("unlocked",unlocked).putInt("supplies",supplies).apply();
+        trialPassed=MemoryTrial.evaluate(trial,missionBuilds,kills,
+                baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
+                defeatedElite);
+        trialAwarded=storyProgress.claimMemory(stage,trialPassed,true);
+        if(firstClear&&DifficultyRules.worldBoss(stage))
+            openStory(StoryScript.afterWorldBoss(Campaign.world(stage)));
+        if(trialAwarded)openStory(StoryScript.memory(KeyMemories.forStage(stage)));
         selectedLevel=Campaign.level(Math.min(stage+1,299));
         selectedMap=Campaign.map(Math.min(stage+1,299));
     }
@@ -2296,7 +2331,8 @@ public final class RiftGameView extends View {
         text(c,"RECLAIM THE TEN REALMS",94,318,26,0xffe2b995,false);
         text(c,"Defend • Earn Supplies • Upgrade • Unlock",94,355,23,INK,false);
         button(c,95,368,590,409,"RESOURCES  /  OFFLINE ART PACK",0xff33596c);
-        button(c,95,415,590,490,"CAMPAIGN  /  WORLD MAP",0xffa56a49);
+        button(c,95,415,336,490,"CAMPAIGN",0xffa56a49);
+        button(c,348,415,590,490,"CHRONICLE",0xff73567e);
         button(c,95,509,328,572,"ARMORY",0xff3d6971);
         button(c,348,509,590,572,"FORTRESS",0xff44645c);
         text(c,"FORTRESS RANK "+fortressRank+"   •   SUPPLIES "+supplies,
@@ -3290,6 +3326,13 @@ public final class RiftGameView extends View {
         text(c,Campaign.title(stage)+"   •   "+Campaign.worldName(stage),640,298,26,INK,true);
         text(c,scene==Scene.WIN?"Campaign progress saved!":"Upgrade your defenses and try again.",
                 640,346,22,0xffc1d9d4,true);
+        if(scene==Scene.WIN&&trial!=null){
+            String memoryLabel=storyProgress.hasMemory(stage)?
+                    (trialAwarded?"MEMORY KEY RECOVERED":"MEMORY KEY ALREADY OWNED"):
+                    "MEMORY TRIAL MISSED • REPLAY TO RECOVER";
+            textFit(c,memoryLabel,640,364,510,17,
+                    storyProgress.hasMemory(stage)?0xffabf2d1:0xffffbb97,true);
+        }
         text(c,"Enemies defeated: "+kills+"     Gold earned: "+gold,
                 640,388,21,INK,true);
         if(scene==Scene.WIN)
@@ -3325,8 +3368,9 @@ public final class RiftGameView extends View {
         text(c,"WARDEN'S ORDERS",596,384,18,0xff9cb6ba,false);
         drawStoryParagraph(c,story.order,594,418,552,22,31,INK);
         textFit(c,story.objective,134,570,410,21,0xffc0e0bf,false);
-        textFit(c,TowerPadLayout.count(stage)+" LIVE TOWER PADS • "+
-                MissionObjectives.name(stage),134,604,413,16,0xffffd7a1,false);
+        textFit(c,trial!=null?"MEMORY: "+trial.title:
+                TowerPadLayout.count(stage)+" PADS • "+MissionObjectives.name(stage),
+                134,604,413,16,0xffffd7a1,false);
         drawStoryParagraph(c,story.warning,594,523,538,19,26,0xffffc38f);
         button(c,700,586,1130,652,"BEGIN BATTLE",0xffa46a45);
         text(c,"BACK TO ATLAS",141,634,20,0xffcad5cc,false);
@@ -3349,6 +3393,135 @@ public final class RiftGameView extends View {
             line.append(word);
         }
         if(line.length()>0)text(c,line.toString(),x,baseline,size,color,false);
+    }
+
+
+    private void openStory(StoryScript.Line[] lines){
+        if(lines==null||lines.length==0)return;
+        pendingStory.add(lines);
+        if(!storyOpen)nextStoryBlock();
+    }
+    private void nextStoryBlock(){
+        if(pendingStory.isEmpty()){
+            storyOpen=false;storyLines=null;storyIndex=0;return;
+        }
+        storyLines=pendingStory.remove(0);
+        storyIndex=0;storyOpen=true;clearTouchControls();
+    }
+    private void advanceStoryLine(){
+        if(!storyOpen)return;
+        if(++storyIndex>=storyLines.length)nextStoryBlock();
+    }
+    private void dismissStory(){
+        pendingStory.clear();storyOpen=false;storyLines=null;storyIndex=0;
+        clearTouchControls();
+    }
+    /** Dialogue overlay: built on the existing playable scene, no UI-only demo. */
+    private void drawStoryScene(Canvas c){
+        if(storyLines==null||storyIndex<0||storyIndex>=storyLines.length)return;
+        StoryScript.Line ln=storyLines[storyIndex];
+        boolean cael=ln.speaker.equals("TITAN")||ln.speaker.equals("CAEL")||
+                ln.speaker.equals("CAEL'S MEMORY");
+        boolean memory=ln.speaker.endsWith("MEMORY");
+        rect(c,0,0,W,H,0xd3091722);
+        round(c,73,48,1207,672,25,0xf41b303c);
+        border(c,73,48,1207,672,25,cael?0xffbca7eb:0xffd6ad70,3);
+        text(c,memory?"THE WARDEN'S CHRONICLE":cael?"ECHOES OF THE RIFT":
+                "ECHOES OF THE RIFT  •  STORY",112,110,30,GOLD,false);
+        // Reuse live detailed actor rigs for visual identity while authored
+        // illustrated portrait/fully animated cinematic media is produced.
+        c.save();
+        c.clipRect(93,148,1187,426);
+        round(c,102,145,1178,430,12,cael?0xff302d4b:0xff304f52);
+        for(int i=0;i<16;i++){
+            float x=130+i*65,y=158+(i*43)%212;
+            circle(c,x+(float)Math.sin(gameTime+i)*8,y,2+(i%3),0x99dac7a5);
+        }
+        if(cael){
+            c.save();c.translate(683,414);c.scale(2.0f,2.0f);
+            enemyRig.enemy(c,5,9,3,0,0,gameTime,true,-1,true,2);
+            c.restore();
+        }else{
+            c.save();c.translate(625,420);c.scale(1.65f,1.65f);
+            wardenRig.hero(c,0,0,gameTime,-2.0f,false,-1,-1,false,
+                    equippedWeapon,weaponMastery.count(equippedWeapon),
+                    weaponForm(equippedWeapon),armorForm(),-1);
+            c.restore();
+        }
+        c.restore();
+        String speaker=ln.speaker.equals("WARDEN")?storyProgress.wardenName():ln.speaker;
+        text(c,speaker,113,473,28,cael?0xffd8bdfa:GOLD,false);
+        drawStoryParagraph(c,ln.text,113,523,1044,24,38,INK);
+        text(c,"TAP TO CONTINUE   "+(storyIndex+1)+" / "+storyLines.length+
+                "   •   BACK TO SKIP",934,641,17,0xffc2d3d3,true);
+    }
+
+    private void drawChronicle(Canvas c){
+        drawBackdrop(c);
+        round(c,43,24,1237,691,24,0xf017303d);
+        text(c,"THE WARDEN'S CHRONICLE",79,84,47,GOLD,false);
+        text(c,"WARDEN: "+storyProgress.wardenName(),79,123,21,INK,false);
+        text(c,"MEMORIES "+storyProgress.total()+"/100   •   WORLD SEALS "+
+                storyProgress.ownedSeals()+"/10",810,115,20,GOLD,false);
+        for(int world=0;world<10;world++){
+            float y=149+world*45;
+            round(c,72,y,572,y+41,8,chronicleWorld==world?0xff70674d:0xff2c4b55);
+            textFit(c,(world+1)+". "+Campaign.WORLDS[world],90,y+27,372,19,INK,false);
+            text(c,storyProgress.count(world)+"/10",540,y+27,19,
+                    storyProgress.count(world)==10?0xff91dfb6:GOLD,true);
+        }
+        round(c,594,148,1202,597,16,0xff233f4b);
+        textFit(c,Campaign.WORLDS[chronicleWorld],898,189,556,26,GOLD,true);
+        for(int key=0;key<10;key++){
+            int level=chronicleWorld*10+key+1;
+            int stageId=Campaign.stage(level,2);
+            boolean owned=storyProgress.hasMemory(stageId);
+            int row=key/2,col=key%2;
+            float x=615+col*291,y=210+row*70;
+            round(c,x,y,x+273,y+62,9,owned?0xff426a64:0xff354653);
+            text(c,owned?"MEMORY "+(key+1)+" • OPEN":"MEMORY "+(key+1)+" • LOCKED",
+                    x+19,y+28,19,owned?INK:0xffadbaba,false);
+            text(c,owned?"RECOVERED":"REPLAY LEVEL "+level+"-C",
+                    x+19,y+51,14,owned?0xffb5e9c7:0xffd1b6a2,false);
+        }
+        button(c,76,610,298,673,"BACK",0xff43606e);
+        button(c,312,610,795,673,"RENAME WARDEN",0xff705b54);
+        button(c,814,610,1202,673,"REPLAY PROLOGUE",0xff59567a);
+    }
+    private void tapChronicle(float x,float y){
+        if(y>=610&&y<=680){
+            if(x<303)scene=Scene.HOME;
+            else if(x<805)editWardenName();
+            else openStory(StoryScript.prologue(storyProgress.wardenName()));
+            return;
+        }
+        if(x>=72&&x<=572&&y>=149&&y<599){
+            int selected=(int)((y-149)/45);
+            if(selected>=0&&selected<10)chronicleWorld=selected;
+            return;
+        }
+        if(x>=615&&x<=1189&&y>=210&&y<560){
+            int col=x>=906?1:0,row=(int)((y-210)/70);
+            if(row<0||row>=5)return;
+            int level=chronicleWorld*10+row*2+col+1;
+            int stageId=Campaign.stage(level,2);
+            if(storyProgress.hasMemory(stageId))
+                openStory(StoryScript.memory(KeyMemories.forStage(stageId)));
+        }
+    }
+    private void editWardenName(){
+        final EditText field=new EditText(getContext());
+        field.setSingleLine(true);
+        field.setFilters(new InputFilter[]{new InputFilter.LengthFilter(16)});
+        field.setText(storyProgress.wardenName());
+        new AlertDialog.Builder(getContext()).setTitle("Name your Warden")
+                .setMessage("Your story identity stays the same. You can rename anytime.")
+                .setView(field)
+                .setPositiveButton("SAVE",(dialog,which)->{
+                    storyProgress.setWardenName(field.getText().toString());
+                    invalidate();
+                })
+                .setNegativeButton("CANCEL",null).show();
     }
 
     private void drawPause(Canvas c) {
@@ -3401,6 +3574,14 @@ public final class RiftGameView extends View {
         if(scale<=0)return true;
         float offsetX=(getWidth()-W*scale)*.5f,offsetY=(getHeight()-H*scale)*.5f;
         float x=(ev.getX(index)-offsetX)/scale,y=(ev.getY(index)-offsetY)/scale;
+        if(storyOpen){
+            if(action==MotionEvent.ACTION_DOWN)advanceStoryLine();
+            invalidate();return true;
+        }
+        if(scene==Scene.CHRONICLE){
+            if(action==MotionEvent.ACTION_DOWN)tapChronicle(x,y);
+            invalidate();return true;
+        }
         if(scene==Scene.WEAPON_TREE){
             if(action==MotionEvent.ACTION_DOWN){
                 weaponTouchActive=true;weaponTreeDragging=false;
@@ -3504,7 +3685,7 @@ public final class RiftGameView extends View {
     }
     /** Dash input is responsive but cannot be chained or used while paused. */
     private void triggerDodge(){
-        if(scene!=Scene.PLAY||paused||briefingOpen||
+        if(scene!=Scene.PLAY||paused||briefingOpen||storyOpen||
                 !DodgeRules.canStart(dodgeTime,dodgeCooldown))return;
         float dx=DodgeRules.normalized(axisX,axisY,true,heroDir);
         float dy=DodgeRules.normalized(axisX,axisY,false,heroDir);
@@ -3528,7 +3709,8 @@ public final class RiftGameView extends View {
             if(x>1007 && x<1216 && y>39 && y<104)audio.toggle();
             else if(x>665 && x<1205 && y>447 && y<517)scene=Scene.KINGDOM;
             else if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
-            else if(x>93 && x<610 && y>408 && y<492)scene=Scene.MAP;
+            else if(x>93 && x<345 && y>408 && y<492)scene=Scene.MAP;
+            else if(x>=345 && x<610 && y>408 && y<492)scene=Scene.CHRONICLE;
             else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
             else if(x>345 && x<610 && y>502 && y<580)scene=Scene.FORTRESS;
         }else if(scene==Scene.KINGDOM) {
