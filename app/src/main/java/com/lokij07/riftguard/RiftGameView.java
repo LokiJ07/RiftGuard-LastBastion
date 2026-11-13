@@ -208,7 +208,7 @@ public final class RiftGameView extends View {
         float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer,specialTimer,specialCharge,
                 burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
                 hitReaction;
-        boolean moving,boss;
+        boolean moving,boss,worldBoss;
         BossAnatomyV065 anatomy;
         int kind,bossPhase=1,variant=0,squadRole=SquadTacticsV065.RAIDER;
         float faceX=-1f;
@@ -1173,7 +1173,7 @@ public final class RiftGameView extends View {
             float hp=BattleRules.enemyHealth(299,5)*
                     DifficultyRules.health(difficultyMode)*3.6f;
             Enemy caer=new Enemy(LaneRules.ENEMY_SPAWN_X-120,BASE_Y+70,5,hp,1.4f);
-            caer.boss=true;caer.variant=3;caer.bossPhase=1;
+            caer.boss=true;caer.worldBoss=true;caer.variant=3;caer.bossPhase=1;
             caer.squadRole=SquadTacticsV065.COMMANDER;
             caer.anatomy=new BossAnatomyV065(9,caer.maxHp);
             caer.specialTimer=3.5f;enemies.add(caer);
@@ -1187,10 +1187,9 @@ public final class RiftGameView extends View {
         if(wave>=2 && random.nextFloat()<.15f)kind=6;
         boolean elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)
                 && remaining==1;
-        // World bosses are only the final enemy of the FINAL wave.
-        if(DifficultyRules.worldBoss(stage)&&wave<DifficultyRules.waves(stage,difficultyMode))
-            elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)&&
-                    difficultyMode>=DifficultyRules.HARD&&remaining==1;
+        boolean actualWorldBoss=elite&&DifficultyRules.worldBoss(stage)&&
+                wave==DifficultyRules.waves(stage,difficultyMode);
+        // Hard/Expert mid-stage elites are NOT the story boss.
         if(elite)kind=5;
         float hp=BattleRules.enemyHealth(stage,kind)*DifficultyRules.health(difficultyMode);
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
@@ -1200,6 +1199,7 @@ public final class RiftGameView extends View {
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
+        enemy.worldBoss=actualWorldBoss;
         if(elite){
             enemy.anatomy=new BossAnatomyV065(Campaign.world(stage),enemy.maxHp);
             enemy.specialTimer=5.0f;
@@ -1207,10 +1207,10 @@ public final class RiftGameView extends View {
         enemies.add(enemy);
         if(elite) {
             waveNotice=2.7f;
-            announce(DifficultyRules.worldBoss(stage)?
+            announce(actualWorldBoss?
                     "WORLD BOSS  •  "+DifficultyRules.worldBossName(stage):
                     "ELITE SIEGE COMMANDER INCOMING");
-            if(DifficultyRules.worldBoss(stage)&&!bossIntroSeen){
+            if(actualWorldBoss&&!bossIntroSeen){
                 bossIntroSeen=true;
                 openStory(StoryScript.beforeWorldBoss(Campaign.world(stage)));
             }
@@ -3086,8 +3086,8 @@ public final class RiftGameView extends View {
         for(Enemy e:enemies)if(e.boss&&e.hp>0) {
             round(c,415,109,865,166,14,0xe91f2536);
             String name=caveMode?"CAEL • THE FIRST WARDEN":
-                    DifficultyRules.worldBoss(stage)?
-                    DifficultyRules.worldBossName(stage):"ELITE SIEGE COMMANDER";
+                    e.worldBoss?DifficultyRules.worldBossName(stage):
+                    "ELITE SIEGE COMMANDER";
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
             if(e.specialCharge>0)
