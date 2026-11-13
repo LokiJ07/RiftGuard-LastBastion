@@ -133,4 +133,27 @@ public final class BattleResultsAndBossTimingV065Test {
         d.advance(.8f);assertFalse(d.finished());
         d.advance(3f);assertTrue(d.finished());
     }
+    @Test public void hardEarlyEliteCannotSpoilLastWaveWorldBossEntrance()throws Exception{
+        Context ctx=RuntimeEnvironment.getApplication();
+        SharedPreferences p=ctx.getSharedPreferences("riftguard_campaign_v1",Context.MODE_PRIVATE);
+        p.edit().clear().putInt("difficulty",DifficultyRules.HARD).commit();
+        RiftGameView v=new RiftGameView(ctx);
+        v.layout(0,0,1280,720);
+        int stage=Campaign.stage(10,2);
+        call(v,"start",new Class<?>[]{int.class},stage);
+        set(v,"wave",3);set(v,"remaining",1);
+        assertTrue(DifficultyRules.eliteWave(stage,3,DifficultyRules.HARD));
+        call(v,"spawnEnemy",new Class<?>[0]);
+        List<?> early=(List<?>)get(v,"enemies");
+        assertEquals(1,early.size());
+        assertTrue((Boolean)get(early.get(0),"boss"));
+        assertFalse((Boolean)get(early.get(0),"worldBoss"));
+        assertFalse((Boolean)get(v,"bossIntroSeen"));
+        early.clear();
+        set(v,"wave",DifficultyRules.waves(stage,DifficultyRules.HARD));
+        call(v,"spawnEnemy",new Class<?>[0]);
+        List<?> finalWave=(List<?>)get(v,"enemies");
+        assertTrue((Boolean)get(finalWave.get(0),"worldBoss"));
+        assertTrue((Boolean)get(v,"bossIntroSeen"));
+    }
 }
