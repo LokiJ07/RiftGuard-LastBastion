@@ -69,9 +69,11 @@ public final class LiveFortressAndRelicV065Test {
         profiles.save(0,tiers,types,5);
         start(0);
         int[] towers=(int[])get("towers");
-        assertEquals(1,towers[0]);assertEquals(2,towers[1]);assertEquals(1,towers[2]);
+        // Normal only starts with 150 gold: blueprint requests 210, but
+        // affordable slots deploy partially. It must not create free upgrades.
+        assertEquals(1,towers[0]);assertEquals(1,towers[1]);assertEquals(1,towers[2]);
         assertEquals(2,((int[])get("towerTypes"))[1]);
-        assertTrue((Integer)get("gold")>=0);
+        assertEquals(40,get("gold"));
         assertTrue(((float[])get("towerHp"))[1]>0);
     }
     @Test public void firstInteractiveRelicCanFailWithoutBlockingStage()throws Exception{
