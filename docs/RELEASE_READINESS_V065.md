@@ -2,6 +2,17 @@
 
 Status: **development / draft PR #23**. This document is an acceptance checklist, not a declaration of release readiness.
 
+## v0.66.0-alpha2 — Actual graphics quality tiers for Android publication
+
+- [x] HIGH retains full 1900×1050 static battlefield raster (3.99 MB RGB_565 bitmap); BALANCED 1596×882 (~2.82 MB), PERFORMANCE 1292×714 (~1.84 MB). CPU-side bitmap footprint alone is ~54% lower in PERFORMANCE. GPU drivers may expand texture formats, so this is **not** a measured GPU-memory or FPS claim.
+- [x] Keep every live Warden/enemy animation, fortress build model, gun aim/recoil, projectile hitboxes, AI, level routes and HUD fully rendered in their original world coordinates; only the static bitmap and optional particle density change.
+- [x] More precise quality differentiation: atmospheric motes 23 / 16 / 9; realm snow, ember and firefly particles also scale by quality. Sustained slow frames temporarily trim optional effects without hiding combat.
+- [x] PERFORMANCE now requests a 30 FPS battery/performance cadence on 60/90/120 Hz displays; HIGH/BALANCED keep a 60 FPS goal. Actual frame rates remain workload-dependent.
+- [x] Static bitmap creation falls back to smaller terrain resolutions if Android bitmap allocation runs out of memory. Home/Pause quality selection persists using the existing saved quality preference.
+- [x] New tests exercise all ten kingdom terrains, live quality switching, cache reuse, correct resolution, particle budgets and display-specific frame pacing.
+- [ ] Physical-phone visuals and 30–60 FPS performance verification across 60/90/120 Hz and low/mid/high RAM/GPU configurations; no release FPS claims from JVM/emulator measurements.
+- [ ] Evaluate anti-aliasing and texture upload/bandwidth with GPU profiling. Avoid reducing live actor sprite resolution or touch readability.
+
 ## v0.66.0-alpha1 combat-render / boss telegraph pass
 
 - [x] Render-only `BattleViewportV066` matches the live combat / moving victory camera and zoom; prune off-camera projectile, shaman bolt, death echo, impact and spark drawing. Actual projectile simulation, enemy AI, hitboxes and saved progression remain unchanged.
