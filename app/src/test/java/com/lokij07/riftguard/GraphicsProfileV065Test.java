@@ -48,6 +48,24 @@ public final class GraphicsProfileV065Test {
         assertTrue(GraphicsProfileV065.reduceAmbience(
                 GraphicsProfileV065.PERFORMANCE,false));
     }
+    @Test public void qualityModeHasActualPowerAndFramePacingDifferences(){
+        assertEquals(60,GraphicsProfileV065.targetFps(GraphicsProfileV065.HIGH));
+        assertEquals(60,GraphicsProfileV065.targetFps(GraphicsProfileV065.BALANCED));
+        assertEquals(30,GraphicsProfileV065.targetFps(GraphicsProfileV065.PERFORMANCE));
+        assertEquals(0,GraphicsProfileV065.nextFrameDelayMs(
+                GraphicsProfileV065.HIGH,60f));
+        assertTrue(GraphicsProfileV065.nextFrameDelayMs(
+                GraphicsProfileV065.PERFORMANCE,60f)>=16L);
+        assertTrue(GraphicsProfileV065.nextFrameDelayMs(
+                GraphicsProfileV065.PERFORMANCE,120f)>
+                GraphicsProfileV065.nextFrameDelayMs(GraphicsProfileV065.HIGH,120f));
+        assertTrue(GraphicsProfileV065.nextFrameDelayMs(
+                GraphicsProfileV065.PERFORMANCE,90f)>0);
+        assertTrue(TerrainQualityV066.cacheBytes(GraphicsProfileV065.BALANCED)<
+                TerrainQualityV066.cacheBytes(GraphicsProfileV065.HIGH));
+        assertTrue(TerrainQualityV066.cacheBytes(GraphicsProfileV065.PERFORMANCE)<
+                TerrainQualityV066.cacheBytes(GraphicsProfileV065.BALANCED));
+    }
     @Test public void homeGraphicsButtonDoesNotToggleSoundAndPersists()
             throws Exception{
         Context context=RuntimeEnvironment.getApplication();
