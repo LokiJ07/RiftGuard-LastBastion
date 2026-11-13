@@ -7,7 +7,7 @@ Status: **development / draft PR #23**. This document is an acceptance checklist
 - [x] Normal wave population now ramps 6–28 (no late 52-enemy flood). Hard +3 / Expert +5, all capped at 34 per wave.
 - [x] Active simultaneous enemy ceilings: Easy 13 / Normal 16 / Hard 19 / Expert 22. Unspawned enemies **remain queued**; elite and world-boss final waves remain present.
 - [x] Late-wave HP increases by up to 22%; harder modes use moderated health, speed and damage coefficients to avoid bullet-sponges.
-- [x] Preserve the expected in-battle gold budget by increasing per-kill rewards proportional to the removed filler enemies. Player keeps affordable tower upgrades.
+- [x] Preserve the expected in-battle gold budget by increasing per-kill rewards proportional to the removed filler enemies. Player keeps affordable tower upgrades. Healing/supply-cache drop probabilities scale similarly to preserve health and item opportunities.
 - [x] Old Expert/Hard battle saves above the new optional-wave count are migrated safely, retaining towers, gold and HP.
 - [x] All original realm backgrounds, scene decorations, Warden art, weapon/fortress upgrade appearances, weather, animation and cinematic code **unchanged**.
 - [ ] Human tests of early/mid/end-stage time-to-kill, boss encounters, loadout economy, gamepad/touch comfort and real device framerate; automated formula coverage cannot certify that gameplay is fun.
