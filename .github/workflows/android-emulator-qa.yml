@@ -2,7 +2,7 @@ name: RiftGuard Evolution - Android Emulator QA
 
 on:
   pull_request:
-    branches: [main, feature/v067-combat-feel-hud-boss-polish, feature/v068-tactical-engagement, feature/v069-dynamic-missions, feature/v070-per-node-weapon-evolution, feature/v071-ten-realm-boss-counterplay, feature/v072-commercial-release-gates, feature/v073-campaign-encounters-balance]
+    branches: [main, feature/v067-combat-feel-hud-boss-polish, feature/v068-tactical-engagement, feature/v069-dynamic-missions, feature/v070-per-node-weapon-evolution, feature/v071-ten-realm-boss-counterplay, feature/v072-commercial-release-gates, feature/v073-campaign-encounters-balance, feature/v074-interactive-field-missions]
   workflow_dispatch:
 
 permissions:
