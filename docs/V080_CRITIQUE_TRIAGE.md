@@ -26,7 +26,7 @@
 - **D2 Synchronous preferences:** The atomic victory commit is **deliberately durable** and should not become `apply()`. The review's proposed `apply()` for `claimMemory` would report success before persistence; preserve it until a tested asynchronous/transactional approach is available. Measure real-device frame hitches first.
 - **D3 Internet:** The manifest enables user-initiated **optional** art downloads via `ResourcePacks`, including checksummed files. Removing `INTERNET` without redesigning that UI would break the feature. The playable campaign remains offline; resource downloading needs network.
 - **D4 Fixed timestep:** The render/simulation cadence warrants profiling, but replacing `update(dt)` with a loop changes boss ticks, animation/contact events, save checkpoints, cooldowns and hitstop. Avoid the supplied 1/60 snippet without deterministic simulation and emulator/device regression coverage.
-- **D5 Draw allocations/minification:** Profiling is necessary to identify hotspots and protect low-memory devices. `minifyEnabled false` and package `0.78.0-alpha1` remain, since this is not a stable release candidate. Version bump/signing belongs in a controlled release step.
+- **D5 Draw allocations/minification:** Profiling is necessary to identify hotspots and protect low-memory devices. The development package was safely advanced from `0.78.0-alpha1` / versionCode 75 to **`0.80.0-alpha1` / versionCode 76**, preserving install-update ordering for matching signing keys. `minifyEnabled false` remains pending a measured release/shrinker QA pass. Protected production signing remains a separate release gate.
 
 ## Release policy
 
