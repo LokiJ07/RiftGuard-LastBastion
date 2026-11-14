@@ -18,8 +18,10 @@ public final class RealmInteractablesV077 {
         if(stage<30||SiegeMissionsV069.mode(stage)!=SiegeMissionsV069.NONE)
             return false;
         if((Campaign.level(stage)+Campaign.map(stage))%3!=0)return false;
-        MemoryTrial.Objective trial=MemoryTrial.forStage(stage);
-        return trial==null||trial.type!=MemoryTrial.RELIC;
+        // Avoid creating a MemoryTrial Objective on each combat/render
+        // frame. Relic trials are exactly map C at local level keys 2/6.
+        int key=(Campaign.level(stage)-1)%10;
+        return Campaign.map(stage)!=2||(key!=2&&key!=6);
     }
     public static int type(int stage){
         if(!scheduled(stage))return NONE;

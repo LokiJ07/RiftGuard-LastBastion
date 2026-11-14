@@ -73,6 +73,9 @@ public class RealmInteractablesIntegrationV077Test {
         channelSite(g);
         float effect=(float)get(g,"realmWardTime");
         assertTrue(effect>0&&effect<=RealmInteractablesV077.WARD_SECONDS);
+        // Step away to prevent hero aggro from diverting the enemy.
+        set(g,"heroX",LaneRules.HERO_MAX_X);
+        set(g,"heroY",LaneRules.HERO_MAX_Y);
         float before=(float)get(g,"baseHp");
         enemies(g).add(enemy(0,1108f,510f,3000f));
         tick(g,.08f);
