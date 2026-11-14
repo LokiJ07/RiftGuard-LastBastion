@@ -70,7 +70,8 @@ public class EngagementIntegrationV068Test {
         set(g,"battleSkillCasts",2);action(g,"complete");
         assertEquals(0,get(g,"contractBonus"));
         call(g,"start",new Class<?>[]{int.class},7);
-        set(g,"wave",2);set(g,"battleSkillCasts",3);
+        set(g,"wave",2);set(g,"firstWavePending",false);
+        set(g,"battleSkillCasts",3);
         action(g,"captureWaveCheckpoint");
         RiftGameView resumed=new RiftGameView(ctx);resumed.layout(0,0,1280,720);
         action(resumed,"continueSavedWave");
