@@ -1821,8 +1821,11 @@ public final class RiftGameView extends View {
         boolean engine=SiegeMissionsV069.engineSpawn(stage,wave,remaining,
                 DifficultyRules.enemies(stage,wave,difficultyMode));
         boolean flank=SiegeMissionsV069.flankSpawn(stage,wave,remaining);
+        int ordinaryKind=kind;
         kind=engine?2:RealmActsV071.chooseKind(stage,wave,remaining,
                 DifficultyRules.enemies(stage,wave,difficultyMode),kind);
+        // Preserve the existing Realm Act's scripted signature encounter.
+        boolean scriptedKind=kind!=ordinaryKind;
         boolean elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)
                 && remaining==1;
         boolean actualWorldBoss=elite&&DifficultyRules.worldBoss(stage)&&
@@ -1832,7 +1835,7 @@ public final class RiftGameView extends View {
         // Signature units REPLACE ordinary enemies; mission threats and
         // story bosses preserve their authored behavior and population.
         kind=EncounterRhythmV082.chooseKind(stage,wave,remaining,
-                kind,engine||flank,elite);
+                kind,engine||flank||scriptedKind,elite);
         float hp=BattleRules.enemyHealth(stage,kind)*
                 DifficultyRules.health(difficultyMode)*
                 SiegeBalanceV066.waveHealth(wave);
