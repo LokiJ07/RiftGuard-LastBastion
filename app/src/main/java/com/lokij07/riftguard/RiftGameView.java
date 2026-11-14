@@ -1323,7 +1323,6 @@ public final class RiftGameView extends View {
         gold=snap.gold;wave=snap.wave;kills=snap.kills;
         missionBuilds=snap.built;battlePulses=snap.pulses;
         battleSkillCasts=snap.skillCasts;
-        battleSkillCasts=snap.skillCasts;
         towersDestroyedInBattle=snap.destroyedCount;
         defeatedElite=snap.defeatedElite;
         heroHp=snap.heroHp;baseHp=snap.coreHp;relicHp=snap.relicHp;
@@ -1361,6 +1360,7 @@ public final class RiftGameView extends View {
         snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
         gold=snap.gold;wave=snap.wave;kills=snap.kills;
         missionBuilds=snap.built;battlePulses=snap.pulses;
+        battleSkillCasts=snap.skillCasts;
         towersDestroyedInBattle=snap.destroyedCount;
         defeatedElite=snap.defeatedElite;
         heroHp=snap.heroHp;baseHp=snap.coreHp;relicHp=snap.relicHp;
@@ -3377,7 +3377,8 @@ public final class RiftGameView extends View {
             textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
             if(BattleContractsV068.kind(stage)!=BattleContractsV068.NONE){
                 round(c,448,156,830,181,7,0xcc20434d);
-                textFit(c,"FIELD • "+BattleContractsV068.progress(stage,
+                textFit(c,(stage>=unlocked?"FIELD • ":"FIELD PRACTICE • ")+
+                        BattleContractsV068.progress(stage,
                         battleSkillCasts,towers,activeTowerCount,
                         baseHp/Math.max(1f,coreMaxHp()),
                         heroHp/Math.max(1f,heroMaxHp()),towersDestroyedInBattle),
@@ -4544,7 +4545,8 @@ public final class RiftGameView extends View {
         drawStoryParagraph(c,story.order,594,418,552,22,31,INK);
         textFit(c,story.objective,134,570,410,21,0xffc0e0bf,false);
         textFit(c,BattleContractsV068.kind(stage)!=BattleContractsV068.NONE?
-                "FIELD CONTRACT • "+BattleContractsV068.name(stage):
+                "FIELD CONTRACT • "+BattleContractsV068.name(stage)+
+                        (stage<unlocked?" (PRACTICE)":""):
                 trial!=null?"MEMORY: "+trial.title:
                 TowerPadLayout.count(stage)+" PADS • "+MissionObjectives.name(stage),
                 134,604,413,16,0xffffd7a1,false);
