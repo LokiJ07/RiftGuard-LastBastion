@@ -119,4 +119,21 @@ public final class StoryContinuityV080Test {
         prefs.edit().putInt("unlocked",Campaign.STAGES).commit();
         assertTrue(progress.trueEndingUnlocked());
     }
+    @Test public void briefCampBeatsAppearOnlyEveryThreeLevelsAndRespectTessasDeath(){
+        int scheduled=0;
+        for(int level=1;level<=100;level++){
+            StoryScript.Line[] beat=StoryScript.campBanter(level,"Warden");
+            int expected=level%3==0?2:0;
+            assertEquals("level "+level,expected,beat.length);
+            if(expected>0)scheduled++;
+            for(StoryScript.Line line:beat){
+                assertFalse("Tessa must not speak in present-day scenes after Frostpeak",
+                        level>50&&"OLD TESSA".equals(line.speaker));
+                assertFalse("Camp banter must not spoil the final reveal",
+                        "CAEL".equals(line.speaker));
+            }
+        }
+        assertEquals(33,scheduled);
+    }
+
 }
