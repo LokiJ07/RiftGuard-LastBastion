@@ -210,6 +210,7 @@ public final class RiftGameView extends View {
     private int selectedLevel=1, selectedMap=0, stage=0;
     private boolean regionalMap=false;
     private int wave, remaining, gold, kills,missionBuilds,objectiveBonus,contractBonus;
+    private int bossCounters,bossMasteryBonus;
     // One wave-two tactical objective per signature stage.
     private float caravanX=SiegeMissionsV069.CART_START_X,caravanHp=SiegeMissionsV069.CART_MAX_HP;
     private boolean missionEventRewarded,caravanUnderAttack,engineStopped;
@@ -269,6 +270,8 @@ public final class RiftGameView extends View {
         int flankSide;
         float engineCooldown,engineWindup,engineWindupHp;
         float retreatTime,retreatCooldown;
+        // Temporary interrupt/stagger state; NEVER serialized into old saves.
+        float counterPressure,counterStagger;
         int pincerSide;
         // Locked when world-boss channel begins, not retargeted every frame.
         int realmLockedTower=-1;
@@ -606,6 +609,7 @@ public final class RiftGameView extends View {
             realmSiteX=site[0];realmSiteY=site[1];
         }else{realmSiteX=0f;realmSiteY=0f;}
         towersDestroyedInBattle=0;
+        bossCounters=0;bossMasteryBonus=0;
         relicX=BASE_X+240;relicY=BASE_Y+150;
         relicMaxHp=trial!=null&&trial.type==MemoryTrial.RELIC?
                 260f+Campaign.world(s)*38f:0f;
@@ -1060,10 +1064,12 @@ public final class RiftGameView extends View {
                     victim>=0?57f:coordinatedRaid?
                     EnemyCoordinationV075.towerStop(e.kind):
                     MovementRules.enemyStopDistance(hunt,e.kind);
-            // World bosses lock their position during a telegraphed cast.
-            // Otherwise the ring would chase the player while charging.
+            // A visibly staggered world boss cannot pursue or melee the
+            // Warden; the normal locked-charge geometry stays authoritative.
+            e.counterStagger=Math.max(0f,e.counterStagger-dt);
             boolean frozenDuringRealmCast=RealmBossV071.enabled(
-                    stage,e.worldBoss,caveMode)&&e.specialCharge>0;
+                    stage,e.worldBoss,caveMode)&&
+                    (e.specialCharge>0||e.counterStagger>0);
             e.moving=d>stop&&!frozenDuringRealmCast;
             if(e.moving&&Math.abs(tx-e.x)>1.5f)e.faceX=tx<e.x?-1f:1f;
             if(e.moving) {
@@ -1122,6 +1128,12 @@ public final class RiftGameView extends View {
                     announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
                 }
                 boolean realmBoss=RealmBossV071.enabled(stage,e.worldBoss,caveMode);
+                if(realmBoss&&e.counterStagger>0){
+                    // Short real counterattack window: no melee, charge, or
+                    // dangerous channel while the boss is staggered.
+                    e.attackAnim=0f;
+                    continue;
+                }
                 e.specialTimer-=dt;
                 if(e.specialCharge<=0&&e.specialTimer<=0&&
                         distance(e.x,e.y,BASE_X,BASE_Y)<
@@ -1129,6 +1141,7 @@ public final class RiftGameView extends View {
                     e.specialCharge=realmBoss?
                             RealmBossV071.chargeSeconds(stage,e.bossPhase):
                             BossTactics.chargeTime(stage,e.bossPhase);
+                    if(realmBoss)e.counterPressure=0f;
                     e.specialTimer=realmBoss?
                             RealmBossV071.intervalSeconds(stage,e.bossPhase):
                             BossTactics.interval(stage,e.bossPhase);
@@ -1319,9 +1332,11 @@ public final class RiftGameView extends View {
             float d=distance(shot.x,shot.y,shot.target.x,shot.target.y-10);
             if(d<24) {
                 float actualDamage=shot.damage*bossArmorMultiplier(shot.target)*
+                        (shot.tower?1f:bossCounterWeaponMultiplier(shot.target))*
                         SquadTacticsV065.incomingDamage(shot.target.squadRole,
                                 squadPlan,commanderPresent());
                 shot.target.hp-=actualDamage;
+                if(!shot.tower)registerBossCounterHit(shot.target,actualDamage);
                 if(!shot.tower&&shot.flowAction>0)
                     registerCombatFlow(shot.flowAction);
                 damageBossPart(shot.target,shot.damage);
@@ -2145,6 +2160,34 @@ public final class RiftGameView extends View {
     private float bossArmorMultiplier(Enemy e){
         return e.boss&&e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
     }
+    /** Stagger bonus belongs to the Warden's actual weapon ONLY; no
+     * temporary auto-turret damage inflation or permanent stat changes. */
+    private float bossCounterWeaponMultiplier(Enemy e){
+        return e.counterStagger>0f&&
+                RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
+                BossCounterplayV083.STAGGER_WEAPON_MULTIPLIER:1f;
+    }
+    /** Invoked only on a landed WARDEN weapon hit, not tower autoplay,
+     * attacks against empty air, burning DOT or the story Cave boss. */
+    private void registerBossCounterHit(Enemy e,float landedDamage){
+        if(e==null||e.hp<=0||e.specialCharge<=0f||
+                !RealmBossV071.enabled(stage,e.worldBoss,caveMode)||
+                !Float.isFinite(landedDamage)||landedDamage<=0f)return;
+        e.counterPressure+=landedDamage;
+        float needed=BossCounterplayV083.pressureRequired(stage,e.bossPhase,e.maxHp);
+        if(!BossCounterplayV083.interrupted(e.counterPressure,needed))return;
+        e.specialCharge=0f;e.counterPressure=0f;
+        e.counterStagger=BossCounterplayV083.STAGGER_SECONDS;
+        e.specialTimer=Math.max(e.specialTimer,
+                BossCounterplayV083.CAST_RECOVERY_SECONDS);
+        bossCounters++;
+        e.hitReaction=.45f;
+        puff(e.x,e.y-50,22,0xffb8f4cf);
+        if(impacts.size()<64)
+            impacts.add(new Impact(e.x,e.y-44,0xffb2f4d6,98));
+        audio.play(GameAudio.BOSS_PHASE);
+        announce("BOSS CAST INTERRUPTED • STAGGER 2s • +14% HIT WINDOW");
+    }
     private void damageBossPart(Enemy e,float damage){
         if(!e.boss||damage<=0)return;
         if(e.anatomy==null)e.anatomy=new BossAnatomyV065(Campaign.world(stage),e.maxHp);
@@ -2318,8 +2361,11 @@ public final class RiftGameView extends View {
             float meleeDamage=weapon.damage*pendingMeleePower*
                     ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
-            e.hp-=meleeDamage*bossArmorMultiplier(e)*
+            float dealt=meleeDamage*bossArmorMultiplier(e)*
+                    bossCounterWeaponMultiplier(e)*
                     SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
+            e.hp-=dealt;
+            registerBossCounterHit(e,dealt);
             if(!flowCredited&&pendingMeleeFlowAction>0){
                 registerCombatFlow(pendingMeleeFlowAction);
                 flowCredited=true; // a broad sweep still counts once
@@ -2581,9 +2627,11 @@ public final class RiftGameView extends View {
                 baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
                 towersDestroyedInBattle)
                 ?BattleContractsV068.firstClearBonus(stage):0;
+        int earnedMastery=BossCounterplayV083.firstClearMastery(
+                stage,bossCounters,firstClear);
         int newSupplies=supplies+reward+
                 DifficultyRules.supplyBonus(difficultyMode,reward)+earnedObjective+
-                earnedContract;
+                earnedContract+earnedMastery;
         int newUnlocked=Campaign.unlockedAfter(unlocked,stage);
         WardenLevelsV078.Award expAward=wardenLevel.planVictory(
                 stage,difficultyMode,firstClear);
@@ -2605,7 +2653,8 @@ public final class RiftGameView extends View {
         lastGainedWardenLevels=expAward.levelsGained;
         lastEarnedWardenPoints=expAward.pointsGained;
         contractBonus=earnedContract;
-        objectiveBonus=earnedObjective+earnedContract;
+        bossMasteryBonus=earnedMastery;
+        objectiveBonus=earnedObjective+earnedContract+earnedMastery;
         savedWave=null;
         recordBattleResult(true);
         outro=new BattleOutroV065(stage,true,heroX,heroY);
@@ -4301,22 +4350,35 @@ public final class RiftGameView extends View {
     /** Boss display is a real HP snapshot, not a painted label. */
     private boolean drawBossHud(Canvas c) {
         for(Enemy e:enemies)if(e.boss&&e.hp>0) {
-            round(c,415,109,865,166,14,0xe91f2536);
+            round(c,415,109,865,166,14,0xff1f2536);
             String name=caveMode?(e.bossPhase>=3?
                     "CAEL • THE FIRST WARDEN":"THE ECLIPSE TITAN"):
                     e.worldBoss?DifficultyRules.worldBossName(stage):
                     "ELITE SIEGE COMMANDER";
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
-            if(e.specialCharge>0)
+            if(e.specialCharge>0){
+                round(c,353,171,927,235,11,0xe91b3038);
                 textFit(c,"PHASE "+e.bossPhase+" / 3 • "+
                         (RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
                                 RealmBossV071.name(stage):BossTactics.warning(stage))+
-                        " • WATCH THE MARK",640,190,580,20,0xffffc18f,true);
+                        " • WATCH THE MARK",640,193,550,19,0xffffc18f,true);
+            }
             if(e.specialCharge>0&&RealmBossV071.enabled(
-                    stage,e.worldBoss,caveMode))
-                textFit(c,RealmBossV071.counter(stage),
-                        640,218,610,16,0xffe4d6b7,true);
+                    stage,e.worldBoss,caveMode)){
+                float needed=BossCounterplayV083.pressureRequired(
+                        stage,e.bossPhase,e.maxHp);
+                textFit(c,BossCounterplayV083.prompt(stage)+"  •  "+
+                        Math.round(100f*BossCounterplayV083.fraction(
+                                e.counterPressure,needed))+"%",
+                        640,218,540,16,0xffbaf1d1,true);
+            }else if(e.counterStagger>0f&&RealmBossV071.enabled(
+                    stage,e.worldBoss,caveMode)){
+                round(c,364,173,916,211,10,0xeb1b3937);
+                textFit(c,"STAGGERED • WARDEN HITS +14% • "+
+                        (int)Math.ceil(e.counterStagger)+"s",
+                        640,198,520,18,0xffaef5cd,true);
+            }
             return true;
         }
         return false;
@@ -4361,19 +4423,26 @@ public final class RiftGameView extends View {
                 SquadTacticsV065.name(squadPlan),180,135,350,16,0xffffce9e,true);
         text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
         text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
-        // XP widget lives below the TOP HUD, outside every draggable control.
-        // The progress bar uses the same values as the character screen.
-        round(c,420,105,845,150,12,0xdd19343e);
-        text(c,"LV "+wardenLevel.level(),438,133,21,0xffffd390,false);
-        if(wardenLevel.level()>=WardenLevelsV078.MAX_LEVEL){
-            text(c,"WARDEN MAX LEVEL",538,133,18,0xffb8f1d2,false);
-        }else{
-            bar(c,531,113,202,12,wardenLevel.progress(),0xff9ce1bc);
-            text(c,"XP "+wardenLevel.xpIntoLevel()+"/"+wardenLevel.xpNeeded(),
-                    531,145,15,0xffc9dfdf,false);
+        // When a living boss owns the center-top combat HUD, suppress the
+        // redundant XP panel behind it. XP/progression remains unchanged and
+        // returns the instant the boss is defeated.
+        boolean bossVisible=false;
+        for(Enemy foe:enemies)if(foe.boss&&foe.hp>0){
+            bossVisible=true;break;
         }
-        if(wardenLevel.unspent()>0)
-            text(c,"PTS "+wardenLevel.unspent(),738,135,16,GOLD,false);
+        if(!bossVisible){
+            round(c,420,105,845,150,12,0xdd19343e);
+            text(c,"LV "+wardenLevel.level(),438,133,21,0xffffd390,false);
+            if(wardenLevel.level()>=WardenLevelsV078.MAX_LEVEL){
+                text(c,"WARDEN MAX LEVEL",538,133,18,0xffb8f1d2,false);
+            }else{
+                bar(c,531,113,202,12,wardenLevel.progress(),0xff9ce1bc);
+                text(c,"XP "+wardenLevel.xpIntoLevel()+"/"+wardenLevel.xpNeeded(),
+                        531,145,15,0xffc9dfdf,false);
+            }
+            if(wardenLevel.unspent()>0)
+                text(c,"PTS "+wardenLevel.unspent(),738,135,16,GOLD,false);
+        }
         round(c,1146,25,1223,89,16,0xff344c55);
         text(c,"II",1184,71,31,INK,true);
     }
@@ -5578,7 +5647,8 @@ public final class RiftGameView extends View {
         }
         if(scene==Scene.WIN)
             textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES"+
-                    (contractBonus>0?" • FIELD +"+contractBonus:""),640,418,
+                    (bossMasteryBonus>0?" • BOSS MASTERY +"+bossMasteryBonus:
+                    contractBonus>0?" • FIELD +"+contractBonus:""),640,418,
                     500,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
         boolean waveRetry=canRetryWave();
         button(c,435,429,845,502,scene==Scene.WIN?

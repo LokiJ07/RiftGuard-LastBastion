@@ -4,7 +4,7 @@
 
 **RiftGuard** is a single-player, offline-first **Android Java / Canvas** action and fortress-defense game. Control a Warden, fight the Rift, build and upgrade the Last Bastion, and discover the histories of the Knight, the First Warden and their companions.
 
-> **Status:** v0.79 systems were integrated through [PR #40](https://github.com/LokiJ07/RiftGuard-LastBastion/pull/40); the v0.80 line adds story-continuity, ending and mid-chapter pacing improvements. **v0.81** polishes in-game cinematic subtitles, Chronicle, Cave choices/endings and HUD editor clarity. **v0.82** adds tactical enemy wave rhythms, earned Warden Flow and shorter idle wave preparation. The Android package declares **`0.82.0-alpha1` / versionCode `78`**. This remains a development alpha, not a signed production release or Play Store publication.
+> **Status:** v0.79 systems were integrated through [PR #40](https://github.com/LokiJ07/RiftGuard-LastBastion/pull/40); the v0.80 line adds story-continuity, ending and mid-chapter pacing improvements. **v0.81** polishes in-game cinematic subtitles, Chronicle, Cave choices/endings and HUD editor clarity. **v0.82** adds tactical enemy wave rhythms, earned Warden Flow and shorter idle wave preparation. **v0.83** adds timed kingdom-boss cast interrupts, live stagger feedback and capped first-clear mastery rewards. The Android package declares **`0.83.0-alpha1` / versionCode `79`**. This remains a development alpha, not a signed production release or Play Store publication.
 
 ## Play at a glance
 
@@ -16,6 +16,15 @@
 - **Four Warden attributes:** Vitality, Power, Agility and Arcana; each capped at 120. Upgrades apply to actual combat without replacing fortress/weapon progression.
 - **Six automatic Warden oaths:** Guardian Heart (Lv10), Rift Siphon (Lv25), Battle Focus (Lv40), Arc Conduit (Lv60), Vanguard Stride (Lv80) and Rift Sovereign (Lv100).
 - **Save continuity:** offline progression, persistent fortress/equipment/attributes, old-save Warden XP migration, and a durable campaign victory transaction.
+
+## v0.83 boss counterplay and first-clear mastery
+
+- **Ten boss encounters:** Land real Warden weapon hits during a marked kingdom-boss charge to fill its interrupt meter. Sufficient pressure cancels the pending strike and staggers the boss for **2.15 seconds**; a clear boss HUD cue shows progress and remaining stagger time.
+- **Skill reward:** Warden weapon hits deal **+14% damage during the stagger**; turret autoplay, Cave boss and regular elites cannot use this boost. The ten existing telegraph shapes, animations, defenses and boss stages remain intact.
+- **First-clear boss mastery:** Optional **19–37 supplies per successful boss interrupt, capped at two** (38–74 total). Rewards pay only upon a *first-clear win*, through the existing durable save transaction; repeats, defeats and normal stages cannot farm this bonus.
+- **No disruption:** No added enemy population or waves, changes to offline progress schema, or new background art dependencies. Built/tested with real Android game-view integration and screenshot checks.
+
+See [v0.83 boss counterplay and mastery notes](docs/V083_BOSS_COUNTERPLAY.md).
 
 ## v0.82 combat engagement and balancing
 
@@ -64,7 +73,7 @@ For downloadable debug builds, open [GitHub Actions → Android CI](https://gith
 
 ## Documentation
 
-- [v0.82 combat rhythm and balance](docs/V082_COMBAT_ENGAGEMENT.md) · [v0.81 UI presentation and visual QA](docs/V081_STORY_UI_POLISH.md) · [v0.80 critique triage](docs/V080_CRITIQUE_TRIAGE.md)
+- [v0.83 boss counterplay and mastery](docs/V083_BOSS_COUNTERPLAY.md) · [v0.82 combat rhythm and balance](docs/V082_COMBAT_ENGAGEMENT.md) · [v0.81 UI presentation and visual QA](docs/V081_STORY_UI_POLISH.md) · [v0.80 critique triage](docs/V080_CRITIQUE_TRIAGE.md)
 - [Character Lv1–100 rules](docs/V078_WARDEN_LEVELS_AND_STATS.md) · [Warden milestone oaths](docs/V079_WARDEN_OATHS.md)
 - [Commercial release / physical QA gates](docs/V072_COMMERCIAL_RELEASE_GATES.md)
 - [Full archived milestone history (previous README)](docs/archive/README_THROUGH_V079.md)
