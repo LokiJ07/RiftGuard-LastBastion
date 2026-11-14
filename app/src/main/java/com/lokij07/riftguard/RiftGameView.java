@@ -5846,43 +5846,70 @@ public final class RiftGameView extends View {
     }
     private void drawCaveChoice(Canvas c){
         rect(c,0,0,W,H,0xd3050c1a);
-        round(c,66,52,1213,666,24,0xff171c35);
+        round(c,66,52,1213,666,24,0xff172333);
         border(c,66,52,1213,666,24,0xffc9a777,3);
-        text(c,"THE FIRST WARDEN • THE FINAL CHOICE",640,131,40,GOLD,true);
+        round(c,95,73,1184,156,16,0xff2a3347);
+        text(c,"THE FIRST WARDEN",640,112,27,0xffd8bd8a,true);
+        text(c,"THE FINAL CHOICE",640,149,35,GOLD,true);
         textFit(c,"Cael's armor lies broken. Bantay waits by the cup; Chada is in your hand.",
-                640,210,1034,25,INK,true);
-        textFit(c,"Do you end the Titan, or offer what he lost?",640,270,980,28,
-                0xffc9dfdd,true);
-        textFit(c,"CAEL'S MEMORIES "+storyProgress.caelCount()+" / "+
-                StoryProgress.caelTotal()+"  •  SAVE CAEL AT "+
-                StoryProgress.caelNeeded()+"  •  TOTAL "+storyProgress.total()+"/100",
-                640,339,950,21,0xffd7c38c,true);
-        button(c,102,405,608,502,"USE CHADA • END THE TITAN",0xff85624e);
-        button(c,651,405,1174,502,storyProgress.trueEndingUnlocked()?
-                "OFFER KAPE • SAVE CAEL":"OFFER KAPE • NEED "+
-                StoryProgress.caelNeeded()+" CAEL KEYS",
-                storyProgress.trueEndingUnlocked()?0xff5f8c76:0xff424a55);
-        button(c,101,526,1174,600,"LEAVE THE CAVE • RIFT UNRESOLVED",0xff594f75);
-        text(c,"Ending choices are saved. Replay the Cave to revisit.",
-                640,641,18,0xff9fafbf,true);
-        // Reveal the final moral choice as the arena darkens and settles.
+                640,217,1016,25,INK,true);
+        textFit(c,"Do you end the Titan, offer mercy, or leave the Rift unresolved?",
+                640,274,1040,26,0xffc9dfdd,true);
+        boolean mercy=storyProgress.trueEndingUnlocked();
+        int caelMemories=storyProgress.caelCount();
+        int needed=StoryProgress.caelNeeded();
+        round(c,134,305,1146,387,15,0xff253947);
+        textFit(c,"CAEL'S MEMORIES  "+caelMemories+" / "+
+                StoryProgress.caelTotal()+"    •    MERCY REQUIRES "+
+                needed+"    •    TOTAL MEMORIES "+storyProgress.total()+"/100",
+                640,338,980,19,0xffd7c38c,true);
+        round(c,161,359,1119,371,5,0xff12222e);
+        if(caelMemories>0)
+            round(c,161,359,161+958f*Math.min(caelMemories,needed)/needed,
+                    371,5,mercy?0xff96d9b6:0xffdcb987);
+        // Three outcome cards are different decisions, not a single row of
+        // indistinguishable controls. All backgrounds share exact tap regions.
+        round(c,102,405,608,502,16,0xff644c42);
+        border(c,102,405,608,502,16,0xffc69a72,2);
+        text(c,"END THE TITAN",355,441,26,INK,true);
+        text(c,"USE CHADA  •  CLOSE THE RIFT",355,476,17,0xffead2b1,true);
+        round(c,651,405,1174,502,16,mercy?0xff396b61:0xff3b454f);
+        border(c,651,405,1174,502,16,mercy?0xffa3dfbc:0xff5a6671,2);
+        text(c,mercy?"OFFER KAPE  •  SAVE CAEL":"OFFER KAPE  •  LOCKED",
+                913,441,mercy?25:24,mercy?INK:0xffd4d8d7,true);
+        textFit(c,mercy?"RESTORE THE FIRST WARDEN":
+                "RECOVER "+Math.max(0,needed-caelMemories)+" MORE CAEL MEMORIES",
+                913,476,490,17,mercy?0xffc2e7d4:0xffb4bac1,true);
+        round(c,101,526,1174,600,16,0xff494567);
+        border(c,101,526,1174,600,16,0xff8882af,2);
+        text(c,"LEAVE THE CAVE",640,559,25,INK,true);
+        text(c,"TAKE BANTAY HOME  •  THE RIFT REMAINS OPEN",
+                640,586,16,0xffccc6ea,true);
+        text(c,"Choices are saved. Replay the Eclipse Cave to revisit the ending.",
+                640,639,17,0xffaebfc9,true);
         cinematic.drawCutOverlay(c,Math.max(0f,gameTime-caveChoiceCutAt),false,true);
     }
     private void drawCaveEnding(Canvas c){
         rect(c,0,0,W,H,0xd5071220);
         round(c,125,92,1155,658,27,0xff202d3c);
         border(c,125,92,1155,658,27,GOLD,3);
-        text(c,caveEnding==StoryProgress.ENDING_TRUE?"THE RIFT IS HEALED":
+        int tone=caveEnding==StoryProgress.ENDING_TRUE?
+                0xff93d5b3:caveEnding==StoryProgress.ENDING_PARTIAL?
+                0xffada0df:0xffd7b588;
+        round(c,168,126,1112,240,18,0xff263b4c);
+        text(c,"THE WARDEN'S LEGACY",640,164,20,0xffc9d9db,true);
+        textFit(c,caveEnding==StoryProgress.ENDING_TRUE?"THE RIFT IS HEALED":
                 caveEnding==StoryProgress.ENDING_PARTIAL?"THE RIFT REMAINS":
-                "THE RIFT IS CLOSED",640,201,46,GOLD,true);
+                "THE RIFT IS CLOSED",640,217,875,44,tone,true);
         String epilogue=caveEnding==StoryProgress.ENDING_TRUE?
                 "Cael is freed. Kape waits beside Tessa's cup.":
                 caveEnding==StoryProgress.ENDING_PARTIAL?
                 "The Warden and Bantay escape. Cael remains bound as another Rift opens.":
                 "The Warden returns home. One cup remains untouched.";
-        drawStoryParagraph(c,epilogue,195,291,883,27,45,INK);
+        round(c,180,280,1100,402,16,0xff182b37);
+        textFit(c,epilogue,640,342,865,24,INK,true);
         text(c,"ENDING RECORDED IN THE WARDEN'S CHRONICLE",
-                640,430,19,0xffa9c7c2,true);
+                640,454,19,0xffb5dace,true);
         button(c,153,522,619,613,"REPLAY ECLIPSE CAVE",0xff77614c);
         button(c,650,522,1125,613,"RETURN TO BASTION",0xff4e6672);
         cinematic.drawCutOverlay(c,Math.max(0f,gameTime-caveEndingCutAt),false,true);
@@ -5924,17 +5951,23 @@ public final class RiftGameView extends View {
     private void drawHudEditor(Canvas c){
         rect(c,0,0,W,176,0xea132937);
         text(c,"CUSTOMIZE CONTROLS",38,60,35,GOLD,false);
-        text(c,"DRAG MOVE / ATTACK / BUILD / SKILL / DODGE • TEST AFTER SAVING",
-                38,103,19,INK,false);
+        textFit(c,"DRAG THE CONTROL RINGS • THE TOUCH AREAS FOLLOW",
+                38,103,640,19,INK,false);
+        textFit(c,"SAVE = APPLY  •  RESET = PREVIEW DEFAULT  •  CANCEL = DISCARD",
+                38,149,1160,15,0xffb3d4d1,false);
         button(c,700,42,852,115,"SAVE",0xff539374);
         button(c,861,42,1034,115,"RESET",0xff926849);
         button(c,1043,42,1218,115,"CANCEL",0xff536574);
         for(int i=0;i<HudLayoutV065.COUNT;i++){
             float cx=hudLayout.x(i),cy=hudLayout.y(i);
+            circle(c,cx,cy,hudLayout.radius(i)+8,0x66102027);
             circleStroke(c,cx,cy,hudLayout.radius(i)+8,
                     i==hudDragControl?0xfff7da98:0xffa0d8cd,4);
-            text(c,HudLayoutV065.NAMES[i],cx,cy-8,17,INK,true);
-            text(c,"DRAG",cx,cy+15,14,GOLD,true);
+            circleStroke(c,cx,cy,hudLayout.radius(i)-1,0x66ffffff,1.5f);
+            textFit(c,HudLayoutV065.NAMES[i],cx,cy-8,
+                    hudLayout.radius(i)*1.75f,18,INK,true);
+            text(c,i==hudDragControl?"MOVING":"DRAG",cx,cy+15,14,
+                    i==hudDragControl?0xfff7da98:GOLD,true);
         }
     }
     private void handleHudEditorTouch(MotionEvent ev,float x,float y,int action,int id){
