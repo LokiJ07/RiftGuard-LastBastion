@@ -174,5 +174,19 @@ public final class PersistentWaveCheckpointV065 {
         return prefs.edit().putInt("unlocked",unlocked)
                 .putInt("supplies",supplies).remove(KEY).commit();
     }
+    /**
+     * v0.78: the Warden's XP reward must be durable in the EXACT SAME
+     * preferences commit as supplies, campaign unlock and checkpoint clear.
+     * Death/replay cannot both collect XP for the same completed battle.
+     */
+    public boolean commitVictory(int unlocked,int supplies,int earnedWardenTotalXp){
+        if(unlocked<0||unlocked>Campaign.STAGES||supplies<0||
+                earnedWardenTotalXp<0||
+                earnedWardenTotalXp>WardenLevelsV078.maxXp())return false;
+        return prefs.edit().putInt("unlocked",unlocked)
+                .putInt("supplies",supplies)
+                .putInt(WardenLevelsV078.SAVE_XP,earnedWardenTotalXp)
+                .remove(KEY).commit();
+    }
     public void clear(){prefs.edit().remove(KEY).commit();}
 }
