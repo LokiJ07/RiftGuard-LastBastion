@@ -67,7 +67,10 @@ public final class BossPresentationTest {
                 (Float)field(boss,"specialCharge")>0f);
         Bitmap image=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
         game.draw(new Canvas(image));image.recycle();
-        for(int i=0;i<11;i++)
+        // Actual world-boss attacks have readable 1.14–1.71s charge windows.
+        // Sample beyond the exact documented charge, not the old 1.1s timer.
+        int ticks=(int)Math.ceil(RealmBossV071.chargeSeconds(stage,1)/.10f)+2;
+        for(int i=0;i<ticks;i++)
             invoke(game,"update",new Class<?>[]{float.class},.10f);
         assertTrue("Boss shockwave must cause real fortress damage",
                 (Float)field(game,"baseHp")<coreBefore);

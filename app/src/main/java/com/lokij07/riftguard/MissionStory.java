@@ -44,7 +44,8 @@ public final class MissionStory {
         String chapter="CHAPTER "+(world+1)+"  /  "+Campaign.WORLDS[world].toUpperCase();
         String headline=Campaign.title(stage)+"  -  "+Campaign.MAPS[map].toUpperCase();
         String warning=DifficultyRules.worldBoss(stage)
-                ?RealmBossV071.name(stage)+": "+RealmBossV071.counter(stage)
+                ?"WORLD BOSS: "+DifficultyRules.worldBossName(stage)+" / "+
+                        RealmBossV071.name(stage)+": "+RealmBossV071.counter(stage)
                 :SiegeMissionsV069.mode(stage)!=SiegeMissionsV069.NONE
                     ?SiegeMissionsV069.warning(stage)
                     :RealmActsV071.threatKind(stage)>=0
