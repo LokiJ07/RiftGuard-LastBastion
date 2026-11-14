@@ -926,7 +926,8 @@ public final class RiftGameView extends View {
                 e.dashWindup=Math.max(0,e.dashWindup-dt);
                 if(e.dashWindup<=0)e.dashTime=EnemySpecials.BOAR_DASH;
             }else if(e.dashTime>0)e.dashTime=Math.max(0,e.dashTime-dt);
-            if(EnemySpecials.canShamanCast(e.kind,dHero,e.shamanCooldown) &&
+            if(e.retreatTime<=0f&&
+                    EnemySpecials.canShamanCast(e.kind,dHero,e.shamanCooldown) &&
                     hostileBolts.size()<24){
                 hostileBolts.add(new HostileBolt(e.x,e.y-44,heroX,heroY-25));
                 e.shamanCooldown=3.8f;
@@ -950,7 +951,8 @@ public final class RiftGameView extends View {
             // no extra summons/health and a long individual cooldown.
             e.retreatCooldown=Math.max(0f,e.retreatCooldown-dt);
             e.retreatTime=Math.max(0f,e.retreatTime-dt);
-            if(e.kind==4&&!e.boss&&!caveMode&&e.retreatTime<=0f){
+            if(e.kind==4&&!e.boss&&!caveMode&&
+                    (e.retreatTime>0f||e.hp<e.maxHp*.43f)){
                 boolean hasCover=false;
                 for(Enemy ally:enemies){
                     if(ally==e)continue;
@@ -958,8 +960,11 @@ public final class RiftGameView extends View {
                             ally.kind,ally.boss,ally.hp,
                             ally.x,ally.y,e.x,e.y)){hasCover=true;break;}
                 }
-                if(EnemyCoordinationV075.shouldRetreat(stage,e.kind,e.boss,
-                        e.hp,e.maxHp,dHero,hasCover,e.x,e.retreatCooldown)){
+                // Breaking the shield immediately cancels an ongoing fallback.
+                if(!hasCover)e.retreatTime=0f;
+                else if(e.retreatTime<=0f&&
+                        EnemyCoordinationV075.shouldRetreat(stage,e.kind,e.boss,
+                                e.hp,e.maxHp,dHero,true,e.x,e.retreatCooldown)){
                     e.retreatTime=EnemyCoordinationV075.RETREAT_SECONDS;
                     e.retreatCooldown=EnemyCoordinationV075.RETREAT_COOLDOWN;
                     puff(e.x,e.y-50,8,0xffa5e7d4);
@@ -1151,7 +1156,8 @@ public final class RiftGameView extends View {
             if(!revival.isDown() && e.kind==6 && e.dashTime>0 &&
                     distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0 &&
                     !DodgeRules.invulnerable(dodgeTime)){
-                heroHp-=29*DifficultyRules.enemyDamage(difficultyMode);
+                heroHp-=CombatReadabilityV076.heroHit(stage,
+                        29f*DifficultyRules.enemyDamage(difficultyMode),heroMaxHp());
                 e.dashTime=0;hurtCooldown=.85f;
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
                 puff(heroX,heroY,14,0xffffb27b);
@@ -1160,8 +1166,9 @@ public final class RiftGameView extends View {
             }
             if (!revival.isDown() && distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0 &&
                     !DodgeRules.invulnerable(dodgeTime)) {
-                heroHp-=(e.kind==2?20:11)*
-                        DifficultyRules.enemyDamage(difficultyMode);
+                heroHp-=CombatReadabilityV076.heroHit(stage,
+                        (e.kind==2?20f:11f)*
+                        DifficultyRules.enemyDamage(difficultyMode),heroMaxHp());
                 e.attackAnim=.42f;
                 hurtCooldown=.8f;
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
@@ -1219,7 +1226,9 @@ public final class RiftGameView extends View {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0){
                     relicHp=Math.max(0,relicHp-
-                            (e.kind==5?38f:22f)*DifficultyRules.enemyDamage(difficultyMode));
+                            CombatReadabilityV076.relicHit(stage,
+                            (e.kind==5?38f:22f)*DifficultyRules.enemyDamage(difficultyMode),
+                            relicMaxHp));
                     e.attackAnim=.42f;e.attackTimer=1.9f;
                     puff(relicX,relicY-29,12,0xffecbb91);
                     if(relicHp<=0)announce("MEMORY TRIAL FAILED • RELIC DESTROYED");
@@ -1233,7 +1242,9 @@ public final class RiftGameView extends View {
                                     e.squadRole,squadPlan,commanderAlive);
                     if(coordinatedRaid&&towers[siegeTower]>0)strike=Math.min(strike,
                             TowerDurability.maxHp(towers[siegeTower],fortressRank)*.22f);
-                    damageTower(siegeTower,strike);
+                    damageTower(siegeTower,CombatReadabilityV076.towerHit(
+                            stage,strike,
+                            TowerDurability.maxHp(towers[siegeTower],fortressRank)));
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.55f:2.05f;
                 }
@@ -1242,8 +1253,10 @@ public final class RiftGameView extends View {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
                     if(e.flankRoute)flankBreaches++;
-                    baseHp-=(e.kind==2?30:(e.kind==5?18:12))*
-                            DifficultyRules.enemyDamage(difficultyMode)*(e.boss?2.0f:1f);
+                    baseHp-=CombatReadabilityV076.coreHit(stage,
+                            (e.kind==2?30f:(e.kind==5?18f:12f))*
+                            DifficultyRules.enemyDamage(difficultyMode)*
+                            (e.boss?2.0f:1f),coreMaxHp());
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.7f:2.2f;
                     puff(BASE_X,BASE_Y,6,0xffff9f74);
@@ -3983,8 +3996,38 @@ public final class RiftGameView extends View {
             }
         }
     }
+    /** Lightweight tactical guidance based ONLY on currently live objective
+     * state. Shared left-side panel never obscures the adjustable controls.
+     */
+    private void drawTacticalReadout(Canvas c,String title,String action,int tint){
+        round(c,40,189,367,279,11,0xe11a333e);
+        textFit(c,title,56,209,294,16,tint,false);
+        textFit(c,action,56,238,294,16,0xffdfefe5,false);
+        line(c,56,251,342,251,tint,2f);
+    }
     private void drawSiegeMissionHud(Canvas c){
-        if(!SiegeMissionsV069.active(stage,wave))return;
+        if(!SiegeMissionsV069.active(stage,wave)){
+            if(scene!=Scene.PLAY||waiting||wave<2)return;
+            if(EnemyCoordinationV075.raidActive(stage,wave,squadPlan,
+                    false,caveMode,siegeFocusPad)&&
+                    siegeFocusPad<activeTowerCount&&towers[siegeFocusPad]>0){
+                float ratio=towerHp[siegeFocusPad]/
+                        TowerDurability.maxHp(towers[siegeFocusPad],fortressRank);
+                drawTacticalReadout(c,"TACTIC • SIEGE TARGET",
+                        CombatReadabilityV076.raidAction(siegeFocusPad,ratio),
+                        ratio<.30f?0xffff9a85:0xffffcc8d);
+                return;
+            }
+            boolean retreat=false,pincer=false;
+            for(Enemy e:enemies)if(e.hp>0){
+                if(e.kind==4&&e.retreatTime>0)retreat=true;
+                if(e.pincerSide!=0&&e.moving)pincer=true;
+            }
+            String hint=CombatReadabilityV076.tacticalAction(pincer,retreat);
+            if(!hint.isEmpty())drawTacticalReadout(c,"TACTIC • ENEMY FORMATION",
+                    hint,retreat?0xffa5efd5:0xffd5bbff);
+            return;
+        }
         int mode=SiegeMissionsV069.mode(stage);
         String status=mode==SiegeMissionsV069.ESCORT?
                 (SiegeMissionsV069.cartSafe(caravanX)?"CARAVAN SAFE":
@@ -3999,9 +4042,30 @@ public final class RiftGameView extends View {
                     mode==SiegeMissionsV069.SEAL?
                             "SEALED "+riftsSealed+"/2 • HOLD AT RIFTS":
                     "FLANKS STOPPED "+flankKills+" • BREACHES "+flankBreaches;
-        round(c,40,189,360,239,11,0xde183644);
-        textFit(c,SiegeMissionsV069.name(stage),56,209,289,15,0xffffd29a,false);
-        textFit(c,status,56,230,289,18,0xffb9ece0,false);
+        float cannonCharge=0f;
+        for(Enemy e:enemies)if(e.siegeEngine&&e.hp>0&&e.engineWindup>0){
+            cannonCharge=e.engineWindup;break;
+        }
+        float progressRemaining=0f;
+        if(mode==SiegeMissionsV069.SEAL)for(int i=0;i<sealDone.length;i++)
+            if(!sealDone[i]&&FieldObjectivesV074.near(heroX,heroY,
+                    FieldObjectivesV074.sealX(stage,i),
+                    FieldObjectivesV074.sealY(stage,i),FieldObjectivesV074.SEAL_RADIUS)){
+                progressRemaining=FieldObjectivesV074.SEAL_SECONDS-sealCharge[i];
+                break;
+            }
+        String action=CombatReadabilityV076.missionAction(mode,caravanGuarded(),
+                caravanHp/Math.max(1f,CampaignEncountersV073.cartMaxHp(stage,difficultyMode)),
+                villagersSaved,villagersLost,riftsSealed,progressRemaining,
+                sealPulseTimer,cannonCharge);
+        int tint=mode==SiegeMissionsV069.SEAL&&riftsSealed<2?
+                0xffcbaaff:mode==SiegeMissionsV069.RESCUE&&villagersLost>0?
+                0xffffa68d:0xffffd29a;
+        round(c,40,189,367,281,11,0xe1183642);
+        textFit(c,SiegeMissionsV069.name(stage),56,209,292,15,tint,false);
+        textFit(c,status,56,234,294,17,0xffb9ece0,false);
+        line(c,56,244,342,244,tint,2f);
+        textFit(c,action,56,266,294,15,tint,false);
     }
     /** Boss display is a real HP snapshot, not a painted label. */
     private boolean drawBossHud(Canvas c) {
