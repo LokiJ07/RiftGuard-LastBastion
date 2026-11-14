@@ -245,6 +245,9 @@ public final class RiftGameView extends View {
         boolean moving,boss,worldBoss,siegeEngine,flankRoute;
         int flankSide;
         float engineCooldown,engineWindup;
+        // Locked when world-boss channel begins, not retargeted every frame.
+        int realmLockedTower=-1;
+        float realmLockedX,realmLockedY;
         BossAnatomyV065 anatomy;
         int kind,bossPhase=1,variant=0,squadRole=SquadTacticsV065.RAIDER;
         float faceX=-1f;
@@ -996,12 +999,26 @@ public final class RiftGameView extends View {
                     audio.play(GameAudio.BOSS_PHASE);
                     announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
                 }
+                boolean realmBoss=RealmBossV071.enabled(stage,e.worldBoss,caveMode);
                 e.specialTimer-=dt;
                 if(e.specialCharge<=0&&e.specialTimer<=0&&
                         distance(e.x,e.y,BASE_X,BASE_Y)<
                                 BossThreatV066.CORE_ATTACK_RANGE){
-                    e.specialCharge=BossTactics.chargeTime(stage,e.bossPhase);
-                    e.specialTimer=BossTactics.interval(stage,e.bossPhase);
+                    e.specialCharge=realmBoss?
+                            RealmBossV071.chargeSeconds(stage,e.bossPhase):
+                            BossTactics.chargeTime(stage,e.bossPhase);
+                    e.specialTimer=realmBoss?
+                            RealmBossV071.intervalSeconds(stage,e.bossPhase):
+                            BossTactics.interval(stage,e.bossPhase);
+                    if(realmBoss){
+                        int tower=RealmBossV071.targetsTower(stage)?
+                                nearestBuiltTower(BASE_X,BASE_Y,650f):-1;
+                        e.realmLockedTower=tower;
+                        e.realmLockedX=tower>=0?towerX[tower]:
+                                RealmBossV071.targetsTower(stage)?BASE_X:heroX;
+                        e.realmLockedY=tower>=0?towerY[tower]:
+                                RealmBossV071.targetsTower(stage)?BASE_Y:heroY;
+                    }
                     audio.play(GameAudio.BOSS_WARN);
                 }else if(e.specialCharge>0){
                     e.specialCharge-=dt;
@@ -1009,42 +1026,42 @@ public final class RiftGameView extends View {
                         float strength=DifficultyRules.enemyDamage(difficultyMode)*
                                 BossTactics.damageMultiplier(e.bossPhase)*
                                 e.anatomy.siegeMultiplier();
-                        int tactic=BossTactics.tactic(stage);
-                        if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
-                            baseHp-=(tactic==1?20f:28f)*strength;
-                            puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
-                            // Telegraphed boss siege impacts can destroy artillery.
-                            int t=nearestBuiltTower(BASE_X,BASE_Y,365f);
-                            if(t>=0)damageTower(t,55f*strength);
+                        if(realmBoss){
+                            resolveRealmBossStrike(e,strength);
+                            if(scene!=Scene.PLAY)return;
+                        }else{
+                            int tactic=BossTactics.tactic(stage);
+                            if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
+                                baseHp-=(tactic==1?20f:28f)*strength;
+                                puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
+                                // Legacy elites and story-cave boss retain their
+                                // already-tested siege/attack mechanics.
+                                int t=nearestBuiltTower(BASE_X,BASE_Y,365f);
+                                if(t>=0)damageTower(t,55f*strength);
+                            }
+                            if(BossAssaultV067.heroInRange(stage,e.bossPhase,
+                                    e.x,e.y,heroX,heroY)&&!revival.isDown()&&
+                                    hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
+                                float bossDamage=(tactic==0?24f:18f)*strength;
+                                heroHp-=bossDamage;
+                                hurtCooldown=.8f;
+                                heroAnimation.hurt();
+                                pendingMelee=false;pendingMeleeWeapon=-1;
+                                combatFeel.onDamage(heroX,heroY-18,
+                                        tactic==2?0xffa1eeae:0xffe5a0fa,true,bossDamage);
+                                puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
+                                audio.play(GameAudio.HURT);
+                                if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
+                            }
+                            if(tactic==1){
+                                e.hp=Math.min(e.maxHp,e.hp+e.maxHp*
+                                        BossAssaultV067.healFraction(stage,e.bossPhase));
+                                puff(e.x,e.y,14,0xff9fd7c8);
+                            }
+                            if(baseHp<=0){baseHp=0;markDefeat();return;}
+                            if(heroHp<=0){heroHp=0;handleWardenDown();return;}
+                            announce(BossTactics.warning(stage)+"!");
                         }
-                        if(BossAssaultV067.heroInRange(stage,e.bossPhase,
-                                e.x,e.y,heroX,heroY)&&!revival.isDown()&&
-                                hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
-                            float bossDamage=(tactic==0?24f:18f)*strength;
-                            heroHp-=bossDamage;
-                            // Boss strikes now produce the same authoritative
-                            // hurt-state/invulnerability window as normal hits.
-                            // Without this, a single siege frame could stack
-                            // another mob hit before the Warden reacts.
-                            hurtCooldown=.8f;
-                            heroAnimation.hurt();
-                            pendingMelee=false;pendingMeleeWeapon=-1;
-                            combatFeel.onDamage(heroX,heroY-18,
-                                    tactic==2?0xffa1eeae:0xffe5a0fa,true,bossDamage);
-                            puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
-                            audio.play(GameAudio.HURT);
-                            if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
-                        }
-                        if(tactic==1){
-                            // Sustain has its own real phase scaling, not
-                            // the seismic damage pattern with a new color.
-                            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*
-                                    BossAssaultV067.healFraction(stage,e.bossPhase));
-                            puff(e.x,e.y,14,0xff9fd7c8);
-                        }
-                        if(baseHp<=0){baseHp=0;markDefeat();return;}
-                        if(heroHp<=0){heroHp=0;handleWardenDown();return;}
-                        announce(BossTactics.warning(stage)+"!");
                     }
                 }
             }
@@ -1496,7 +1513,7 @@ public final class RiftGameView extends View {
         boolean engine=SiegeMissionsV069.engineSpawn(stage,wave,remaining,
                 DifficultyRules.enemies(stage,wave,difficultyMode));
         boolean flank=SiegeMissionsV069.flankSpawn(stage,wave,remaining);
-        kind=engine?2:SiegeEncountersV068.chooseKind(stage,wave,remaining,
+        kind=engine?2:RealmActsV071.chooseKind(stage,wave,remaining,
                 DifficultyRules.enemies(stage,wave,difficultyMode),kind);
         boolean elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)
                 && remaining==1;
@@ -1760,6 +1777,49 @@ public final class RiftGameView extends View {
         }
     }
 
+    /** Authoritative world-boss effects. The displayed telegraph is drawn
+     * from exactly the same locked target and collision rules. */
+    private void resolveRealmBossStrike(Enemy e,float strength){
+        if(!e.worldBoss||caveMode||e.hp<=0)return;
+        int tint=RealmBossV071.color(stage);
+        if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
+            baseHp=Math.max(0f,baseHp-RealmBossV071.coreDamage(stage)*strength);
+            puff(BASE_X,BASE_Y-60,16,tint);
+        }
+        int slot=e.realmLockedTower;
+        if(RealmBossV071.towerDamage(stage)>0&&slot>=0&&
+                slot<activeTowerCount&&towers[slot]>0){
+            damageTower(slot,RealmBossV071.towerDamage(stage)*strength);
+        }
+        if(!revival.isDown()&&hurtCooldown<=0&&
+                !DodgeRules.invulnerable(dodgeTime)&&
+                RealmBossV071.hitsHero(stage,e.bossPhase,e.x,e.y,
+                        e.realmLockedX,e.realmLockedY,heroX,heroY)){
+            float damage=RealmBossV071.heroDamage(stage)*strength;
+            heroHp=Math.max(0f,heroHp-damage);
+            hurtCooldown=.8f;
+            heroAnimation.hurt();
+            pendingMelee=false;pendingMeleeWeapon=-1;
+            combatFeel.onDamage(heroX,heroY-18,tint,true,damage);
+            puff(heroX,heroY-20,15,tint);
+            audio.play(GameAudio.HURT);
+            hazardSlowTimer=Math.max(hazardSlowTimer,
+                    RealmBossV071.slowSeconds(stage));
+            pulseCooldown=Math.max(pulseCooldown,
+                    RealmBossV071.skillSuppression(stage));
+        }
+        float heal=RealmBossV071.selfHealFraction(stage,e.bossPhase,
+                e.anatomy!=null&&e.anatomy.canSummon());
+        if(heal>0f){
+            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*heal);
+            puff(e.x,e.y-40,10,tint);
+        }
+        if(baseHp<=0){markDefeat();return;}
+        if(heroHp<=0){handleWardenDown();return;}
+        announce(RealmBossV071.name(stage)+" • "+
+                (e.anatomy!=null&&e.anatomy.broken(BossAnatomyV065.WEAPON)?
+                        "WEAPON BROKEN: REDUCED DAMAGE":"DODGE THE MARK"));
+    }
     private float bossArmorMultiplier(Enemy e){
         return e.boss&&e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
     }
@@ -2305,13 +2365,21 @@ public final class RiftGameView extends View {
         // Boss warning now maps to the actual 265-unit hero impact radius
         // and the real keep target. No damage, AI or timing is changed.
         for(Enemy threat:enemies){
-            if(threat.boss&&threat.hp>0&&threat.specialCharge>0f)
-                BossThreatV066.draw(c,threat.x,threat.y,BASE_X,BASE_Y,
+            if(threat.boss&&threat.hp>0&&threat.specialCharge>0f){
+                if(RealmBossV071.enabled(stage,threat.worldBoss,caveMode))
+                    RealmBossThreatV071.draw(c,stage,threat.bossPhase,
+                            threat.x,threat.y,
+                            threat.realmLockedX,threat.realmLockedY,
+                            BASE_X,BASE_Y,threat.specialCharge,
+                            RealmBossV071.chargeSeconds(stage,threat.bossPhase),
+                            combatFeel.reducedMotion());
+                else BossThreatV066.draw(c,threat.x,threat.y,BASE_X,BASE_Y,
                         threat.specialCharge,
                         BossTactics.chargeTime(stage,threat.bossPhase),
                         BossTactics.tactic(stage),threat.bossPhase,
                         combatFeel.reducedMotion(),
                         BossAssaultV067.heroRadius(stage,threat.bossPhase));
+            }
         }
         drawPlacedSkills(c);
         if(trial!=null&&trial.type==MemoryTrial.RELIC)drawMemoryRelic(c);
@@ -3197,8 +3265,9 @@ public final class RiftGameView extends View {
                         e.bossPhase,Campaign.world(stage),gameTime);
                 circleStroke(c,e.x,e.y-38,95+e.specialCharge*25,
                         0xffffc18f,5);
-                text(c,BossTactics.warning(stage),e.x,e.y-118,18,
-                     0xffffcb9c,true);
+                text(c,RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
+                        RealmBossV071.name(stage):BossTactics.warning(stage),
+                        e.x,e.y-118,18,0xffffcb9c,true);
             }
         }
         float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
@@ -3615,9 +3684,10 @@ public final class RiftGameView extends View {
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
             if(e.specialCharge>0)
-                text(c,"PHASE "+e.bossPhase+" / 3 • "+
-                        BossTactics.warning(stage)+" • DODGE!",640,190,21,
-                        0xffffc18f,true);
+                textFit(c,"PHASE "+e.bossPhase+" / 3 • "+
+                        (RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
+                                RealmBossV071.name(stage):BossTactics.warning(stage))+
+                        " • WATCH THE MARK",640,190,580,20,0xffffc18f,true);
             return true;
         }
         return false;
@@ -3653,8 +3723,9 @@ public final class RiftGameView extends View {
                 1080,137,16,0xffa5daca,true);
         if(activeComboHit!=null)text(c,"COMBO "+activeComboHit.step+
                 (activeComboHit.charged?" • CHARGED":""),872,133,17,0xffeac98b,false);
-        textFit(c,"ENEMY ORDER: "+SquadTacticsV065.name(squadPlan),
-                180,135,335,16,0xffffce9e,true);
+        textFit(c,"ACT "+(RealmActsV071.act(stage)+1)+" "+
+                RealmActsV071.name(stage)+" / "+
+                SquadTacticsV065.name(squadPlan),180,135,350,16,0xffffce9e,true);
         text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
         text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
         round(c,1146,25,1223,89,16,0xff344c55);
@@ -3849,6 +3920,9 @@ public final class RiftGameView extends View {
         round(c,893,111,1216,576,20,0xff182f3a);
         textFit(c,Campaign.WORLDS[current].toUpperCase(),912,155,287,23,GOLD,false);
         text(c,"LEVEL "+selectedLevel+" / 100",916,185,22,INK,false);
+        textFit(c,"ACT "+(RealmActsV071.act(Campaign.stage(selectedLevel,0))+1)+
+                " • "+RealmActsV071.name(Campaign.stage(selectedLevel,0)),
+                1169,184,132,14,0xffbdebd5,true);
         bar(c,912,189,284,5,unlocked/300f,0xffb9daa5);
         for(int m=0;m<3;m++) {
             int mission=Campaign.stage(selectedLevel,m);

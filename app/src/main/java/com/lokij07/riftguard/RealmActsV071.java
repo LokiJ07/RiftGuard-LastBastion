@@ -30,8 +30,8 @@ public final class RealmActsV071 {
     }
     public static int chooseKind(int stage,int wave,int remaining,int total,int original){
         int existing=SiegeEncountersV068.chooseKind(stage,wave,remaining,total,original);
-        if(stage<30||existing==original)return existing;
-        if(wave==2&&total>=3&&remaining==Math.max(2,total/2))
+        if(stage>=30&&wave==2&&total>=3&&
+                remaining==Math.max(2,total/2))
             return threatKind(stage);
         return existing;
     }

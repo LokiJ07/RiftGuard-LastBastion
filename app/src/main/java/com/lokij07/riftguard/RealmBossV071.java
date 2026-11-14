@@ -107,7 +107,7 @@ public final class RealmBossV071 {
     public static float coreDamage(int stage){return CORE_DAMAGE[realm(stage)];}
     public static float towerDamage(int stage){
         int r=realm(stage);
-        return r==3?52f:r==5?76f:r==9?39f:0f;
+        return r==3?52f:r==5?76f:0f;
     }
     public static float slowSeconds(int stage){
         switch(realm(stage)){
