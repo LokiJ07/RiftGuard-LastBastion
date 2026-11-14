@@ -67,10 +67,10 @@ public final class CampBanterV080IntegrationTest {
         Context context=RuntimeEnvironment.getApplication();
         SharedPreferences p=context.getSharedPreferences(
                 "riftguard_campaign_v1",Context.MODE_PRIVATE);
-        p.edit().clear().putInt("unlocked",Campaign.stage(51,0)).commit();
+        p.edit().clear().putInt("unlocked",Campaign.stage(52,0)).commit();
         RiftGameView game=new RiftGameView(context);
         game.layout(0,0,1280,720);
-        start(game,Campaign.stage(51,0)); // level51 isn't a banter step
+        start(game,Campaign.stage(52,0)); // level52 is not a scheduled banter step
         tap(game,745,609);
         assertFalse((Boolean)get(game,"storyOpen"));
         // Level 54 is one of the scheduled first-clear beats in world 6.
