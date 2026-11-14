@@ -4,14 +4,14 @@
 
 **RiftGuard** is a single-player, offline-first **Android Java / Canvas** action and fortress-defense game. Control a Warden, fight the Rift, build and upgrade the Last Bastion, and discover the histories of the Knight, the First Warden and their companions.
 
-> **Status:** v0.79 systems are integrated into `main` ([PR #40](https://github.com/LokiJ07/RiftGuard-LastBastion/pull/40)); **v0.80 story-continuity/ending improvements are under review** until merged. These are source milestones, not production releases. The current Android package declares `0.78.0-alpha1` / versionCode `75`. No Play Store publication or production-signing certification is claimed.
+> **Status:** v0.79 systems were integrated through [PR #40](https://github.com/LokiJ07/RiftGuard-LastBastion/pull/40); the v0.80 line adds story-continuity, ending and mid-chapter pacing improvements. The Android package declares **`0.80.0-alpha1` / versionCode `76`**. This remains a development alpha, not a signed production release or Play Store publication.
 
 ## Play at a glance
 
 - **300 campaign stages** spanning **10 kingdoms × 10 levels × 3 maps (A/B/C)**, including 10 kingdom bosses and the final Eclipse Cave after the campaign.
 - **Action combat:** movement joystick, chained/charged attacks, directional dodge, equipable spells and abilities, six evolving weapon families, visual feedback and telegraphed boss attacks.
 - **Fortress defense:** real buildable/upgradable turret sites, five fortress ranks, attached siege weapons and visually changing purchased weapon/fortress/ascension upgrades.
-- **Worlds and story:** region journeys, procedural native illustrated scenery, animated Warden/enemies, weather/hazards, optional objectives, Memory Trials, 100 collectible memories and branching story outcomes. The v0.80 branch adds skippable one-time camp dialogue every 3 levels, including for older saves replaying those maps. The 300 environments are *not* 300 individually painted HD scenes.
+- **Worlds and story:** region journeys, procedural native illustrated scenery, animated Warden/enemies, weather/hazards, optional objectives, Memory Trials, 100 collectible memories and branching story outcomes. v0.80 adds skippable one-time camp dialogue every 3 levels, including for older saves replaying those maps. The 300 environments are *not* 300 individually painted HD scenes.
 - **Character Level 1–100:** separate from the 100 campaign levels; experience scales with stage and difficulty, first clears pay more than replays, and each level awards growing attribute points (402 in total by Lv100).
 - **Four Warden attributes:** Vitality, Power, Agility and Arcana; each capped at 120. Upgrades apply to actual combat without replacing fortress/weapon progression.
 - **Six automatic Warden oaths:** Guardian Heart (Lv10), Rift Siphon (Lv25), Battle Focus (Lv40), Arc Conduit (Lv60), Vanguard Stride (Lv80) and Rift Sovereign (Lv100).
@@ -28,7 +28,7 @@
 
 ### Story decisions and memory progression
 
-RiftGuard has **100 collectible memory keys**, many earned through optional Map C challenges. In the **v0.80 review branch**, the compassionate Eclipse Cave ending requires the completed campaign plus **30 of 33 Cael memories**, instead of forcing collection of all 100 memories. Other Knight memories remain collectible; the final fight, other endings and original save keys are preserved. The story edits keep **Chada's heirloom/shattering/reforging** chronology consistent, protect the **Titan → Cael reveal** until the cave's third phase, and make **Tessa's "Salt, not sugar"** setup/payoff part of the main chapter route.
+RiftGuard has **100 collectible memory keys**, many earned through optional Map C challenges. In **v0.80**, the compassionate Eclipse Cave ending requires the completed campaign plus **30 of 33 Cael memories**, instead of forcing collection of all 100 memories. Other Knight memories remain collectible; the final fight, other endings and original save keys are preserved. The story edits keep **Chada's heirloom/shattering/reforging** chronology consistent, protect the **Titan → Cael reveal** until the cave's third phase, and make **Tessa's "Salt, not sugar"** setup/payoff part of the main chapter route.
 
 The final Cave is still **locked until the full 300-stage campaign is completed**; reducing that gate, changing wave counts or skipping mandatory maps is **not** part of the story fix. See [v0.80 review notes](docs/V080_CRITIQUE_TRIAGE.md).
 
