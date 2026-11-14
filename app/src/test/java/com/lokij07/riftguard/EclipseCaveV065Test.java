@@ -55,7 +55,7 @@ public class EclipseCaveV065Test {
         assertEquals(StoryProgress.ENDING_GOOD,story.ending());
         assertEquals(300,prefs.getInt("unlocked",0));
     }
-    @Test public void hundredMemoriesRequiredForCoffeeChoiceAndTrueEndingPersists()throws Exception{
+    @Test public void thirtyCaelMemoriesUnlockCoffeeChoiceAndTrueEndingPersists()throws Exception{
         prefs.edit().putInt("unlocked",300).commit();
         RiftGameView g=new RiftGameView(RuntimeEnvironment.getApplication());
         call(g,"startEclipseCave",new Class<?>[]{});
@@ -64,22 +64,31 @@ public class EclipseCaveV065Test {
         call(g,"chooseCaveEnding",new Class<?>[]{int.class},StoryProgress.ENDING_TRUE);
         assertEquals("CAVE_CHOICE",field(g,"scene").toString());
         assertEquals(StoryProgress.ENDING_NONE,story.ending());
-        for(int stage=2;stage<300;stage+=3)assertTrue(story.claimMemory(stage,true,true));
+        int cael=0;
+        for(int stage=2;stage<300&&cael<StoryProgress.caelNeeded();stage+=3)
+            if(KeyMemories.forStage(stage).fromCael){
+                assertTrue(story.claimMemory(stage,true,true));
+                cael++;
+            }
+        assertEquals(30,cael);
+        assertTrue(story.total()<100);
         assertTrue(story.trueEndingUnlocked());
         call(g,"chooseCaveEnding",new Class<?>[]{int.class},StoryProgress.ENDING_TRUE);
         assertEquals("CAVE_END",field(g,"scene").toString());
         assertEquals(StoryProgress.ENDING_TRUE,new StoryProgress(prefs).ending());
-        assertEquals(10,story.restoredSeals());
+        assertTrue(story.restoredSeals()<10);
     }
     @Test public void allThreeEndingScriptsRemainLinkedToSourceCharacters(){
         StoryScript.Line[] opening=StoryScript.eclipseCaveOpening("Warden");
         assertTrue("Chapter may expand without invalidating continuity",opening.length>=6);
-        boolean findsCael=false,findsWarden=false;
+        boolean findsTitan=false,findsWarden=false;
         for(StoryScript.Line line:opening){
-            if("CAEL".equals(line.speaker))findsCael=true;
+            if("TITAN".equals(line.speaker))findsTitan=true;
             if("WARDEN".equals(line.speaker))findsWarden=true;
         }
-        assertTrue(findsCael&&findsWarden);
+        assertTrue("The true identity is withheld until phase three",
+                findsTitan&&findsWarden);
+        assertEquals("CAEL",StoryScript.eclipsePhaseThree()[1].speaker);
         assertTrue(StoryScript.eclipsePhaseTwo().length>=2);
         assertTrue(StoryScript.eclipsePhaseThree().length>=2);
         for(int ending=1;ending<=3;ending++){

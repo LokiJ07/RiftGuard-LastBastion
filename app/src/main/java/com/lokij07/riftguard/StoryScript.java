@@ -102,9 +102,9 @@ public final class StoryScript {
             l("NARRATOR","The Rift opens above the last surviving fortress. The ten regions begin to fall.",CAVE),
             l("OLD TESSA","One cup before the watch, "+name+". You are not defending these walls on an empty stomach.",TESSA),
             l("WARDEN","The kettle is the only thing in this place that still keeps its promises.",WARDEN),
-            l("NARRATOR","A dark hand reaches through the Rift. The kape, Chada, and Bantay vanish into Eclipse Cave.",TREASURE),
+            l("NARRATOR","A dark hand reaches through the Rift. Bantay and the old kettle vanish into Eclipse Cave. Chada shatters in the Knight's grip, its pieces scattering across the ten worlds.",TREASURE),
             l("BANTAY","(A startled bark fades into the Rift. The little dog is gone.)",BANTAY),
-            l("CAEL","Come and take them back. If you can reach the cave.",CAEL),
+            l("TITAN","Come and take them back. If you can reach the cave.",CAEL),
             l("WARDEN","Fine. But when I get there, you're making the coffee.",WARDEN)
         };
     }
@@ -118,6 +118,7 @@ public final class StoryScript {
                 l("WARDEN","Keep a cup for me. Preferably one that isn't on fire.",WARDEN)};
             case 1:return new Line[]{
                 l("NARRATOR","In Whispering Woods, every extinguished lantern closes another road.",CAVE),
+                l("OLD TESSA","Keep one lantern lit for whoever is still finding their way home. And eat before you go.",TESSA),
                 l("WARDEN","Something is saying my name in those trees.",WARDEN),
                 l("NARRATOR","The branches whisper a warning, not a threat.",BOSS)};
             case 2:return new Line[]{
@@ -125,6 +126,7 @@ public final class StoryScript {
                 l("WARDEN","A kettle is worth a swamp. I hope.",WARDEN)};
             case 3:return new Line[]{
                 l("NARRATOR","Ember Canyon is burning. Chada's broken hilt lies somewhere in the ash.",CAVE),
+                l("OLD TESSA","Bring Chada home in pieces if you must. I kept your chair beside the fire.",TESSA),
                 l("WARDEN","I can manage without a sword. I would rather not.",WARDEN)};
             case 4:return new Line[]{
                 l("NARRATOR","Frostpeak's blizzard has sealed the last supply pass.",CAVE),
@@ -146,7 +148,7 @@ public final class StoryScript {
             default:return new Line[]{
                 l("NARRATOR","The eclipse reaches the Citadel. Every ally returns to defend the Last Bastion.",CAVE),
                 l("WARDEN","One more gate. Everyone, hold your ground.",WARDEN),
-                l("CAEL","You cannot keep them all safe. Nobody can.",CAEL)};
+                l("TITAN","You cannot keep them all safe. Nobody can.",CAEL)};
         }
     }
     public static Line[] beforeWorldBoss(int world){
@@ -155,11 +157,11 @@ public final class StoryScript {
             l("NARRATOR",BOSS_BACKSTORY[world],BOSS),
             l("BANTAY","(A distant bark. The Companion is not physically here.)",BANTAY),
             l("WARDEN","I heard you! Hold on!",WARDEN),
-            l("CAEL",BOSS_OPEN[world],CAEL)
+            l("TITAN",BOSS_OPEN[world],CAEL)
         };
         return new Line[]{
             l("NARRATOR",BOSS_BACKSTORY[world],BOSS),
-            l("CAEL",BOSS_OPEN[world],CAEL),
+            l("TITAN",BOSS_OPEN[world],CAEL),
             l("WARDEN",KNIGHT_REPLY[world],WARDEN)
         };
     }
@@ -171,7 +173,7 @@ public final class StoryScript {
             l("OLD TESSA","Get everyone inside. I will hold this gate.",TESSA),
             l("NARRATOR","Old Tessa shields the wounded until the last defender can escape. She does not return.",TESSA),
             l("NARRATOR","The Warden comes home to an unlit fire. Tessa's cup stands empty on the wall.",EMPTY_CUP),
-            l("CAEL","Now you know what I know.",CAEL),
+            l("TITAN","Now you know what I know.",CAEL),
             l("WARDEN","...",WARDEN),
             l("CAPTAIN YSOLDE",ALLY_JOIN[world],ALLY),
             l("WARDEN","Then stand with me. For her.",WARDEN),
@@ -180,7 +182,7 @@ public final class StoryScript {
         if(world==9)return new Line[]{
             l("ECLIPSE GATE ASPECT",BOSS_LAST[world],BOSS),
             l("NARRATOR","Dorin, Mira, Hale, Garrick, Ysolde, Pell, Lume and Nessa secure the final gate.",ALLY),
-            l("CAEL","You have reached every seal. You will still have to face me alone.",CAEL),
+            l("TITAN","You have reached every seal. You will still have to face me alone.",CAEL),
             l("WARDEN","Not alone. Not anymore.",WARDEN),
             l("NARRATOR","The Eclipse Seal is restored. Beneath the Citadel, the quiet Eclipse Cave opens.",CAVE)
         };
@@ -189,7 +191,7 @@ public final class StoryScript {
         if(world==8)return new Line[]{
             l("SHADOW REVENANT",BOSS_LAST[world],BOSS),
             l("NARRATOR","The captain of the First Warden lowers his weapon and falls into the shadow.",BOSS),
-            l("CAEL","How many Wardens came before you? Enough.",CAEL),
+            l("TITAN","How many Wardens came before you? Enough.",CAEL),
             l("NARRATOR","For one night, the Warden's own shadow fights beside him. It does not follow him home.",ALLY),
             l("WARDEN","I am scared.",WARDEN),
             l("NARRATOR","The Bastion's fire burns beside Tessa's untouched cup. Nobody laughs.",EMPTY_CUP),
@@ -212,7 +214,10 @@ public final class StoryScript {
                 boss,ally,reward,
                 l("OLD TESSA","The kape is back. The real one. Here.",TESSA),
                 l("WARDEN","Ahh. That is the good stuff.",WARDEN),
-                l("CAEL","Do not get used to it.",CAEL)};
+                l("OLD TESSA","Salt, not sugar, in the first cup. Trust me.",TESSA),
+                l("WARDEN","Salt? In coffee?",WARDEN),
+                l("OLD TESSA","Humor an old woman.",TESSA),
+                l("TITAN","Do not get used to it.",CAEL)};
             case 3:return new Line[]{
                 boss,ally,reward,
                 l("GARRICK","The hilt is warm. Like it remembers you.",ALLY),
@@ -221,7 +226,9 @@ public final class StoryScript {
                 boss,ally,reward,
                 l("NARRATOR","Pell hangs a new brewing pot where Tessa once worked.",EMPTY_CUP),
                 l("WARDEN","She would have hated that pot.",WARDEN),
-                l("PELL","I know. We will keep it warm anyway.",ALLY)};
+                l("PELL","I know. There was a note inside her old pot: 'Salt, not sugar. Trust me.'",ALLY),
+                l("WARDEN","...Pour it.",WARDEN),
+                l("NARRATOR","The Warden takes the first sip since Tessa died. For a moment, the Bastion feels like home.",EMPTY_CUP)};
             case 6:return new Line[]{
                 boss,ally,reward,
                 l("NARRATOR","Chada is whole again. The Rift screams as the Knight draws the sword.",TREASURE),
@@ -233,7 +240,7 @@ public final class StoryScript {
                 l("NESSA","I can hear him. He is waiting for you.",ALLY)};
             default:return new Line[]{
                 boss,
-                l("CAEL","How many Wardens came before you? Enough.",CAEL),
+                l("TITAN","How many Wardens came before you? Enough.",CAEL),
                 l("NARRATOR","The Companion's trail winds into the dark beneath the Citadel.",TREASURE),
                 l("WARDEN","I am scared.",WARDEN),
                 l("NARRATOR","The fire burns beside Tessa's empty cup. Nobody laughs.",EMPTY_CUP)};
@@ -242,18 +249,18 @@ public final class StoryScript {
     public static Line[] eclipseCaveOpening(String name){
         return new Line[]{
             l("NARRATOR","The final seal breaks. The cave beyond is silent.",CAVE),
-            l("NARRATOR","A full cup of kape, Chada, and a living Companion wait beside a shrine built by the First Warden.",TREASURE),
+            l("NARRATOR","A full cup of kape and a living Bantay wait beside a shrine built by the First Warden. The Knight still carries the reforged Chada.",TREASURE),
             l("NARRATOR","There is an empty chair at the shrine. No one has sat there for years.",EMPTY_CUP),
-            l("CAEL","Ten seals. Ten worlds. You really did it.",CAEL),
+            l("TITAN","Ten seals. Ten worlds. You really did it.",CAEL),
             l("WARDEN","Where is my friend?",WARDEN),
-            l("CAEL","Safe. Safer than you will be.",CAEL),
+            l("TITAN","Safe. Safer than you will be.",CAEL),
             l("WARDEN","Then stop talking.",WARDEN)
         };
     }
     public static Line[] eclipsePhaseTwo(){
         return new Line[]{
             l("NARRATOR","At half strength, the Titan lowers his weapon and stops attacking.",BOSS),
-            l("CAEL","I was a Warden too, you know.",CAEL),
+            l("TITAN","I was a Warden too, you know.",CAEL),
             l("WARDEN","Then you know I will not stop.",WARDEN)
         };
     }
@@ -273,10 +280,10 @@ public final class StoryScript {
             l("NARRATOR","The Rift closes. The Knight, Bantay and Cael rest on the Bastion wall beside Tessa's cup.",EMPTY_CUP)
         };
         if(ending==StoryProgress.ENDING_PARTIAL)return new Line[]{
-            l("BANTAY","(A faint bark echoes from the distant Rift.)",BANTAY),
-            l("WARDEN","We made it out. But something is still missing.",WARDEN),
-            l("CAEL","The Rift is not done with you.",CAEL),
-            l("NARRATOR","Another Rift opens beyond a different world.",CAVE)
+            l("BANTAY","(Bantay rushes to the Knight and refuses to let go.)",BANTAY),
+            l("WARDEN","We are leaving. Both of us.",WARDEN),
+            l("CAEL","The Rift is not done with you. Neither am I.",CAEL),
+            l("NARRATOR","Behind them, Cael's broken Titan armor stirs. Another Rift opens beyond a distant world.",CAVE)
         };
         return new Line[]{
             l("NARRATOR","Chada ends the Titan. The Rift closes.",CAVE),
@@ -284,6 +291,49 @@ public final class StoryScript {
             l("WARDEN","No one should drink alone.",WARDEN),
             l("NARRATOR","The Warden pours a second cup each morning. No one ever drinks it.",EMPTY_CUP)
         };
+    }
+    /**
+     * First-clear mid-chapter moments: one tiny skippable scene every three
+     * campaign levels, never a combat objective or replay requirement.
+     * Characters only speak after they could have joined the Bastion;
+     * Tessa never appears in a present-day scene after Frostpeak (world 5).
+     */
+    public static Line[] campBanter(int level,String name){
+        if(level<1||level>100)throw new IllegalArgumentException("level");
+        if(level%3!=0)return new Line[0];
+        int world=(level-1)/10;
+        switch(world){
+            case 0:return new Line[]{
+                l("OLD TESSA","You kept the gate standing, "+name+". Have you eaten anything today?",TESSA),
+                l("WARDEN","Does coffee count? No? I was afraid you would say that.",WARDEN)};
+            case 1:return new Line[]{
+                l("OLD TESSA","A single lantern cannot light the whole forest. But it can lead one traveler home.",TESSA),
+                l("WARDEN","Then we leave another burning for the next traveler.",WARDEN)};
+            case 2:return new Line[]{
+                l("OLD TESSA","Being afraid is not the same as giving up, you know.",TESSA),
+                l("WARDEN","Good. I have been afraid since the first bridge.",WARDEN)};
+            case 3:return new Line[]{
+                l("OLD TESSA","Chada can break. The promise you made with her cannot.",TESSA),
+                l("WARDEN","Then I will carry the pieces until I can put her back together.",WARDEN)};
+            case 4:return new Line[]{
+                l("OLD TESSA","If the snow closes the road, come home slowly. I will keep the fire lit.",TESSA),
+                l("WARDEN","I am saving a seat beside that fire.",WARDEN)};
+            case 5:return new Line[]{
+                l("CAPTAIN YSOLDE","I have kept the fire burning by Tessa's empty chair.",ALLY),
+                l("WARDEN","Good. A home is more than the walls we can still defend.",WARDEN)};
+            case 6:return new Line[]{
+                l("PELL","The old brewing pot is warm again. I think Tessa would have scolded my soldering.",ALLY),
+                l("WARDEN","She would have. Then she would have poured us both a cup.",WARDEN)};
+            case 7:return new Line[]{
+                l("LUME","These crystals remember footsteps, voices, and people we thought lost.",ALLY),
+                l("WARDEN","Then listen for Bantay. I know he is still out there.",WARDEN)};
+            case 8:return new Line[]{
+                l("NESSA","Bantay's trail does not end in the storm. It turns toward the old citadel.",ALLY),
+                l("WARDEN","I am coming, old friend. Keep barking.",WARDEN)};
+            default:return new Line[]{
+                l("NESSA","Everyone is at their post. The Bastion is holding because they chose to stay.",ALLY),
+                l("WARDEN","Then I choose to come back to them.",WARDEN)};
+        }
     }
     public static Line[] memory(KeyMemories.Memory m){
         if(m==null)return null;

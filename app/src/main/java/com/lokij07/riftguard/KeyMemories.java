@@ -26,7 +26,7 @@ public final class KeyMemories {
             K("A starving pup in the Greenhaven fields. You split your last bread and he never left."),
             K("The gate guards said no animals. You said no Knight, then."),
             K("Tessa let the pup in 'if he carries his own weight.' He carried one boot."),
-            K("The first time you drew Chada, over a wolf in a farmyard. Your hands would not stop shaking."),
+            K("The first time you swung a borrowed sword at a wolf in the farmyard. Your hands would not stop shaking."),
             K("Dorin's father showed you how to mend a fence. 'A wall is just patience.'"),
             K("Harvest festival. Your Companion stole an entire roast chicken and shared none."),
             K("Night watch. You noticed the Rift hums when everything else is quiet."),
@@ -57,15 +57,15 @@ public final class KeyMemories {
             C("From Cael's journal: 'The Rift grows when we are afraid. I am always afraid.'"),
             K("Drowned travelers' lanterns still glow under the water, pointing the way out."),
             K("Hale confessed he kept a Rift shard. 'I was afraid of being useless.'"),
-            K("The Warden before you said as he handed over Chada: 'Be afraid. Fight anyway.'"),
-            K("Your first night as Warden. Alone on the wall, afraid, and the Companion would not leave your side.")
+            K("The Warden before you let you practice with Chada once. 'Be afraid. Fight anyway,' he said before taking the heirloom back."),
+            K("Your first night on watch as a trainee. Alone on the wall, afraid, and Bantay would not leave your side.")
         },
         // ---- World 4: Ember Canyon (duty, Chada) ----
         {
             K("Training with a wooden sword, you hit everything but the target."),
             K("Garrick forged his first nail and kept it. 'Every sword starts as something small.'"),
             K("The day you were knighted. Chada was placed in your hands and it felt heavier than a mountain."),
-            K("You named her Chada because she made a bad day feel brave."),
+            K("You asked Garrick why the heirloom was called Chada. He said, 'Because she makes a bad day feel brave.' You vowed to earn that name."),
             C("Cael carried Chada's twin into his first battle. It never left his side. Until it did."),
             K("The Colossus once carried supplies to the canyon forts. He let you ride on his back."),
             K("You broke a training dummy in anger. Tessa handed you coffee instead of a lecture."),
@@ -142,7 +142,7 @@ public final class KeyMemories {
         {
             K("The night the Rift opened above the Bastion. You stood on the wall and could not move."),
             K("Tessa pressed a cup into your hands. 'Whatever happens, drink it while it is hot.'"),
-            K("The Titan reached across the Bastion. Three things vanished: kape, sword, and friend."),
+            K("The Titan reached across the Bastion. Bantay and the kettle vanished; Chada shattered in your hands."),
             K("Dorin, Mira, Hale, Garrick, Ysolde, Pell, Lume and Nessa sat at one table. Nobody spoke. Nobody left."),
             C("Cael's first night as the Titan: 'I forgot why I kept them. I only know I must keep them.'"),
             C("Cael talked to an empty chair every evening. The chair never answered."),

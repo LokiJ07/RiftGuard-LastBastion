@@ -35,6 +35,8 @@ public final class StoryProgressV065Test {
         }
         assertEquals(100,count);
         assertEquals(33,cael);
+        assertEquals(33,StoryProgress.caelTotal());
+        assertEquals(30,StoryProgress.caelNeeded());
         assertTrue(KeyMemories.isWorldFinalKey(Campaign.stage(10,2)));
         assertFalse(KeyMemories.isWorldFinalKey(Campaign.stage(9,2)));
     }
@@ -95,13 +97,13 @@ public final class StoryProgressV065Test {
     @Test public void scriptedBossLinesRespectTenWorlds(){
         StoryScript.Line[] opening=StoryScript.prologue("Aeron");
         assertTrue("Expanded prologue retains key story beats",opening.length>=4);
-        boolean tessa=false,cael=false,bantay=false;
+        boolean tessa=false,titan=false,bantay=false;
         for(StoryScript.Line line:opening){
             if("OLD TESSA".equals(line.speaker)||"TESSA".equals(line.speaker))tessa=true;
-            if("CAEL".equals(line.speaker))cael=true;
+            if("TITAN".equals(line.speaker))titan=true;
             if("BANTAY".equals(line.speaker))bantay=true;
         }
-        assertTrue("Opening must retain Tessa, Cael and Bantay",tessa&&cael&&bantay);
+        assertTrue("Opening retains Tessa, masked Titan and Bantay",tessa&&titan&&bantay);
         for(int world=0;world<10;world++){
             assertTrue(StoryScript.beforeWorldBoss(world).length>=2);
             assertTrue(StoryScript.afterWorldBoss(world).length>=2);
