@@ -79,6 +79,23 @@ public class EnemyCoordinationIntegrationV075Test {
         assertNotEquals(first,(int)get(g,"siegeFocusPad"));
         assertTrue((float)get(slinger,"x")<1550f);
     }
+    @Test public void severalRaidersCannotCrashWhenFocusedTurretFallsInSameFrame()
+            throws Exception{
+        RiftGameView g=game(40,SquadTacticsV065.SIEGE);
+        float[] hp=(float[])get(g,"towerHp");
+        float[] xs=(float[])get(g,"towerX"),ys=(float[])get(g,"towerY");
+        int[] towers=(int[])get(g,"towers");
+        assertTrue(towers[1]>0);
+        hp[1]=5f; // first real attack destroys the marked gun
+        for(int i=0;i<3;i++)
+            units(g).add(enemy(1,xs[1]+145f,ys[1]+(i-1)*4f,175f));
+        tick(g,.06f);
+        assertEquals(0,towers[1]);
+        assertEquals(0f,hp[1],.001f);
+        assertEquals(3,units(g).size()); // no extra spawns or exceptions
+        tick(g,.06f);
+        assertNotEquals(1,(int)get(g,"siegeFocusPad"));
+    }
     @Test public void livingShieldEnablesPhysicalHealerRetreat()throws Exception{
         RiftGameView g=game(40,SquadTacticsV065.SHIELD_WALL);
         set(g,"heroX",1330f);set(g,"heroY",610f);
