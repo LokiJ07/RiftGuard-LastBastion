@@ -4810,8 +4810,8 @@ public final class RiftGameView extends View {
 
         round(c,465,137,1204,226,15,0xff263f4b);
         text(c,"CHARACTER LEVEL "+wardenLevel.level()+" / 100",487,165,24,GOLD,false);
-        text(c,"TOTAL EXPERIENCE  "+wardenLevel.totalXp()+" / "+WardenLevelsV078.maxXp(),
-                1184,166,17,0xffc6ddd5,true);
+        textFit(c,"TOTAL XP  "+wardenLevel.totalXp()+" / "+WardenLevelsV078.maxXp(),
+                1055,166,260,16,0xffc6ddd5,true);
         bar(c,490,181,675,15,wardenLevel.progress(),0xff9fe2bb);
         text(c,wardenLevel.level()>=100?"MAX LEVEL • ALL POINTS EARNED":
                 "XP "+wardenLevel.xpIntoLevel()+" / "+wardenLevel.xpNeeded()+
@@ -5474,10 +5474,12 @@ public final class RiftGameView extends View {
                 640,388,21,INK,true);
         if(scene==Scene.WIN){
             round(c,414,104,868,160,13,0xee203a43);
-            textFit(c,"WARDEN EXP +"+lastEarnedWardenXp+"  •  LV "+
-                    wardenLevel.level()+
-                    (lastGainedWardenLevels>0?"  LEVEL UP! +"+
-                            lastEarnedWardenPoints+" PTS":""),640,139,
+            textFit(c,"EXP +"+lastEarnedWardenXp+"  •  LV "+
+                    (lastGainedWardenLevels>0?
+                            lastWardenFromLevel+" → "+wardenLevel.level():
+                            ""+wardenLevel.level())+
+                    (lastGainedWardenLevels>0?"  •  LEVEL UP +"+
+                            lastEarnedWardenPoints+" POINTS":""),640,139,
                     414,20,lastGainedWardenLevels>0?0xffffd48d:0xffb1ecd0,true);
         }
         if(scene==Scene.WIN)
