@@ -1796,7 +1796,8 @@ public final class RiftGameView extends View {
             caer.squadRole=SquadTacticsV065.COMMANDER;
             caer.anatomy=new BossAnatomyV065(9,caer.maxHp);
             caer.specialTimer=3.5f;enemies.add(caer);
-            announce("CAEL • THE FIRST WARDEN");return;
+            // Preserve the final boss's identity until the Phase 3 reveal.
+            announce("THE ECLIPSE TITAN • FINAL CONFRONTATION");return;
         }
         float x=LaneRules.ENEMY_SPAWN_X-random.nextFloat()*26f;
         float y=LaneRules.stageEnemyY(stage,random.nextFloat()*96f-48f);
@@ -4256,7 +4257,8 @@ public final class RiftGameView extends View {
     private boolean drawBossHud(Canvas c) {
         for(Enemy e:enemies)if(e.boss&&e.hp>0) {
             round(c,415,109,865,166,14,0xe91f2536);
-            String name=caveMode?"CAEL • THE FIRST WARDEN":
+            String name=caveMode?(e.bossPhase>=3?
+                    "CAEL • THE FIRST WARDEN":"THE ECLIPSE TITAN"):
                     e.worldBoss?DifficultyRules.worldBossName(stage):
                     "ELITE SIEGE COMMANDER";
             text(c,name,640,130,20,0xffffd2a0,true);
@@ -5720,8 +5722,10 @@ public final class RiftGameView extends View {
         round(c,43,24,1237,691,24,0xf017303d);
         text(c,"THE WARDEN'S CHRONICLE",79,84,47,GOLD,false);
         text(c,"WARDEN: "+storyProgress.wardenName(),79,123,21,INK,false);
-        text(c,"MEMORIES "+storyProgress.total()+"/100   •   WORLD SEALS "+
-                storyProgress.ownedSeals()+"/10",810,115,20,GOLD,false);
+        textFit(c,"MEMORIES "+storyProgress.total()+"/100   •   CAEL "+
+                storyProgress.caelCount()+"/"+StoryProgress.caelTotal()+
+                "   •   SEALS "+storyProgress.ownedSeals()+"/10",
+                909,115,600,19,GOLD,true);
         for(int world=0;world<10;world++){
             float y=149+world*45;
             round(c,72,y,572,y+41,8,chronicleWorld==world?0xff70674d:0xff2c4b55);
@@ -5813,15 +5817,18 @@ public final class RiftGameView extends View {
         round(c,66,52,1213,666,24,0xff171c35);
         border(c,66,52,1213,666,24,0xffc9a777,3);
         text(c,"THE FIRST WARDEN • THE FINAL CHOICE",640,131,40,GOLD,true);
-        textFit(c,"Cael's armor lies broken. Chada waits beside an untouched cup.",
+        textFit(c,"Cael's armor lies broken. Bantay waits by the cup; Chada is in your hand.",
                 640,210,1034,25,INK,true);
         textFit(c,"Do you end the Titan, or offer what he lost?",640,270,980,28,
                 0xffc9dfdd,true);
-        text(c,"MEMORIES RECOVERED  "+storyProgress.total()+" / 100",
-                640,339,22,0xffd7c38c,true);
+        textFit(c,"CAEL'S MEMORIES "+storyProgress.caelCount()+" / "+
+                StoryProgress.caelTotal()+"  •  SAVE CAEL AT "+
+                StoryProgress.caelNeeded()+"  •  TOTAL "+storyProgress.total()+"/100",
+                640,339,950,21,0xffd7c38c,true);
         button(c,102,405,608,502,"USE CHADA • END THE TITAN",0xff85624e);
         button(c,651,405,1174,502,storyProgress.trueEndingUnlocked()?
-                "OFFER KAPE • SAVE CAEL":"OFFER KAPE • LOCKED (100 KEYS)",
+                "OFFER KAPE • SAVE CAEL":"OFFER KAPE • NEED "+
+                StoryProgress.caelNeeded()+" CAEL KEYS",
                 storyProgress.trueEndingUnlocked()?0xff5f8c76:0xff424a55);
         button(c,101,526,1174,600,"LEAVE THE CAVE • RIFT UNRESOLVED",0xff594f75);
         text(c,"Ending choices are saved. Replay the Cave to revisit.",
@@ -5839,7 +5846,7 @@ public final class RiftGameView extends View {
         String epilogue=caveEnding==StoryProgress.ENDING_TRUE?
                 "Cael is freed. Kape waits beside Tessa's cup.":
                 caveEnding==StoryProgress.ENDING_PARTIAL?
-                "The Warden survives. Another Rift opens in the distance.":
+                "The Warden and Bantay escape. Cael remains bound as another Rift opens.":
                 "The Warden returns home. One cup remains untouched.";
         drawStoryParagraph(c,epilogue,195,291,883,27,45,INK);
         text(c,"ENDING RECORDED IN THE WARDEN'S CHRONICLE",
