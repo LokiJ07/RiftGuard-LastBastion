@@ -251,7 +251,9 @@ public final class RiftGameView extends View {
     private float pendingMeleeFacing=0;
     private float pendingMeleePower=1f;
     private final WeaponComboV065 combo=new WeaponComboV065();
+    private final CombatFlowV082 combatFlow=new CombatFlowV082();
     private WeaponComboV065.Hit activeComboHit;
+    private int pendingMeleeFlowAction;
     private boolean attackGesture=false,chargeNext=false;
     private float heldAttackSeconds=0f;
     private float walkClock;
@@ -281,7 +283,7 @@ public final class RiftGameView extends View {
     private static final class Shot {
         float x,y,speed,damage,life;
         boolean tower;
-        int weaponId=-1,towerSlot=-1;
+        int weaponId=-1,towerSlot=-1,flowAction;
         Enemy target;
         Shot(float x,float y,float damage,float speed,Enemy target,boolean tower) {
             this.x=x; this.y=y; this.damage=damage; this.speed=speed; this.target=target;
@@ -611,7 +613,8 @@ public final class RiftGameView extends View {
         focusedEnemy=null;focusedBossPart=BossAnatomyV065.ARMOR;
         focusedTerrain=null;pendingMeleeTerrain=null;
         terrain=new DestructibleTerrainV065(s);terrainBolts.clear();
-        combo.reset();activeComboHit=null;chargeNext=false;attackGesture=false;
+        combo.reset();combatFlow.reset();combatFlow.beginWave(1);
+        activeComboHit=null;pendingMeleeFlowAction=0;chargeNext=false;attackGesture=false;
         heldAttackSeconds=0f;pendingMeleePower=1f;
         revival.reset(difficultyMode);
         // First-play mission controls must stay unchanged; the illustrated
@@ -1319,6 +1322,8 @@ public final class RiftGameView extends View {
                         SquadTacticsV065.incomingDamage(shot.target.squadRole,
                                 squadPlan,commanderPresent());
                 shot.target.hp-=actualDamage;
+                if(!shot.tower&&shot.flowAction>0)
+                    registerCombatFlow(shot.flowAction);
                 damageBossPart(shot.target,shot.damage);
                 shot.target.hitReaction=.21f;
                 if(!shot.tower)
@@ -1552,10 +1557,13 @@ public final class RiftGameView extends View {
             wave++;remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
             squadPlan=SquadTacticsV065.plan(stage,wave,countArmedTowers(),difficultyMode);
         }
+        combatFlow.beginWave(wave);
         firstWavePending=false;
         resetSiegeMission();
         bossSpawnWarned=false;bossWarningCountdown=0f;
         announce(bossIncoming?"WARNING • WORLD BOSS IN NEXT WAVE":
+                EncounterRhythmV082.plan(stage,wave)!=EncounterRhythmV082.NONE?
+                "INCOMING: "+EncounterRhythmV082.name(stage,wave):
                 "INCOMING: "+SquadTacticsV065.name(squadPlan));
         spawnTimer=DifficultyRules.spawnInterval(stage,difficultyMode);
         intermission=0;waiting=false;waveNotice=2.2f;
@@ -1591,6 +1599,7 @@ public final class RiftGameView extends View {
         start(snap.stage);
         snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
         gold=snap.gold;wave=snap.wave;kills=snap.kills;
+        combatFlow.reset();combatFlow.beginWave(wave);
         resetSiegeMission();
         missionBuilds=snap.built;battlePulses=snap.pulses;
         battleSkillCasts=snap.skillCasts;
@@ -1630,6 +1639,7 @@ public final class RiftGameView extends View {
         waveRetriesUsed=used;
         snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
         gold=snap.gold;wave=snap.wave;kills=snap.kills;
+        combatFlow.reset();combatFlow.beginWave(wave);
         resetSiegeMission();
         missionBuilds=snap.built;battlePulses=snap.pulses;
         battleSkillCasts=snap.skillCasts;
@@ -1819,6 +1829,10 @@ public final class RiftGameView extends View {
                 wave==DifficultyRules.waves(stage,difficultyMode);
         // Hard/Expert mid-stage elites are NOT the story boss.
         if(elite)kind=5;
+        // Signature units REPLACE ordinary enemies; mission threats and
+        // story bosses preserve their authored behavior and population.
+        kind=EncounterRhythmV082.chooseKind(stage,wave,remaining,
+                kind,engine||flank,elite);
         float hp=BattleRules.enemyHealth(stage,kind)*
                 DifficultyRules.health(difficultyMode)*
                 SiegeBalanceV066.waveHealth(wave);
@@ -2230,7 +2244,8 @@ public final class RiftGameView extends View {
         if(!heroAnimation.attack(equippedWeapon))return;
         activeComboHit=combo.attack(equippedWeapon,gameTime,chargeNext);
         float comboPower=activeComboHit.multiplier*
-                AllySupportV065.wardenDamageMultiplier(garrickBlessing>0);
+                AllySupportV065.wardenDamageMultiplier(garrickBlessing>0)*
+                combatFlow.weaponMultiplier(gameTime);
         bufferedAttackTime=0;
         // Spawn the projectile precisely at the displayed weapon's rotating tip,
         // not at the center of the player sprite. This must use the same animation
@@ -2250,6 +2265,9 @@ public final class RiftGameView extends View {
             pendingMeleeWeapon=equippedWeapon;
             pendingMeleeFacing=heroDir;
             pendingMeleePower=comboPower;
+            pendingMeleeFlowAction=activeComboHit.charged?
+                    CombatFlowV082.CHARGED:
+                    activeComboHit.step==3?CombatFlowV082.FINISHER:0;
             pendingMeleeTerrain=prop;
         } else if(prop!=null){
             terrainBolts.add(new TerrainBolt(muzzleX,muzzleY,
@@ -2261,6 +2279,8 @@ public final class RiftGameView extends View {
                     ascension.attackMultiplier()*wardenLevel.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,target,false);
             shot.weaponId=equippedWeapon;
+            shot.flowAction=activeComboHit.charged?CombatFlowV082.CHARGED:
+                    activeComboHit.step==3?CombatFlowV082.FINISHER:0;
             shots.add(shot);
         }
         // Recoil and flash emerge from the held weapon; melee sparks are emitted
@@ -2286,6 +2306,7 @@ public final class RiftGameView extends View {
             pendingMeleeTerrain=null;pendingMeleeWeapon=-1;pendingMeleePower=1f;
             return;
         }
+        boolean flowCredited=false;
         for(Enemy e:enemies) {
             if(e.hp<=0)continue;
             if(!MeleeSwingRules.hits(heroX,heroY,pendingMeleeFacing,
@@ -2296,6 +2317,10 @@ public final class RiftGameView extends View {
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
             e.hp-=meleeDamage*bossArmorMultiplier(e)*
                     SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
+            if(!flowCredited&&pendingMeleeFlowAction>0){
+                registerCombatFlow(pendingMeleeFlowAction);
+                flowCredited=true; // a broad sweep still counts once
+            }
             damageBossPart(e,meleeDamage);
             if(weaponMastery.owned(pendingMeleeWeapon,6)){
                 float control=WeaponTacticsV068.slowSeconds(pendingMeleeWeapon);
@@ -2327,7 +2352,20 @@ public final class RiftGameView extends View {
             if(impacts.size()<64)
                 impacts.add(new Impact(e.x,e.y-18,weapon.color,32));
         }
-        pendingMeleeWeapon=-1;pendingMeleePower=1f;
+        pendingMeleeWeapon=-1;pendingMeleePower=1f;pendingMeleeFlowAction=0;
+    }
+
+    /** Two distinct successful player techniques grant a brief weapon-only
+     * burst and ONE capped battle-gold bonus per wave, never permanent XP. */
+    private void registerCombatFlow(int action){
+        if(action==0||scene!=Scene.PLAY||waiting||revival.isDown())return;
+        if(!combatFlow.onConfirmedAction(action,gameTime))return;
+        int bonus=caveMode?0:combatFlow.awardBattleGold(stage);
+        gold+=bonus;
+        puff(heroX,heroY-26,15,0xffa7f0ce);
+        announce("WARDEN FLOW • +9% WEAPON POWER 7s"+
+                (bonus>0?" • +"+bonus+" GOLD":""));
+        audio.play(GameAudio.EVOLUTION);
     }
 
     /** Kept as the existing Arc Pulse control entry point for compatibility. */
@@ -4120,6 +4158,8 @@ public final class RiftGameView extends View {
             String text=waiting?
                     (firstWavePending?"PREPARE THE FORTRESS":
                             "WAVE CLEARED!  +25 GOLD"):
+                    EncounterRhythmV082.plan(stage,wave)!=EncounterRhythmV082.NONE?
+                    EncounterRhythmV082.name(stage,wave)+"  •  DEFEND":
                     "WAVE "+wave+"  •  DEFEND THE CORE";
             text(c,text,640,159,34,0xfff2e4bf,true);
         }
@@ -4309,6 +4349,10 @@ public final class RiftGameView extends View {
                 1080,137,16,0xffa5daca,true);
         if(activeComboHit!=null)text(c,"COMBO "+activeComboHit.step+
                 (activeComboHit.charged?" • CHARGED":""),872,133,17,0xffeac98b,false);
+        float flowRemaining=combatFlow.remaining(gameTime);
+        if(flowRemaining>0)
+            textFit(c,"WARDEN FLOW  +9%  "+(int)Math.ceil(flowRemaining)+"s",
+                    1005,158,257,17,0xffb0f5d1,true);
         textFit(c,"ACT "+(RealmActsV071.act(stage)+1)+" "+
                 RealmActsV071.name(stage)+" / "+
                 SquadTacticsV065.name(squadPlan),180,135,350,16,0xffffce9e,true);
@@ -6330,6 +6374,17 @@ public final class RiftGameView extends View {
         dodgeDirX=dx;dodgeDirY=dy;
         dodgeTime=DodgeRules.DURATION;
         dodgeCooldown=DodgeRules.COOLDOWN;
+        // Only a near miss of a telegraphed attack counts as an evade;
+        // harmless open-field dodge spam does not generate rewards.
+        if(!waiting)for(Enemy threat:enemies){
+            if(threat.hp<=0||distance(heroX,heroY,threat.x,threat.y)>165f)
+                continue;
+            if(threat.dashWindup>0||threat.engineWindup>0||
+                    threat.specialCharge>0||threat.attackAnim>.05f){
+                registerCombatFlow(CombatFlowV082.EVADE);
+                break;
+            }
+        }
         audio.play(GameAudio.DODGE);
         // Drop pending strike contact so dodging cannot deal invisible damage.
         pendingMelee=false;pendingMeleeWeapon=-1;
