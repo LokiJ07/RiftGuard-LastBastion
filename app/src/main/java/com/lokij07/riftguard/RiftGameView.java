@@ -3367,14 +3367,15 @@ public final class RiftGameView extends View {
         final boolean injured=forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f;
         final float poseTime=heroMoving?walkClock:gameTime;
         final int mastery=weaponMastery.count(equippedWeapon);
+        final int mask=weaponMastery.purchasedMask(equippedWeapon);
         final int form=weaponForm(equippedWeapon),armor=armorForm();
         final boolean rigRendered=USE_VECTOR_WARDEN&&(
                 wardenFrames.draw(c,heroX,heroY,poseTime,heroDir,heroMoving,
                         attackProgress,castProgress,injured,equippedWeapon,
-                        mastery,form,armor,deathProgress) ||
+                        mastery,mask,form,armor,deathProgress) ||
                 wardenRig.hero(c,heroX,heroY,poseTime,heroDir,heroMoving,
                         attackProgress,castProgress,injured,equippedWeapon,
-                        mastery,form,armor,deathProgress));
+                        mastery,mask,form,armor,deathProgress));
         if(!firstBattleActorDiag && scene==Scene.PLAY) {
             firstBattleActorDiag=true;
             android.util.Log.i("RiftGuardVisual",
@@ -3397,6 +3398,7 @@ public final class RiftGameView extends View {
             c.save(); c.translate(heroX+22,heroY-27);
             c.rotate(fireFlash>0?28:0);
             EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                     0,0,.38f,gameTime);
             c.restore();
             return;
@@ -3420,6 +3422,7 @@ public final class RiftGameView extends View {
         c.save();
         c.rotate((float)Math.sin(gameTime*8)*5+(fireFlash>0?36:0),26,-13);
         EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                 26,-18,.66f,gameTime);
         c.restore();
         if(fireFlash>0 && (equippedWeapon==1 || equippedWeapon==2)){
@@ -3573,6 +3576,7 @@ public final class RiftGameView extends View {
                 "PAD "+(selectedTowerPad+1)+"/"+activeTowerCount,
                 buildHudX(),Math.min(707f,buildHudY()+90),15,0xffb9ddd2,true);
         EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                 624,652,.61f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
                 624,703,17,GOLD,true);
@@ -3793,12 +3797,14 @@ public final class RiftGameView extends View {
             boolean rendered=(USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
                     gameTime,-2.2f,false,-1,-1,false,equippedWeapon,
                     weaponMastery.count(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                     weaponForm(equippedWeapon),armorForm(),-1))
                     ||motionArt.hero(c,heroX,heroY,gameTime,
                     -2.2f,false,-1,-1,false,equippedWeapon,
                     weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
             if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
-                    weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
+                    weaponForm(equippedWeapon),weaponMastery.purchasedMask(equippedWeapon),
+                    heroX,heroY-58,.9f,gameTime);
             EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
             EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             if(!USE_VECTOR_ENEMIES||!enemyRig.enemy(c,0,biome,1,
@@ -4118,7 +4124,7 @@ public final class RiftGameView extends View {
             round(c,x,y,x+340,y+192,14,available?0xff294955:0xff293640);
             round(c,x+12,y+15,x+128,y+167,12,0xff172d39);
             EvolvedWeaponArt.draw(c,i,weaponForm(i),
-                    x+69,y+109,1.10f,gameTime);
+                    weaponMastery.purchasedMask(i),x+69,y+109,1.10f,gameTime);
             textFit(c,EvolutionProgress.formName(i,weaponForm(i)),
                     x+146,y+54,180,22,available?INK:0xffa2a6aa,false);
             text(c,w.type+"  /  MASTERY "+weaponMastery.count(i)+"/11",
@@ -4149,7 +4155,7 @@ public final class RiftGameView extends View {
             round(c,left,122,left+176,166,11,
                     selected?0xffa27853:0xff405768);
             EvolvedWeaponArt.draw(c,weapon,weaponForm(weapon),
-                    left+23,159,.33f,gameTime);
+                    weaponMastery.purchasedMask(weapon),left+23,159,.33f,gameTime);
             String label=Progression.WEAPONS[weapon].name.toUpperCase();
             if(label.length()>15)label=label.substring(0,15);
             text(c,label,left+104,151,15,selected?0xffffe0a6:INK,true);
@@ -4209,8 +4215,11 @@ public final class RiftGameView extends View {
         round(c,846,297,1191,365,13,0xff152c38);
         int currentForm=weaponForm(selectedMasteryWeapon);
         int previewForm=Math.max(currentForm,node.tier);
-        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,currentForm,883,350,.52f,gameTime);
-        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,previewForm,954,350,.52f,gameTime);
+        int nodeMask=weaponMastery.purchasedMask(selectedMasteryWeapon);
+        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,currentForm,nodeMask,
+                883,350,.52f,gameTime);
+        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,previewForm,
+                nodeMask|(1<<node.id),954,350,.52f,gameTime);
         textFit(c,"NOW  ->  NEXT APPEARANCE",1080,321,200,15,GOLD,true);
         textFit(c,EvolutionProgress.formName(selectedMasteryWeapon,previewForm),
                 1080,348,205,16,0xffc3eddb,true);
@@ -4250,9 +4259,13 @@ public final class RiftGameView extends View {
         round(c,x-32,y-33,x+32,y+31,11,
                 owned?0xff224d46:available?0xff29495a:0xff1b2f39);
         if(id==0||id==10){
-            EvolvedWeaponArt.draw(c,weapon,node.tier,x,y+21,.34f,gameTime);
+            EvolvedWeaponArt.draw(c,weapon,node.tier,
+                    weaponMastery.purchasedMask(weapon)|(1<<node.id),
+                    x,y+21,.34f,gameTime);
         }else if(node.lane==0){
-            EvolvedWeaponArt.draw(c,weapon,node.tier,x,y+21,.30f,gameTime);
+            EvolvedWeaponArt.draw(c,weapon,node.tier,
+                    weaponMastery.purchasedMask(weapon)|(1<<node.id),
+                    x,y+21,.30f,gameTime);
         }else if(node.lane==1){
             polygon(c,x-16,y+9,x-9,y-10,x+3,y-15,
                     x+19,y+5,x+1,y+18,0xffb5d9e9);
@@ -4535,7 +4548,8 @@ public final class RiftGameView extends View {
         switch(category){
             case AscensionTree.ATTACK:
                 // The actual Warden's independent greatsword model.
-                EvolvedWeaponArt.draw(c,1,weaponForm(1),0,19,.45f,gameTime);
+                EvolvedWeaponArt.draw(c,1,weaponForm(1),
+                        weaponMastery.purchasedMask(1),0,19,.45f,gameTime);
                 break;
             case AscensionTree.CORE:
                 polygon(c,new float[]{-23,27,-23,-10,-14,-10,-14,-25,
@@ -4837,6 +4851,7 @@ public final class RiftGameView extends View {
         c.scale(.85f,.85f);
         wardenRig.hero(c,0,0,gameTime,-.2f,false,-1,-1,false,
                 equippedWeapon,weaponMastery.count(equippedWeapon),
+                weaponMastery.purchasedMask(equippedWeapon),
                 weaponForm(equippedWeapon),armorForm(),-1);
         c.restore();
         if(cael){
