@@ -45,11 +45,15 @@ public final class MissionStory {
         String headline=Campaign.title(stage)+"  -  "+Campaign.MAPS[map].toUpperCase();
         String warning=DifficultyRules.worldBoss(stage)
                 ?"WORLD BOSS: "+DifficultyRules.worldBossName(stage)
-                :SiegeEncountersV068.signatureKind(stage)>=0
-                    ?SiegeEncountersV068.warning(stage):WARNINGS[map];
+                :SiegeMissionsV069.mode(stage)!=SiegeMissionsV069.NONE
+                    ?SiegeMissionsV069.warning(stage)
+                    :SiegeEncountersV068.signatureKind(stage)>=0
+                        ?SiegeEncountersV068.warning(stage):WARNINGS[map];
         String objective="DEFEND YOUR CORE  /  "+
                 Campaign.waves(stage)+" WAVES";
-        return new Briefing(chapter,headline,REGION_LORE[world],ORDERS[map],
+        String order=SiegeMissionsV069.mode(stage)!=SiegeMissionsV069.NONE
+                ?SiegeMissionsV069.orders(stage):ORDERS[map];
+        return new Briefing(chapter,headline,REGION_LORE[world],order,
                 warning,objective);
     }
 }
