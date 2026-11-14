@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, feature/v067-combat-feel-hud-boss-polish, feature/v068-tactical-engagement, feature/v069-dynamic-missions, feature/v070-per-node-weapon-evolution, feature/v071-ten-realm-boss-counterplay, feature/v072-commercial-release-gates]
+    branches: [main, feature/v067-combat-feel-hud-boss-polish, feature/v068-tactical-engagement, feature/v069-dynamic-missions, feature/v070-per-node-weapon-evolution, feature/v071-ten-realm-boss-counterplay, feature/v072-commercial-release-gates, feature/v073-campaign-encounters-balance]
   workflow_dispatch:
   # Nightly automated regression run: 11:21 AM in Asia/Manila (UTC+8).
   # These runs are visible in GitHub Actions; they do not automatically change code.
