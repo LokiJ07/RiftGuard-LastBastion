@@ -1120,23 +1120,30 @@ public final class RiftGameView extends View {
                         }else{
                             int tactic=BossTactics.tactic(stage);
                             if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
-                                baseHp-=(tactic==1?20f:28f)*strength;
+                                baseHp-=caveMode?(tactic==1?20f:28f)*strength:
+                                        CombatReadabilityV076.coreHit(stage,
+                                                (tactic==1?20f:28f)*strength,coreMaxHp());
                                 puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
                                 // Legacy elites and story-cave boss retain their
                                 // already-tested siege/attack mechanics.
                                 int t=nearestBuiltTower(BASE_X,BASE_Y,365f);
-                                if(t>=0)damageTower(t,55f*strength);
+                                if(t>=0)damageTower(t,caveMode?55f*strength:
+                                        CombatReadabilityV076.towerHit(stage,55f*strength,
+                                                TowerDurability.maxHp(towers[t],fortressRank)));
                             }
                             if(BossAssaultV067.heroInRange(stage,e.bossPhase,
                                     e.x,e.y,heroX,heroY)&&!revival.isDown()&&
                                     hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
                                 float bossDamage=(tactic==0?24f:18f)*strength;
-                                heroHp-=bossDamage;
+                                float fairDamage=caveMode?bossDamage:
+                                        CombatReadabilityV076.heroHit(stage,bossDamage,
+                                                heroMaxHp());
+                                heroHp-=fairDamage;
                                 hurtCooldown=.8f;
                                 heroAnimation.hurt();
                                 pendingMelee=false;pendingMeleeWeapon=-1;
                                 combatFeel.onDamage(heroX,heroY-18,
-                                        tactic==2?0xffa1eeae:0xffe5a0fa,true,bossDamage);
+                                        tactic==2?0xffa1eeae:0xffe5a0fa,true,fairDamage);
                                 puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
                                 audio.play(GameAudio.HURT);
                                 if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
@@ -1414,7 +1421,8 @@ public final class RiftGameView extends View {
                 if(EnemySpecials.boltConnects(b.tx,b.ty,heroX,heroY-25)
                         &&hurtCooldown<=0&&!revival.isDown()&&
                         !DodgeRules.invulnerable(dodgeTime)){
-                    heroHp-=17*DifficultyRules.enemyDamage(difficultyMode);
+                    heroHp-=CombatReadabilityV076.heroHit(stage,
+                            17f*DifficultyRules.enemyDamage(difficultyMode),heroMaxHp());
                     hurtCooldown=.65f;
                     audio.play(GameAudio.HURT);
                     puff(heroX,heroY-26,8,0xffcda5f3);
@@ -2871,7 +2879,8 @@ public final class RiftGameView extends View {
                 // Brambles and frost slow only, to keep early regions approachable.
                 if(StageHazards.slows(stage))hazardSlowTimer=1.3f;
                 if(!DodgeRules.invulnerable(dodgeTime))
-                    heroHp-=StageHazards.heroDamage(stage,difficultyMode);
+                    heroHp-=CombatReadabilityV076.heroHit(stage,
+                            StageHazards.heroDamage(stage,difficultyMode),heroMaxHp());
                 hit=true;
             }
             for(Enemy e:enemies)if(e.hp>0&&distance(e.x,e.y,x,y)<radius) {

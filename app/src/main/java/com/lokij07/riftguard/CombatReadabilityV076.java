@@ -69,6 +69,7 @@ public final class CombatReadabilityV076 {
     }
     private static String tenths(float value){
         if(!Float.isFinite(value))value=0;
-        return String.format(java.util.Locale.US,"%.1f",Math.max(0f,value));
+        int units=Math.max(0,Math.round(value*10f));
+        return (units/10)+"."+(units%10);
     }
 }
