@@ -244,7 +244,7 @@ public final class RiftGameView extends View {
                 hitReaction;
         boolean moving,boss,worldBoss,siegeEngine,flankRoute;
         int flankSide;
-        float engineCooldown,engineWindup;
+        float engineCooldown,engineWindup,engineWindupHp;
         // Locked when world-boss channel begins, not retargeted every frame.
         int realmLockedTower=-1;
         float realmLockedX,realmLockedY;
@@ -835,8 +835,9 @@ public final class RiftGameView extends View {
                 if(e.flankRoute)flankKills++;
                 if(e.siegeEngine&&!missionEventRewarded){
                     engineStopped=true;missionEventRewarded=true;
-                    gold+=SiegeMissionsV069.bonusGold(SiegeMissionsV069.ENGINE);
-                    announce("SIEGE ENGINE DISABLED • +35 GOLD");
+                    int reward=CampaignEncountersV073.bonusGold(stage,SiegeMissionsV069.ENGINE);
+                    gold+=reward;
+                    announce("SIEGE ENGINE DISABLED • +"+reward+" GOLD");
                 }
                 // Smaller formations must not bankrupt tower upgrades.
                 gold+=SiegeBalanceV066.killGold(stage,wave,difficultyMode,e.kind);
@@ -867,11 +868,18 @@ public final class RiftGameView extends View {
             float dHero=distance(e.x,e.y,heroX,heroY);
             if(e.siegeEngine){
                 if(e.engineWindup>0){
-                    e.engineWindup=Math.max(0,e.engineWindup-dt);
+                    if(e.hp<=e.engineWindupHp-e.maxHp*
+                            CampaignEncountersV073.interruptFraction(stage)){
+                        e.engineWindup=0f;
+                        e.engineCooldown=Math.max(e.engineCooldown,3.2f);
+                        puff(e.x,e.y-70,15,0xffc7f0d5);
+                        announce("CANNON INTERRUPTED • KEEP DEFENDED!");
+                    }else e.engineWindup=Math.max(0,e.engineWindup-dt);
                     if(e.engineWindup<=0){
                         siegeShots++;
                         baseHp=Math.max(0,baseHp-
-                                65f*DifficultyRules.enemyDamage(difficultyMode));
+                                CampaignEncountersV073.engineDamage(stage,
+                                        difficultyMode,coreMaxHp()));
                         puff(BASE_X,BASE_Y-95,19,0xffffa871);
                         e.attackAnim=.42f;
                         audio.play(GameAudio.TOWER_CANNON);
@@ -882,6 +890,7 @@ public final class RiftGameView extends View {
                     e.engineCooldown-=dt;
                     if(e.engineCooldown<=0){
                         e.engineWindup=SiegeMissionsV069.ENGINE_WINDUP;
+                        e.engineWindupHp=e.hp;
                         e.engineCooldown=SiegeMissionsV069.ENGINE_INTERVAL;
                         audio.play(GameAudio.BOSS_WARN);
                     }
@@ -1094,7 +1103,8 @@ public final class RiftGameView extends View {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0){
                     caravanHp=Math.max(0,caravanHp-
-                            (e.kind==2?19f:11f)*DifficultyRules.enemyDamage(difficultyMode));
+                            CampaignEncountersV073.cartDamage(stage,difficultyMode,
+                            e.kind,caravanGuarded()));
                     caravanUnderAttack=true;e.attackAnim=.42f;e.attackTimer=1.8f;
                     puff(caravanX,caravanY()-25,9,0xffffaf78);
                     if(caravanHp<=0){
@@ -1351,8 +1361,9 @@ public final class RiftGameView extends View {
                     SiegeMissionsV069.mode(stage)==SiegeMissionsV069.SPLIT&&
                     !missionEventRewarded&&flankKills>=2&&flankBreaches==0){
                 missionEventRewarded=true;
-                gold+=SiegeMissionsV069.bonusGold(SiegeMissionsV069.SPLIT);
-                announce("FLANKERS INTERCEPTED • +30 GOLD");
+                int reward=CampaignEncountersV073.bonusGold(stage,SiegeMissionsV069.SPLIT);
+                gold+=reward;
+                announce("FLANKERS INTERCEPTED • +"+reward+" GOLD");
             }
             if(!waiting){waiting=true;
                 intermission=WavePacingV065.seconds(difficultyMode,
@@ -1478,21 +1489,26 @@ public final class RiftGameView extends View {
     /** Every wave retry/cold relaunch replays its deterministic boundary. */
     private void resetSiegeMission(){
         caravanX=SiegeMissionsV069.CART_START_X;
-        caravanHp=SiegeMissionsV069.CART_MAX_HP;
+        caravanHp=CampaignEncountersV073.cartMaxHp(stage,difficultyMode);
         caravanUnderAttack=false;missionEventRewarded=false;engineStopped=false;
         siegeShots=0;flankKills=0;flankBreaches=0;
     }
     private float caravanY(){return LaneRules.stagePathY(stage,caravanX)+16f;}
+    private boolean caravanGuarded(){
+        return CampaignEncountersV073.guarding(heroX,heroY,caravanX,caravanY());
+    }
     private void updateSiegeMission(float dt){
         if(!SiegeMissionsV069.active(stage,wave)||waiting||scene!=Scene.PLAY)return;
         if(SiegeMissionsV069.mode(stage)==SiegeMissionsV069.ESCORT&&
                 !SiegeMissionsV069.cartSafe(caravanX)&&caravanHp>0){
-            caravanX=SiegeMissionsV069.cartNext(caravanX,dt);
+            caravanX=Math.max(SiegeMissionsV069.CART_SAFE_X,
+                    caravanX-CampaignEncountersV073.cartSpeed(stage,caravanGuarded())*dt);
             if(SiegeMissionsV069.cartSafe(caravanX)&&!missionEventRewarded){
                 missionEventRewarded=true;
-                gold+=SiegeMissionsV069.bonusGold(SiegeMissionsV069.ESCORT);
+                int reward=CampaignEncountersV073.bonusGold(stage,SiegeMissionsV069.ESCORT);
+                gold+=reward;
                 puff(caravanX,caravanY()-40,18,0xffafe9bd);
-                announce("CARAVAN ESCORTED • +45 BATTLE GOLD");
+                announce("CARAVAN ESCORTED • +"+reward+" BATTLE GOLD");
             }
         }
     }
@@ -1529,7 +1545,7 @@ public final class RiftGameView extends View {
                 DifficultyRules.health(difficultyMode)*
                 SiegeBalanceV066.waveHealth(wave);
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
-        if(engine)hp*=1.65f;
+        if(engine)hp*=CampaignEncountersV073.engineHpMultiplier(stage,difficultyMode);
         if(flank)hp*=.90f;
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
         enemy.siegeEngine=engine&&!elite;
@@ -1787,19 +1803,23 @@ public final class RiftGameView extends View {
         if(!e.worldBoss||caveMode||e.hp<=0)return;
         int tint=RealmBossV071.color(stage);
         if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
-            baseHp=Math.max(0f,baseHp-RealmBossV071.coreDamage(stage)*strength);
+            baseHp=Math.max(0f,baseHp-BossFairnessV073.core(
+                    RealmBossV071.coreDamage(stage)*strength,coreMaxHp()));
             puff(BASE_X,BASE_Y-60,16,tint);
         }
         int slot=e.realmLockedTower;
         if(RealmBossV071.towerDamage(stage)>0&&slot>=0&&
                 slot<activeTowerCount&&towers[slot]>0){
-            damageTower(slot,RealmBossV071.towerDamage(stage)*strength);
+            damageTower(slot,BossFairnessV073.tower(
+                    RealmBossV071.towerDamage(stage)*strength,
+                    TowerDurability.maxHp(towers[slot],fortressRank)));
         }
         if(!revival.isDown()&&hurtCooldown<=0&&
                 !DodgeRules.invulnerable(dodgeTime)&&
                 RealmBossV071.hitsHero(stage,e.bossPhase,e.x,e.y,
                         e.realmLockedX,e.realmLockedY,heroX,heroY)){
-            float damage=RealmBossV071.heroDamage(stage)*strength;
+            float damage=BossFairnessV073.hero(
+                    RealmBossV071.heroDamage(stage)*strength,heroMaxHp());
             heroHp=Math.max(0f,heroHp-damage);
             hurtCooldown=.8f;
             heroAnimation.hurt();
@@ -3207,8 +3227,13 @@ public final class RiftGameView extends View {
         polygon(c,x-5,y-120,x+39+(float)Math.sin(gameTime*2)*4,y-109,
                 x-5,y-100,0xffffcb81);
         text(c,"REFUGEES",x,y-151,19,0xffffdea1,true);
-        bar(c,x-69,y-142,138,9,caravanHp/SiegeMissionsV069.CART_MAX_HP,
-                caravanHp<90?0xffff8975:0xffa5e8c7);
+        float maxCart=CampaignEncountersV073.cartMaxHp(stage,difficultyMode);
+        bar(c,x-69,y-142,138,9,caravanHp/maxCart,
+                caravanHp<maxCart*.35f?0xffff8975:0xffa5e8c7);
+        if(caravanGuarded()){
+            circleStroke(c,x,y-25,107,0x88a3f9d3,3);
+            text(c,"RALLY • DAMAGE -39%",x,y-171,15,0xffb6f4d3,true);
+        }
         if(caravanUnderAttack)circleStroke(c,x,y-25,77,0x77ffa673,4);
     }
     private void drawAlternateRoutes(Canvas c){
@@ -3669,10 +3694,11 @@ public final class RiftGameView extends View {
         String status=mode==SiegeMissionsV069.ESCORT?
                 (SiegeMissionsV069.cartSafe(caravanX)?"CARAVAN SAFE":
                     "CART "+Math.round(caravanHp)+" HP • "+
+                    (caravanGuarded()?"GUARDED • ":"")+
                     Math.round((SiegeMissionsV069.CART_START_X-caravanX)/
                     (SiegeMissionsV069.CART_START_X-SiegeMissionsV069.CART_SAFE_X)*100)+"%"):
                 mode==SiegeMissionsV069.ENGINE?
-                    (engineStopped?"ENGINE DISABLED":"ENGINE SALVOS "+siegeShots):
+                    (engineStopped?"ENGINE DISABLED":"INTERRUPT CHARGE • SHOTS "+siegeShots):
                     "FLANKS STOPPED "+flankKills+" • BREACHES "+flankBreaches;
         round(c,40,189,360,239,11,0xde183644);
         textFit(c,SiegeMissionsV069.name(stage),56,209,289,15,0xffffd29a,false);

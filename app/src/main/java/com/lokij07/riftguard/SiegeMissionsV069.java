@@ -1,6 +1,6 @@
 package com.lokij07.riftguard;
 
-/** Gameplay-active missions for the initial 15-stage vertical slice. */
+/** Live, save-compatible missions across the 300-stage campaign. */
 public final class SiegeMissionsV069 {
     private SiegeMissionsV069(){}
     public static final int NONE=0,ESCORT=1,ENGINE=2,SPLIT=3;
@@ -10,8 +10,7 @@ public final class SiegeMissionsV069 {
     public static final float ENGINE_WINDUP=1.5f,ENGINE_INTERVAL=7.5f;
     public static int mode(int stage){
         Campaign.checkStage(stage);
-        if(stage<FIRST||stage>LAST||DifficultyRules.worldBoss(stage))return NONE;
-        return ESCORT+(stage-FIRST)%3;
+        return CampaignEncountersV073.mode(stage);
     }
     public static boolean active(int stage,int wave){
         return wave==FEATURE_WAVE&&mode(stage)!=NONE;
@@ -45,16 +44,16 @@ public final class SiegeMissionsV069 {
     }
     public static String orders(int stage){
         switch(mode(stage)){
-            case ESCORT:return "Wave two: protect the moving supply caravan as it reaches your gate. Losing it fails the battle.";
-            case ENGINE:return "Wave two: destroy an armored siege engine before cannon salvos damage your fortress.";
+            case ESCORT:return "Wave two: stay close to shield and rally the moving caravan; losing it fails the battle.";
+            case ENGINE:return "Wave two: interrupt the siege cannon by damaging it during its visible windup.";
             case SPLIT:return "Wave two: attackers use two entry paths. Move to intercept and cover your turret positions.";
             default:return "";
         }
     }
     public static String warning(int stage){
         switch(mode(stage)){
-            case ESCORT:return "The golden cart has its own health and moves on the road. Intercept enemies attacking it!";
-            case ENGINE:return "The cannon warns before firing. Target the siege machine, not just the foot soldiers.";
+            case ESCORT:return "The golden caravan has health. Staying close shields it and speeds its escape.";
+            case ENGINE:return "Attack during the glowing cannon windup to cancel the siege shot.";
             case SPLIT:return "Purple arrow markers reveal flankers from two approaches converging at the gate.";
             default:return "";
         }
