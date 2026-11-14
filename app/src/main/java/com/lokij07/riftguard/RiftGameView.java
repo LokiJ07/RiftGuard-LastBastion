@@ -28,6 +28,8 @@ import java.util.Random;
  */
 public final class RiftGameView extends View {
     private static final float W=1280f, H=720f;
+    private static final float STORY_SKIP_LEFT=1020f,STORY_SKIP_TOP=37f,
+            STORY_SKIP_RIGHT=1240f,STORY_SKIP_BOTTOM=105f;
     private static final float WORLD_W=1900f, WORLD_H=1050f;
     private static final float BASE_X=950f, BASE_Y=510f;
     private static final Typeface FONT=Typeface.create("sans-serif-condensed",Typeface.BOLD);
@@ -41,7 +43,7 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, OUTRO, WIN, LOSE, CAVE_CHOICE, CAVE_END }
+    private enum Scene { HOME, MAP, ARMORY, CHARACTER, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, OUTRO, WIN, LOSE, CAVE_CHOICE, CAVE_END }
     private Scene scene=Scene.HOME;
     private static final float TREE_LEFT=75f,TREE_TOP=148f,TREE_RIGHT=906f,
             TREE_BOTTOM=592f;
@@ -88,6 +90,7 @@ public final class RiftGameView extends View {
     private final Path reusablePolygonPath=new Path();
     private static final int[] TOWER_ACCENTS={
             0xffffc678,0xffed9064,0xff91e4fb,0xffaf8dff};
+    private static final float[] TOWER_FAMILY_DAMAGE={1f,1.50f,.77f,1.13f};
     private final RenderBudgetV065 renderBudget=new RenderBudgetV065();
     private final BattleViewportV066 combatViewport=new BattleViewportV066(950f,525f,1280f,720f,1f);
     private int graphicsMode=GraphicsProfileV065.BALANCED;
@@ -127,7 +130,7 @@ public final class RiftGameView extends View {
     private volatile int resourcePercent=0;
     private volatile String resourceMessage="The bundled base art works without internet.";
     private static final float BATTLE_ZOOM=1.10f;
-    private static final int DECOR=0, KEEP=1, TOWER=2, MONSTER=3, DROP=4, WARDEN=5, TERRAIN=6;
+    private static final int DECOR=0, KEEP=1, TOWER=2, MONSTER=3, DROP=4, WARDEN=5, TERRAIN=6, ESCORT=7;
     private static final class DepthItem {
         float depth;
         int type,slot;
@@ -159,6 +162,10 @@ public final class RiftGameView extends View {
     private int focusedBossPart=BossAnatomyV065.ARMOR;
     private final StoryProgress storyProgress;
     private final KingdomMeta kingdom;
+    private final WardenLevelsV078 wardenLevel;
+    private int selectedWardenAttribute=WardenLevelsV078.VITALITY;
+    private int lastEarnedWardenXp=0,lastGainedWardenLevels=0,lastEarnedWardenPoints=0;
+    private int lastWardenFromLevel=1;
     private final AscensionTree ascension;
     private final WeaponMastery weaponMastery;
     private final GameAudio audio;
@@ -169,7 +176,7 @@ public final class RiftGameView extends View {
     private int kingdomTab=0;
     private String kingdomMessage="Complete challenges to earn rewards!";
     private boolean battleRecorded=false;
-    private int battlePulses=0;
+    private int battlePulses=0,battleSkillCasts=0;
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
     private final List<Shot> shots=new ArrayList<>();
@@ -200,8 +207,27 @@ public final class RiftGameView extends View {
     private float meteorX,meteorY,meteorTime;
     private int selectedLevel=1, selectedMap=0, stage=0;
     private boolean regionalMap=false;
-    private int wave, remaining, gold, kills,missionBuilds,objectiveBonus;
-    private boolean defeatedElite;
+    private int wave, remaining, gold, kills,missionBuilds,objectiveBonus,contractBonus;
+    // One wave-two tactical objective per signature stage.
+    private float caravanX=SiegeMissionsV069.CART_START_X,caravanHp=SiegeMissionsV069.CART_MAX_HP;
+    private boolean missionEventRewarded,caravanUnderAttack,engineStopped;
+    private int siegeShots,flankKills,flankBreaches;
+    // Team-wide, public and persistent for ONE wave only. Targets reselect
+    // if destroyed; no hidden player coordinates or permanent save schema.
+    private int siegeFocusPad=-1,siegeFocusWave=-1;
+    // Reachable native world object, unlocked for one battle wave at a time.
+    private float realmSiteX,realmSiteY,realmSiteChannel;
+    private boolean realmSiteUsed;
+    private float realmWardTime,realmForgeTime,realmPurifierTime;
+    // Actual wave-two field objectives, reset at deterministic save boundaries.
+    // 0=unrescued,1=saved,2=lost. No persistent schema changes.
+    private final float[] villagerHp=new float[FieldObjectivesV074.SURVIVORS];
+    private final int[] villagerState=new int[FieldObjectivesV074.SURVIVORS];
+    private int villagersSaved,villagersLost,riftsSealed;
+    private final float[] sealCharge=new float[FieldObjectivesV074.SEALS];
+    private final boolean[] sealDone=new boolean[FieldObjectivesV074.SEALS];
+    private float sealPulseTimer;
+    private boolean defeatedElite,healerWarningShown;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     private final float[] allyCooldown=new float[AllySupportV065.COUNT];
@@ -235,7 +261,14 @@ public final class RiftGameView extends View {
         float x,y,hp,maxHp,phase,attackTimer,attackAnim,slowTimer,specialTimer,specialCharge,
                 burnTimer,burnDps,dashWindup,dashTime,dashCooldown,shamanCooldown,
                 hitReaction;
-        boolean moving,boss,worldBoss;
+        boolean moving,boss,worldBoss,siegeEngine,flankRoute;
+        int flankSide;
+        float engineCooldown,engineWindup,engineWindupHp;
+        float retreatTime,retreatCooldown;
+        int pincerSide;
+        // Locked when world-boss channel begins, not retargeted every frame.
+        int realmLockedTower=-1;
+        float realmLockedX,realmLockedY;
         BossAnatomyV065 anatomy;
         int kind,bossPhase=1,variant=0,squadRole=SquadTacticsV065.RAIDER;
         float faceX=-1f;
@@ -347,6 +380,9 @@ public final class RiftGameView extends View {
         audio=new GameAudio(context,prefs);
         combatFeel.setReducedMotion(prefs.getBoolean("reduced_motion",false));
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
+        // Old save migration derives XP from previously CLEARED stage count;
+        // character points/stats remain separate from purchased upgrades.
+        wardenLevel=new WardenLevelsV078(prefs);
         savedWave=durableBattle.load(unlocked);
         supplies=Math.max(0,prefs.getInt("supplies",0));
         fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
@@ -480,6 +516,7 @@ public final class RiftGameView extends View {
         if (scene==Scene.HOME) drawHome(canvas);
         else if (scene==Scene.MAP) drawMap(canvas);
         else if (scene==Scene.ARMORY) drawArmory(canvas);
+        else if (scene==Scene.CHARACTER) drawCharacter(canvas);
         else if (scene==Scene.SKILLS) drawSkills(canvas);
         else if (scene==Scene.FORTRESS) drawFortress(canvas);
         else if (scene==Scene.ASCENSION) drawAscension(canvas);
@@ -537,7 +574,7 @@ public final class RiftGameView extends View {
         }
     }
 
-    private float heroMaxHp(){return kingdom.heroMaxHp()*DifficultyRules.heroHealth(difficultyMode)+ascension.heroHp();}
+    private float heroMaxHp(){return kingdom.heroMaxHp()*DifficultyRules.heroHealth(difficultyMode)+ascension.heroHp()+wardenLevel.healthBonus();}
     private float coreMaxHp(){return Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp()+ascension.coreHp();}
     private int arsenalTier(){return EvolutionProgress.fortressArsenal(ascension,fortressRank);}
     private int weaponForm(int weapon){return EvolutionProgress.weaponForm(weaponMastery,weapon);}
@@ -560,6 +597,10 @@ public final class RiftGameView extends View {
         caveMode=false;caveWinRecorded=false;caveEnding=StoryProgress.ENDING_NONE;
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
+        if(RealmInteractablesV077.scheduled(stage)){
+            float[] site=RealmInteractablesV077.position(stage);
+            realmSiteX=site[0];realmSiteY=site[1];
+        }else{realmSiteX=0f;realmSiteY=0f;}
         towersDestroyedInBattle=0;
         relicX=BASE_X+240;relicY=BASE_Y+150;
         relicMaxHp=trial!=null&&trial.type==MemoryTrial.RELIC?
@@ -580,8 +621,10 @@ public final class RiftGameView extends View {
             towerX[pad]=TowerPadLayout.x(stage,pad);
             towerY[pad]=TowerPadLayout.y(stage,pad);
         }
-        battleRecorded=false; battlePulses=0;
-        missionBuilds=0;objectiveBonus=0;defeatedElite=false;
+        battleRecorded=false; battlePulses=0; battleSkillCasts=0;
+        missionBuilds=0;objectiveBonus=0;contractBonus=0;defeatedElite=false;
+        healerWarningShown=false;
+        resetSiegeMission();
         hazardSlowTimer=0;
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         // Full Java version of deployed-map-generator.html. No old scenery.
@@ -592,6 +635,7 @@ public final class RiftGameView extends View {
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
         baseHp=coreMaxHp();
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
+        siegeFocusPad=-1;siegeFocusWave=-1;
         spawnTimer=2f;
         intermission=WavePacingV065.seconds(difficultyMode,false);
         waiting=true;
@@ -677,7 +721,8 @@ public final class RiftGameView extends View {
         boolean dashing=dodgeTime>0;
         float activeDodgeStep=dashing?Math.min(dt,dodgeTime):0f;
         // Dash ignores movement slow but respects world walls and real towers.
-        float speed=245f*ascension.moveMultiplier()*(hazardSlowTimer>0?.71f:1f);
+        float speed=245f*ascension.moveMultiplier()*wardenLevel.moveMultiplier()*
+                (hazardSlowTimer>0?.71f:1f);
         float mx=revival.isDown()?0:dashing?dodgeDirX:axisX;
         float my=revival.isDown()?0:dashing?dodgeDirY:axisY;
         float movementTime=dashing?activeDodgeStep:dt;
@@ -718,6 +763,7 @@ public final class RiftGameView extends View {
         updateSkillObjects(dt);
         updateTerrainBolts(dt);
         updateAllySupport(dt);
+        updateRealmSite(dt);
         if (!waiting) {
             if(bossWarningCountdown>0){
                 bossWarningCountdown=Math.max(0,bossWarningCountdown-dt);
@@ -756,11 +802,13 @@ public final class RiftGameView extends View {
             if (towers[i]>0 && towerHp[i]>0 && towerTimers[i]<=0) {
                 Enemy target=closest(towerX[i],towerY[i],280+towers[i]*35);
                 if (target!=null) {
-                    float[] modifiers={1f,1.50f,.77f,1.13f};
+                    // Static family coefficients: no per-shot Java array allocation.
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*modifiers[towerFamily(i)]*
+                            RealmInteractablesV077.turretDamage(
+                                    BattleRules.towerDamage(towers[i])*
+                                    TOWER_FAMILY_DAMAGE[towerFamily(i)]*
                                     kingdom.towerDamageMultiplier()*ascension.towerMultiplier()*
-                                    FortressEvolutionArt.damageBonus(arsenalTier()),
+                                    FortressEvolutionArt.damageBonus(arsenalTier()),realmForgeTime),
                             towerFamily(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
@@ -808,6 +856,9 @@ public final class RiftGameView extends View {
         for(Enemy unit:enemies)if(unit.hp>0&&unit.squadRole==SquadTacticsV065.COMMANDER){
             commanderAlive=true;break;
         }
+        updateRaidFocus();
+        updateSiegeMission(dt);
+        if(scene!=Scene.PLAY)return;
         // Boss reinforcements are collected separately so the active enemy
         // iterator cannot be invalidated by a phase-transition summon.
         final List<Enemy> reinforcements=new ArrayList<>();
@@ -816,9 +867,24 @@ public final class RiftGameView extends View {
             Enemy e=it.next();
             if(e.hp<=0) {
                 if(e.boss)defeatedElite=true;
+                if(e.flankRoute)flankKills++;
+                if(e.siegeEngine&&!missionEventRewarded){
+                    engineStopped=true;missionEventRewarded=true;
+                    int reward=CampaignEncountersV073.bonusGold(stage,SiegeMissionsV069.ENGINE);
+                    gold+=reward;
+                    announce("SIEGE ENGINE DISABLED • +"+reward+" GOLD");
+                }
                 // Smaller formations must not bankrupt tower upgrades.
                 gold+=SiegeBalanceV066.killGold(stage,wave,difficultyMode,e.kind);
                 kills++;
+                // LV25 Rift Siphon: a visible, capped sustain pulse for every
+                // eight credited enemy defeats; never on individual damage hits.
+                int siphon=WardenMilestonesV079.healOnCreditedKill(
+                        wardenLevel.level(),kills);
+                if(siphon>0&&!revival.isDown()&&heroHp>0&&heroHp<heroMaxHp()){
+                    heroHp=Math.min(heroMaxHp(),heroHp+siphon);
+                    puff(heroX,heroY-31,9,0xff9fe6ce);
+                }
                 if(pickups.size()<28 && random.nextFloat()<
                         SiegeBalanceV066.pickupChance(stage,wave,difficultyMode))
                     pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
@@ -843,6 +909,40 @@ public final class RiftGameView extends View {
                 if(e.hp<=0)continue; // credited by normal enemy death processing next frame
             }
             float dHero=distance(e.x,e.y,heroX,heroY);
+            if(e.siegeEngine){
+                if(e.engineWindup>0){
+                    boolean interrupted=e.hp<=e.engineWindupHp-e.maxHp*
+                            CampaignEncountersV073.interruptFraction(stage);
+                    if(interrupted){
+                        e.engineWindup=0f;
+                        e.engineCooldown=Math.max(e.engineCooldown,3.2f);
+                        puff(e.x,e.y-70,15,0xffc7f0d5);
+                        announce("CANNON INTERRUPTED • KEEP DEFENDED!");
+                    }else e.engineWindup=Math.max(0,e.engineWindup-dt);
+                    // An interrupted windup must NOT execute the impact on
+                    // the very frame it was canceled.
+                    if(!interrupted&&e.engineWindup<=0){
+                        siegeShots++;
+                        baseHp=Math.max(0,baseHp-
+                                RealmInteractablesV077.coreDamage(
+                                CampaignEncountersV073.engineDamage(stage,
+                                        difficultyMode,coreMaxHp()),realmWardTime));
+                        puff(BASE_X,BASE_Y-95,19,0xffffa871);
+                        e.attackAnim=.42f;
+                        audio.play(GameAudio.TOWER_CANNON);
+                        announce("SIEGE CANNON HIT THE KEEP • FOCUS ENGINE!");
+                        if(baseHp<=0){markDefeat();return;}
+                    }
+                }else{
+                    e.engineCooldown-=dt;
+                    if(e.engineCooldown<=0){
+                        e.engineWindup=SiegeMissionsV069.ENGINE_WINDUP;
+                        e.engineWindupHp=e.hp;
+                        e.engineCooldown=SiegeMissionsV069.ENGINE_INTERVAL;
+                        audio.play(GameAudio.BOSS_WARN);
+                    }
+                }
+            }
             // Boars telegraph before sprinting; shamans fire dodgeable bolts
             // rather than applying ranged damage instantly without a visual.
             e.dashCooldown-=dt;
@@ -855,30 +955,115 @@ public final class RiftGameView extends View {
                 e.dashWindup=Math.max(0,e.dashWindup-dt);
                 if(e.dashWindup<=0)e.dashTime=EnemySpecials.BOAR_DASH;
             }else if(e.dashTime>0)e.dashTime=Math.max(0,e.dashTime-dt);
-            if(EnemySpecials.canShamanCast(e.kind,dHero,e.shamanCooldown) &&
+            if(e.retreatTime<=0f&&
+                    EnemySpecials.canShamanCast(e.kind,dHero,e.shamanCooldown) &&
                     hostileBolts.size()<24){
                 hostileBolts.add(new HostileBolt(e.x,e.y-44,heroX,heroY-25));
                 e.shamanCooldown=3.8f;
                 e.attackAnim=.42f;
+                // Heal one wounded ally; never the boss, never above max HP.
+                Enemy wounded=null;
+                float highestInjury=0f;
+                for(Enemy ally:enemies){
+                    if(ally==e||!EnemySpecials.canAid(e.kind,e.x,e.y,ally.x,ally.y,
+                            ally.hp,ally.maxHp,ally.boss))continue;
+                    float injury=(ally.maxHp-ally.hp)/Math.max(1f,ally.maxHp);
+                    if(injury>highestInjury){highestInjury=injury;wounded=ally;}
+                }
+                if(wounded!=null){
+                    wounded.hp+=EnemySpecials.aidAmount(wounded.hp,wounded.maxHp);
+                    puff(wounded.x,wounded.y-22,8,0xffa9efb6);
+                }
             }
-            boolean hunt=!revival.isDown()&&(MovementRules.huntsHero(dHero,e.kind)||
+            // Wounded shamans visibly fall back behind living shield allies.
+            // Player can eliminate their shield or intercept before retreat;
+            // no extra summons/health and a long individual cooldown.
+            e.retreatCooldown=Math.max(0f,e.retreatCooldown-dt);
+            e.retreatTime=Math.max(0f,e.retreatTime-dt);
+            if(e.kind==4&&!e.boss&&!caveMode&&
+                    (e.retreatTime>0f||e.hp<e.maxHp*.43f)){
+                boolean hasCover=false;
+                for(Enemy ally:enemies){
+                    if(ally==e)continue;
+                    if(EnemyCoordinationV075.protectiveShield(
+                            ally.kind,ally.boss,ally.hp,
+                            ally.x,ally.y,e.x,e.y)){hasCover=true;break;}
+                }
+                // Breaking the shield immediately cancels an ongoing fallback.
+                if(!hasCover)e.retreatTime=0f;
+                else if(e.retreatTime<=0f&&
+                        EnemyCoordinationV075.shouldRetreat(stage,e.kind,e.boss,
+                                e.hp,e.maxHp,dHero,true,e.x,e.retreatCooldown)){
+                    e.retreatTime=EnemyCoordinationV075.RETREAT_SECONDS;
+                    e.retreatCooldown=EnemyCoordinationV075.RETREAT_COOLDOWN;
+                    puff(e.x,e.y-50,8,0xffa5e7d4);
+                }
+            }
+            boolean retreating=e.retreatTime>0f;
+            boolean hunt=!retreating&&!revival.isDown()&&
+                    (MovementRules.huntsHero(dHero,e.kind)||
                     e.dashWindup>0||e.dashTime>0);
             // Follow the actual stage-specific painted lane, not a separate
             // invisible straight line. Hero aggro can temporarily interrupt it.
-            boolean traveling=!hunt && e.x>LaneRules.CASTLE_GATE_X+120f;
-            float tx=hunt?heroX:traveling?
+            boolean toCaravan=!retreating&&
+                    SiegeMissionsV069.active(stage,wave)&&
+                    SiegeMissionsV069.mode(stage)==SiegeMissionsV069.ESCORT&&
+                    !SiegeMissionsV069.cartSafe(caravanX)&&caravanHp>0&&!hunt&&
+                    distance(e.x,e.y,caravanX,caravanY())<190f;
+            int victim=-1;
+            if(!retreating&&SiegeMissionsV069.active(stage,wave)&&
+                    SiegeMissionsV069.mode(stage)==SiegeMissionsV069.RESCUE&&!hunt){
+                float best=200f;
+                for(int i=0;i<villagerState.length;i++){
+                    if(villagerState[i]!=0)continue;
+                    float dNpc=distance(e.x,e.y,FieldObjectivesV074.rescueX(stage,i),
+                            FieldObjectivesV074.rescueY(stage,i));
+                    if(dNpc<best){best=dNpc;victim=i;}
+                }
+            }
+            boolean coordinatedRaid=EnemyCoordinationV075.raidActive(
+                    stage,wave,squadPlan,SiegeMissionsV069.active(stage,wave),
+                    caveMode,siegeFocusPad)&&!retreating&&!hunt&&!toCaravan&&victim<0&&
+                    siegeFocusPad<activeTowerCount&&
+                    towers[siegeFocusPad]>0&&towerHp[siegeFocusPad]>0&&
+                    EnemyCoordinationV075.raidAttacker(e.kind,e.boss,hunt,
+                            distance(e.x,e.y,towerX[siegeFocusPad],towerY[siegeFocusPad]));
+            boolean traveling=!retreating&&!hunt&&!toCaravan&&victim<0&&
+                    !coordinatedRaid&&e.x>LaneRules.CASTLE_GATE_X+120f;
+            float tx=retreating?EnemyCoordinationV075.retreatX(e.x):
+                    hunt?heroX:toCaravan?caravanX:victim>=0?
+                    FieldObjectivesV074.rescueX(stage,victim):coordinatedRaid?
+                    towerX[siegeFocusPad]:traveling?
                     LaneRules.stageWaypointX(e.x,stage):BASE_X;
-            float ty=hunt?heroY:traveling?
+            float ty=retreating?EnemyCoordinationV075.retreatY(e.y,heroY):
+                    hunt?heroY:toCaravan?caravanY():victim>=0?
+                    FieldObjectivesV074.rescueY(stage,victim):coordinatedRaid?
+                    towerY[siegeFocusPad]:traveling?
                     LaneRules.stageWaypointY(e.x,stage):BASE_Y;
-            if(traveling&&terrain!=null)ty+=terrain.waypointOffset(e.x,e.y);
+            if(traveling&&e.flankRoute)
+                ty=LaneRules.stageWaypointY(e.x,stage)+
+                        SiegeMissionsV069.flankOffset(e.x,e.flankSide);
+            else if(traveling&&e.pincerSide!=0)
+                ty=LaneRules.stageWaypointY(e.x,stage)+
+                        EnemyCoordinationV075.pincerOffset(e.x,e.pincerSide);
+            else if(traveling&&terrain!=null)
+                ty+=terrain.waypointOffset(e.x,e.y);
             float d=distance(e.x,e.y,tx,ty);
             // Final fortress boundary, not each intermediate lane sample,
             // determines how close monsters may stop to attack.
-            float stop=traveling?3f:MovementRules.enemyStopDistance(hunt,e.kind);
-            e.moving=d>stop;
+            float stop=retreating?3f:traveling?3f:toCaravan?61f:
+                    victim>=0?57f:coordinatedRaid?
+                    EnemyCoordinationV075.towerStop(e.kind):
+                    MovementRules.enemyStopDistance(hunt,e.kind);
+            // World bosses lock their position during a telegraphed cast.
+            // Otherwise the ring would chase the player while charging.
+            boolean frozenDuringRealmCast=RealmBossV071.enabled(
+                    stage,e.worldBoss,caveMode)&&e.specialCharge>0;
+            e.moving=d>stop&&!frozenDuringRealmCast;
             if(e.moving&&Math.abs(tx-e.x)>1.5f)e.faceX=tx<e.x?-1f:1f;
             if(e.moving) {
-                float speedFactor=(e.kind==3?1.15f:1f)*
+                float speedFactor=(e.flankRoute?1.18f:e.siegeEngine?.74f:
+                        e.kind==3?1.15f:1f)*
                         DifficultyRules.enemySpeed(difficultyMode)*
                         SquadTacticsV065.speed(e.squadRole,squadPlan,commanderAlive)*
                         (terrain==null?1f:terrain.rubbleSlow(e.x,e.y))*
@@ -931,11 +1116,26 @@ public final class RiftGameView extends View {
                     audio.play(GameAudio.BOSS_PHASE);
                     announce("BOSS PHASE "+newPhase+" • REINFORCEMENTS!");
                 }
+                boolean realmBoss=RealmBossV071.enabled(stage,e.worldBoss,caveMode);
                 e.specialTimer-=dt;
                 if(e.specialCharge<=0&&e.specialTimer<=0&&
-                        distance(e.x,e.y,BASE_X,BASE_Y)<440f){
-                    e.specialCharge=BossTactics.chargeTime(stage,e.bossPhase);
-                    e.specialTimer=BossTactics.interval(stage,e.bossPhase);
+                        distance(e.x,e.y,BASE_X,BASE_Y)<
+                                BossThreatV066.CORE_ATTACK_RANGE){
+                    e.specialCharge=realmBoss?
+                            RealmBossV071.chargeSeconds(stage,e.bossPhase):
+                            BossTactics.chargeTime(stage,e.bossPhase);
+                    e.specialTimer=realmBoss?
+                            RealmBossV071.intervalSeconds(stage,e.bossPhase):
+                            BossTactics.interval(stage,e.bossPhase);
+                    if(realmBoss){
+                        int tower=RealmBossV071.targetsTower(stage)?
+                                nearestBuiltTower(BASE_X,BASE_Y,650f):-1;
+                        e.realmLockedTower=tower;
+                        e.realmLockedX=tower>=0?towerX[tower]:
+                                RealmBossV071.targetsTower(stage)?BASE_X:heroX;
+                        e.realmLockedY=tower>=0?towerY[tower]:
+                                RealmBossV071.targetsTower(stage)?BASE_Y:heroY;
+                    }
                     audio.play(GameAudio.BOSS_WARN);
                 }else if(e.specialCharge>0){
                     e.specialCharge-=dt;
@@ -943,37 +1143,59 @@ public final class RiftGameView extends View {
                         float strength=DifficultyRules.enemyDamage(difficultyMode)*
                                 BossTactics.damageMultiplier(e.bossPhase)*
                                 e.anatomy.siegeMultiplier();
-                        int tactic=BossTactics.tactic(stage);
-                        if(distance(e.x,e.y,BASE_X,BASE_Y)<445){
-                            baseHp-=(tactic==1?20f:28f)*strength;
-                            puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
-                            // Telegraphed boss siege impacts can destroy artillery.
-                            int t=nearestBuiltTower(BASE_X,BASE_Y,365f);
-                            if(t>=0)damageTower(t,55f*strength);
+                        if(realmBoss){
+                            resolveRealmBossStrike(e,strength);
+                            if(scene!=Scene.PLAY)return;
+                        }else{
+                            int tactic=BossTactics.tactic(stage);
+                            if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
+                                baseHp-=caveMode?(tactic==1?20f:28f)*strength:
+                                        RealmInteractablesV077.coreDamage(
+                                        CombatReadabilityV076.coreHit(stage,
+                                                (tactic==1?20f:28f)*strength,coreMaxHp()),
+                                                realmWardTime);
+                                puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
+                                // Legacy elites and story-cave boss retain their
+                                // already-tested siege/attack mechanics.
+                                int t=nearestBuiltTower(BASE_X,BASE_Y,365f);
+                                if(t>=0)damageTower(t,caveMode?55f*strength:
+                                        CombatReadabilityV076.towerHit(stage,55f*strength,
+                                                TowerDurability.maxHp(towers[t],fortressRank)));
+                            }
+                            if(BossAssaultV067.heroInRange(stage,e.bossPhase,
+                                    e.x,e.y,heroX,heroY)&&!revival.isDown()&&
+                                    hurtCooldown<=0&&!DodgeRules.invulnerable(dodgeTime)){
+                                float bossDamage=(tactic==0?24f:18f)*strength;
+                                float fairDamage=caveMode?bossDamage:
+                                        CombatReadabilityV076.heroHit(stage,bossDamage,
+                                                heroMaxHp());
+                                heroHp-=fairDamage;
+                                hurtCooldown=.8f;
+                                heroAnimation.hurt();
+                                pendingMelee=false;pendingMeleeWeapon=-1;
+                                combatFeel.onDamage(heroX,heroY-18,
+                                        tactic==2?0xffa1eeae:0xffe5a0fa,true,fairDamage);
+                                puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
+                                audio.play(GameAudio.HURT);
+                                if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
+                            }
+                            if(tactic==1){
+                                e.hp=Math.min(e.maxHp,e.hp+e.maxHp*
+                                        BossAssaultV067.healFraction(stage,e.bossPhase));
+                                puff(e.x,e.y,14,0xff9fd7c8);
+                            }
+                            if(baseHp<=0){baseHp=0;markDefeat();return;}
+                            if(heroHp<=0){heroHp=0;handleWardenDown();return;}
+                            announce(BossTactics.warning(stage)+"!");
                         }
-                        if(distance(e.x,e.y,heroX,heroY)<265&&
-                                !revival.isDown()&&hurtCooldown<=0&&
-                                !DodgeRules.invulnerable(dodgeTime)){
-                            heroHp-=(tactic==0?24f:18f)*strength;
-                            puff(heroX,heroY,18,tactic==2?0xffa1eeae:0xffe5a0fa);
-                            if(tactic==2)hazardSlowTimer=Math.max(hazardSlowTimer,1.3f);
-                        }
-                        if(tactic==1){
-                            // Sustain bosses can recover health but not exceed
-                            // their original maximum; interrupt by killing fast.
-                            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.05f);
-                            puff(e.x,e.y,14,0xff9fd7c8);
-                        }
-                        if(baseHp<=0){baseHp=0;markDefeat();return;}
-                        if(heroHp<=0){heroHp=0;handleWardenDown();return;}
-                        announce(BossTactics.warning(stage)+"!");
                     }
                 }
             }
             if(!revival.isDown() && e.kind==6 && e.dashTime>0 &&
                     distance(e.x,e.y,heroX,heroY)<65 && hurtCooldown<=0 &&
                     !DodgeRules.invulnerable(dodgeTime)){
-                heroHp-=29*DifficultyRules.enemyDamage(difficultyMode);
+                heroHp-=CombatReadabilityV076.heroHit(stage,
+                        29f*DifficultyRules.enemyDamage(difficultyMode),heroMaxHp());
                 e.dashTime=0;hurtCooldown=.85f;
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
                 puff(heroX,heroY,14,0xffffb27b);
@@ -982,8 +1204,9 @@ public final class RiftGameView extends View {
             }
             if (!revival.isDown() && distance(e.x,e.y,heroX,heroY)<44 && hurtCooldown<=0 &&
                     !DodgeRules.invulnerable(dodgeTime)) {
-                heroHp-=(e.kind==2?20:11)*
-                        DifficultyRules.enemyDamage(difficultyMode);
+                heroHp-=CombatReadabilityV076.heroHit(stage,
+                        (e.kind==2?20f:11f)*
+                        DifficultyRules.enemyDamage(difficultyMode),heroMaxHp());
                 e.attackAnim=.42f;
                 hurtCooldown=.8f;
                 heroAnimation.hurt();pendingMelee=false;pendingMeleeWeapon=-1;
@@ -991,16 +1214,59 @@ public final class RiftGameView extends View {
                 audio.play(GameAudio.HURT);
                 if(heroHp<=0){heroHp=0;handleWardenDown();return;}
             }
+            if(toCaravan&&distance(e.x,e.y,caravanX,caravanY())<87f){
+                e.attackTimer-=dt;
+                if(e.attackTimer<=0){
+                    caravanHp=Math.max(0,caravanHp-
+                            CampaignEncountersV073.cartDamage(stage,difficultyMode,
+                            e.kind,caravanGuarded()));
+                    caravanUnderAttack=true;e.attackAnim=.42f;e.attackTimer=1.8f;
+                    puff(caravanX,caravanY()-25,9,0xffffaf78);
+                    if(caravanHp<=0){
+                        announce("CARAVAN LOST • DEFENSE FAILED");
+                        markDefeat();return;
+                    }
+                }
+                continue;
+            }
+            if(victim>=0&&FieldObjectivesV074.near(e.x,e.y,
+                    FieldObjectivesV074.rescueX(stage,victim),
+                    FieldObjectivesV074.rescueY(stage,victim),82f)){
+                e.attackTimer-=dt;
+                if(e.attackTimer<=0){
+                    villagerHp[victim]=Math.max(0f,villagerHp[victim]-
+                            FieldObjectivesV074.survivorHit(stage,difficultyMode,e.kind));
+                    e.attackAnim=.42f;e.attackTimer=1.8f;
+                    puff(FieldObjectivesV074.rescueX(stage,victim),
+                            FieldObjectivesV074.rescueY(stage,victim)-20,9,0xffffa17c);
+                    if(villagerHp[victim]<=0&&villagerState[victim]==0){
+                        villagerState[victim]=2;villagersLost++;
+                        announce("VILLAGER LOST • RESCUE THE OTHERS!");
+                        if(villagersLost>=2){markDefeat();return;}
+                    }
+                }
+                continue;
+            }
             int siegeTower=(!hunt&&(e.kind==4||
                     SquadTacticsV065.attacksTowers(e.squadRole,squadPlan)))?
                     nearestBuiltTower(e.x,e.y,squadPlan==SquadTacticsV065.SIEGE?205f:174f):-1;
+            if(coordinatedRaid){
+                // The displayed target and actual shot are the SAME pad.
+                // Do not silently switch to whichever tower is nearest.
+                siegeTower=distance(e.x,e.y,
+                        towerX[siegeFocusPad],towerY[siegeFocusPad])<=
+                        EnemyCoordinationV075.towerStrikeRange(e.kind)?
+                        siegeFocusPad:-1;
+            }
             if(!hunt&&relicHp>0&&trial!=null&&trial.type==MemoryTrial.RELIC&&
                     (e.kind==1||e.kind==4||e.kind==5)&&
                     distance(e.x,e.y,relicX,relicY)<195f){
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0){
                     relicHp=Math.max(0,relicHp-
-                            (e.kind==5?38f:22f)*DifficultyRules.enemyDamage(difficultyMode));
+                            CombatReadabilityV076.relicHit(stage,
+                            (e.kind==5?38f:22f)*DifficultyRules.enemyDamage(difficultyMode),
+                            relicMaxHp));
                     e.attackAnim=.42f;e.attackTimer=1.9f;
                     puff(relicX,relicY-29,12,0xffecbb91);
                     if(relicHp<=0)announce("MEMORY TRIAL FAILED • RELIC DESTROYED");
@@ -1008,10 +1274,15 @@ public final class RiftGameView extends View {
             }else if(siegeTower>=0){
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0){
-                    damageTower(siegeTower,(e.kind==2?46f:e.kind==5?32f:26f)*
+                    float strike=(e.kind==2?46f:e.kind==5?32f:26f)*
                             DifficultyRules.enemyDamage(difficultyMode)*
                             SquadTacticsV065.towerAttackMultiplier(
-                                    e.squadRole,squadPlan,commanderAlive));
+                                    e.squadRole,squadPlan,commanderAlive);
+                    if(coordinatedRaid&&towers[siegeTower]>0)strike=Math.min(strike,
+                            TowerDurability.maxHp(towers[siegeTower],fortressRank)*.22f);
+                    damageTower(siegeTower,CombatReadabilityV076.towerHit(
+                            stage,strike,
+                            TowerDurability.maxHp(towers[siegeTower],fortressRank)));
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.55f:2.05f;
                 }
@@ -1019,8 +1290,12 @@ public final class RiftGameView extends View {
                     distance(e.x,e.y,BASE_X,BASE_Y)<275))) {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
-                    baseHp-=(e.kind==2?30:(e.kind==5?18:12))*
-                            DifficultyRules.enemyDamage(difficultyMode)*(e.boss?2.0f:1f);
+                    if(e.flankRoute)flankBreaches++;
+                    baseHp-=RealmInteractablesV077.coreDamage(
+                            CombatReadabilityV076.coreHit(stage,
+                            (e.kind==2?30f:(e.kind==5?18f:12f))*
+                            DifficultyRules.enemyDamage(difficultyMode)*
+                            (e.boss?2.0f:1f),coreMaxHp()),realmWardTime);
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.7f:2.2f;
                     puff(BASE_X,BASE_Y,6,0xffff9f74);
@@ -1092,6 +1367,16 @@ public final class RiftGameView extends View {
                             nearby.hp-=shot.damage*.65f;
                             break;
                         }
+                }
+                if(!shot.tower&&shot.weaponId>=0&&
+                        weaponMastery.owned(shot.weaponId,6)){
+                    shot.target.slowTimer=Math.max(shot.target.slowTimer,
+                            WeaponTacticsV068.slowSeconds(shot.weaponId));
+                    float burn=WeaponTacticsV068.burnSeconds(shot.weaponId);
+                    if(burn>0f){
+                        shot.target.burnTimer=Math.max(shot.target.burnTimer,burn);
+                        shot.target.burnDps=Math.max(shot.target.burnDps,12f);
+                    }
                 }
                 if(shot.weaponId==3) {
                     // Arc Staff chains lightning to a second nearby monster.
@@ -1168,7 +1453,8 @@ public final class RiftGameView extends View {
                 if(EnemySpecials.boltConnects(b.tx,b.ty,heroX,heroY-25)
                         &&hurtCooldown<=0&&!revival.isDown()&&
                         !DodgeRules.invulnerable(dodgeTime)){
-                    heroHp-=17*DifficultyRules.enemyDamage(difficultyMode);
+                    heroHp-=CombatReadabilityV076.heroHit(stage,
+                            17f*DifficultyRules.enemyDamage(difficultyMode),heroMaxHp());
                     hurtCooldown=.65f;
                     audio.play(GameAudio.HURT);
                     puff(heroX,heroY-26,8,0xffcda5f3);
@@ -1219,6 +1505,27 @@ public final class RiftGameView extends View {
         }
         if(remaining==0 && enemies.isEmpty()) {
             if(caveMode){completeEclipseCave();return;}
+            // Do not advance until living convoy reaches the gate.
+            if(SiegeMissionsV069.active(stage,wave)){
+                int type=SiegeMissionsV069.mode(stage);
+                if(type==SiegeMissionsV069.ESCORT&&
+                        !SiegeMissionsV069.cartSafe(caravanX))return;
+                // Enemies being cleared never silently skips a movement-based
+                // objective. Both are reachable within the Warden's world limits.
+                if(type==SiegeMissionsV069.RESCUE&&
+                        !FieldObjectivesV074.canAdvanceRescue(villagersSaved,
+                                villagersLost))return;
+                if(type==SiegeMissionsV069.SEAL&&
+                        riftsSealed<FieldObjectivesV074.SEALS)return;
+            }
+            if(SiegeMissionsV069.active(stage,wave)&&
+                    SiegeMissionsV069.mode(stage)==SiegeMissionsV069.SPLIT&&
+                    !missionEventRewarded&&flankKills>=2&&flankBreaches==0){
+                missionEventRewarded=true;
+                int reward=CampaignEncountersV073.bonusGold(stage,SiegeMissionsV069.SPLIT);
+                gold+=reward;
+                announce("FLANKERS INTERCEPTED • +"+reward+" GOLD");
+            }
             if(!waiting){waiting=true;
                 intermission=WavePacingV065.seconds(difficultyMode,
                         DifficultyRules.worldBoss(stage)&&wave+1==
@@ -1244,6 +1551,7 @@ public final class RiftGameView extends View {
             squadPlan=SquadTacticsV065.plan(stage,wave,countArmedTowers(),difficultyMode);
         }
         firstWavePending=false;
+        resetSiegeMission();
         bossSpawnWarned=false;bossWarningCountdown=0f;
         announce(bossIncoming?"WARNING • WORLD BOSS IN NEXT WAVE":
                 "INCOMING: "+SquadTacticsV065.name(squadPlan));
@@ -1253,9 +1561,9 @@ public final class RiftGameView extends View {
         if(early)announce("EARLY WAVE • +"+bonus+" BATTLE GOLD");
     }
     private void captureWaveCheckpoint(){
-        waveCheckpoint=WaveCheckpointV065.capture(
+        waveCheckpoint=WaveCheckpointV065.captureWithSkills(
                 stage,wave,Math.max(0,gold),kills,missionBuilds,revival.usedCharges(),
-                towersDestroyedInBattle,battlePulses,defeatedElite,
+                towersDestroyedInBattle,battlePulses,battleSkillCasts,defeatedElite,
                 Math.max(0,heroHp),Math.max(0,baseHp),Math.max(0,relicHp),
                 heroX,heroY,towers,towerTypes,destroyedTowerTier,towerHp);
         // Persist only at deterministic wave boundaries. Never serialize
@@ -1281,7 +1589,9 @@ public final class RiftGameView extends View {
         start(snap.stage);
         snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
         gold=snap.gold;wave=snap.wave;kills=snap.kills;
+        resetSiegeMission();
         missionBuilds=snap.built;battlePulses=snap.pulses;
+        battleSkillCasts=snap.skillCasts;
         towersDestroyedInBattle=snap.destroyedCount;
         defeatedElite=snap.defeatedElite;
         heroHp=snap.heroHp;baseHp=snap.coreHp;relicHp=snap.relicHp;
@@ -1318,7 +1628,9 @@ public final class RiftGameView extends View {
         waveRetriesUsed=used;
         snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
         gold=snap.gold;wave=snap.wave;kills=snap.kills;
+        resetSiegeMission();
         missionBuilds=snap.built;battlePulses=snap.pulses;
+        battleSkillCasts=snap.skillCasts;
         towersDestroyedInBattle=snap.destroyedCount;
         defeatedElite=snap.defeatedElite;
         heroHp=snap.heroHp;baseHp=snap.coreHp;relicHp=snap.relicHp;
@@ -1334,6 +1646,146 @@ public final class RiftGameView extends View {
         savedWave=durableBattle.load(unlocked);
         clearTouchControls();heroAnimation.reset();
         announce("WAVE "+wave+" RETRY • "+(WaveCheckpointV065.retries(difficultyMode)-used)+" LEFT");
+    }
+    /** Every wave retry/cold relaunch replays its deterministic boundary. */
+    private void resetSiegeMission(){
+        caravanX=SiegeMissionsV069.CART_START_X;
+        caravanHp=CampaignEncountersV073.cartMaxHp(stage,difficultyMode);
+        caravanUnderAttack=false;missionEventRewarded=false;engineStopped=false;
+        siegeShots=0;flankKills=0;flankBreaches=0;
+        realmSiteChannel=0f;realmSiteUsed=false;
+        realmWardTime=0f;realmForgeTime=0f;realmPurifierTime=0f;
+        villagersSaved=0;villagersLost=0;riftsSealed=0;
+        sealPulseTimer=FieldObjectivesV074.SEAL_PULSE_INTERVAL;
+        for(int i=0;i<villagerState.length;i++){
+            villagerState[i]=0;
+            villagerHp[i]=FieldObjectivesV074.survivorMaxHp(stage,difficultyMode);
+        }
+        for(int i=0;i<sealCharge.length;i++){
+            sealCharge[i]=0f;sealDone[i]=false;
+        }
+    }
+    /** Optional side objective: player stands inside the real art ring and
+     * channels a realm power. Effects are wave-local and never persist to disk.
+     */
+    private void updateRealmSite(float dt){
+        if(!RealmInteractablesV077.scheduled(stage)||caveMode)return;
+        realmWardTime=Math.max(0f,realmWardTime-dt);
+        realmForgeTime=Math.max(0f,realmForgeTime-dt);
+        realmPurifierTime=Math.max(0f,realmPurifierTime-dt);
+        if(waiting||wave<2||realmSiteUsed||revival.isDown())return;
+        boolean near=RealmInteractablesV077.inRing(heroX,heroY,
+                realmSiteX,realmSiteY);
+        realmSiteChannel=RealmInteractablesV077.channel(realmSiteChannel,dt,near);
+        if(realmSiteChannel<RealmInteractablesV077.CHANNEL_SECONDS)return;
+        realmSiteUsed=true;
+        int type=RealmInteractablesV077.type(stage);
+        if(type==RealmInteractablesV077.WARD){
+            realmWardTime=RealmInteractablesV077.WARD_SECONDS;
+            announce("WARDSTONE AWAKENED • KEEP SHIELDED");
+        }else if(type==RealmInteractablesV077.FORGE){
+            realmForgeTime=RealmInteractablesV077.FORGE_SECONDS;
+            int target=RealmInteractablesV077.mostDamagedPad(towers,towerHp,
+                    activeTowerCount,fortressRank);
+            if(target>=0){
+                float max=TowerDurability.maxHp(towers[target],fortressRank);
+                towerHp[target]=RealmInteractablesV077.repair(towerHp[target],max);
+                announce("FIELD FORGE • PAD "+(target+1)+" REPAIRED • GUNS EMPOWERED");
+            }else{
+                // If no valid damaged turret exists, its power still empowers
+                // built guns; a turret-less fort instead gets a tiny keep aid.
+                if(countArmedTowers()==0)
+                    baseHp=Math.min(coreMaxHp(),baseHp+coreMaxHp()*.07f);
+                announce("FIELD FORGE • FORTRESS ARTILLERY EMPOWERED");
+            }
+        }else if(type==RealmInteractablesV077.PURIFIER){
+            realmPurifierTime=RealmInteractablesV077.PURIFIER_SECONDS;
+            hazardSlowTimer=0f;
+            announce("STORM PURIFIER • TERRAIN HAZARDS SILENCED");
+        }
+        puff(realmSiteX,realmSiteY-55,22,0xffd3f4cd);
+        audio.play(GameAudio.EVOLUTION);
+    }
+    private float caravanY(){return LaneRules.stagePathY(stage,caravanX)+16f;}
+    private boolean caravanGuarded(){
+        return CampaignEncountersV073.guarding(heroX,heroY,caravanX,caravanY());
+    }
+    private void updateSiegeMission(float dt){
+        if(!SiegeMissionsV069.active(stage,wave)||waiting||scene!=Scene.PLAY)return;
+        int type=SiegeMissionsV069.mode(stage);
+        if(type==SiegeMissionsV069.RESCUE){
+            // The actual hero position saves a villager; no hidden tap target.
+            for(int i=0;i<villagerState.length;i++){
+                if(villagerState[i]!=0)continue;
+                float x=FieldObjectivesV074.rescueX(stage,i);
+                float y=FieldObjectivesV074.rescueY(stage,i);
+                if(FieldObjectivesV074.near(heroX,heroY,x,y,
+                        FieldObjectivesV074.RESCUE_RADIUS)){
+                    villagerState[i]=1;villagersSaved++;
+                    puff(x,y-38,14,0xffa9efd1);
+                    announce("VILLAGER "+villagersSaved+" RESCUED • "+
+                            (FieldObjectivesV074.SURVIVORS-villagersSaved-villagersLost)+
+                            " STILL OUT THERE");
+                    audio.play(GameAudio.EVOLUTION);
+                }
+            }
+            if(FieldObjectivesV074.canAdvanceRescue(villagersSaved,villagersLost)&&
+                    !missionEventRewarded){
+                missionEventRewarded=true;
+                int bonus=CampaignEncountersV073.bonusGold(stage,type)+
+                        (villagersSaved==FieldObjectivesV074.SURVIVORS?20:0);
+                gold+=bonus;
+                announce("VILLAGERS SAVED • +"+bonus+" BATTLE GOLD");
+            }
+        }
+        if(type==SiegeMissionsV069.SEAL){
+            for(int i=0;i<sealCharge.length;i++){
+                if(sealDone[i])continue;
+                float x=FieldObjectivesV074.sealX(stage,i),
+                        y=FieldObjectivesV074.sealY(stage,i);
+                boolean near=FieldObjectivesV074.near(heroX,heroY,x,y,
+                        FieldObjectivesV074.SEAL_RADIUS);
+                sealCharge[i]=FieldObjectivesV074.charge(sealCharge[i],dt,near);
+                if(sealCharge[i]>=FieldObjectivesV074.SEAL_SECONDS){
+                    sealDone[i]=true;riftsSealed++;
+                    puff(x,y-37,25,0xffa9f7d0);
+                    audio.play(GameAudio.EVOLUTION);
+                    announce("RIFT "+riftsSealed+" SEALED • "+
+                            (FieldObjectivesV074.SEALS-riftsSealed)+" REMAINING");
+                }
+            }
+            if(riftsSealed==FieldObjectivesV074.SEALS&&!missionEventRewarded){
+                missionEventRewarded=true;
+                int bonus=CampaignEncountersV073.bonusGold(stage,type);
+                gold+=bonus;
+                announce("BOTH RIFTS SEALED • +"+bonus+" BATTLE GOLD");
+            }
+            // An active portal imposes meaningful, bounded pressure; it does
+            // not spawn more units or bypass existing enemy count limits.
+            if(riftsSealed<FieldObjectivesV074.SEALS){
+                sealPulseTimer-=dt;
+                if(sealPulseTimer<=0){
+                    sealPulseTimer=FieldObjectivesV074.SEAL_PULSE_INTERVAL;
+                    baseHp=Math.max(0f,baseHp-FieldObjectivesV074.sealDamage(
+                            stage,difficultyMode,coreMaxHp()));
+                    puff(BASE_X,BASE_Y-90,18,0xffba8bff);
+                    announce("UNSEALED RIFT • KEEP TAKING DAMAGE!");
+                    if(baseHp<=0){markDefeat();return;}
+                }
+            }
+        }
+        if(type==SiegeMissionsV069.ESCORT&&
+                !SiegeMissionsV069.cartSafe(caravanX)&&caravanHp>0){
+            caravanX=Math.max(SiegeMissionsV069.CART_SAFE_X,
+                    caravanX-CampaignEncountersV073.cartSpeed(stage,caravanGuarded())*dt);
+            if(SiegeMissionsV069.cartSafe(caravanX)&&!missionEventRewarded){
+                missionEventRewarded=true;
+                int reward=CampaignEncountersV073.bonusGold(stage,SiegeMissionsV069.ESCORT);
+                gold+=reward;
+                puff(caravanX,caravanY()-40,18,0xffafe9bd);
+                announce("CARAVAN ESCORTED • +"+reward+" BATTLE GOLD");
+            }
+        }
     }
     private void spawnEnemy() {
         if(caveMode){
@@ -1352,6 +1804,12 @@ public final class RiftGameView extends View {
         int kind=random.nextInt(Math.max(1,pool));
         // The Forest Boar becomes a recognizable charging enemy from wave two.
         if(wave>=2 && random.nextFloat()<.15f)kind=6;
+        // Functional threats replace ordinary members, never add population.
+        boolean engine=SiegeMissionsV069.engineSpawn(stage,wave,remaining,
+                DifficultyRules.enemies(stage,wave,difficultyMode));
+        boolean flank=SiegeMissionsV069.flankSpawn(stage,wave,remaining);
+        kind=engine?2:RealmActsV071.chooseKind(stage,wave,remaining,
+                DifficultyRules.enemies(stage,wave,difficultyMode),kind);
         boolean elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)
                 && remaining==1;
         boolean actualWorldBoss=elite&&DifficultyRules.worldBoss(stage)&&
@@ -1362,9 +1820,21 @@ public final class RiftGameView extends View {
                 DifficultyRules.health(difficultyMode)*
                 SiegeBalanceV066.waveHealth(wave);
         if(elite)hp*=DifficultyRules.eliteMultiplier(stage,wave,difficultyMode);
+        if(engine)hp*=CampaignEncountersV073.engineHpMultiplier(stage,difficultyMode);
+        if(flank)hp*=.90f;
         Enemy enemy=new Enemy(x,y,kind,hp,random.nextFloat()*6.28f);
+        enemy.siegeEngine=engine&&!elite;
+        enemy.flankRoute=flank&&!elite;
+        if(enemy.siegeEngine)enemy.engineCooldown=4.5f;
+        if(enemy.flankRoute){
+            enemy.flankSide=SiegeMissionsV069.flankSide(remaining);
+            enemy.y=BattleRules.clamp(LaneRules.stageSpawnY(stage)+
+                    SiegeMissionsV069.flankOffset(x,enemy.flankSide),305,775);
+        }
         enemy.variant=random.nextInt(4);
         enemy.squadRole=SquadTacticsV065.role(kind,elite,Campaign.world(stage));
+        enemy.pincerSide=EnemyCoordinationV075.pincerSide(stage,wave,squadPlan,
+                kind,remaining,enemy.flankRoute);
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
@@ -1374,6 +1844,10 @@ public final class RiftGameView extends View {
             enemy.specialTimer=5.0f;
         }
         enemies.add(enemy);
+        if(kind==4&&!healerWarningShown){
+            healerWarningShown=true;
+            announce("SHAMAN SUPPORT • INTERRUPT THE HEALER!");
+        }
         if(elite) {
             waveNotice=2.7f;
             announce(actualWorldBoss?
@@ -1600,6 +2074,54 @@ public final class RiftGameView extends View {
         }
     }
 
+    /** Authoritative world-boss effects. The displayed telegraph is drawn
+     * from exactly the same locked target and collision rules. */
+    private void resolveRealmBossStrike(Enemy e,float strength){
+        if(!e.worldBoss||caveMode||e.hp<=0)return;
+        int tint=RealmBossV071.color(stage);
+        if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
+            baseHp=Math.max(0f,baseHp-RealmInteractablesV077.coreDamage(
+                    BossFairnessV073.core(RealmBossV071.coreDamage(stage)*strength,
+                            coreMaxHp()),realmWardTime));
+            puff(BASE_X,BASE_Y-60,16,tint);
+        }
+        int slot=e.realmLockedTower;
+        if(RealmBossV071.towerDamage(stage)>0&&slot>=0&&
+                slot<activeTowerCount&&towers[slot]>0){
+            damageTower(slot,BossFairnessV073.tower(
+                    RealmBossV071.towerDamage(stage)*strength,
+                    TowerDurability.maxHp(towers[slot],fortressRank)));
+        }
+        if(!revival.isDown()&&hurtCooldown<=0&&
+                !DodgeRules.invulnerable(dodgeTime)&&
+                RealmBossV071.hitsHero(stage,e.bossPhase,e.x,e.y,
+                        e.realmLockedX,e.realmLockedY,heroX,heroY)){
+            float damage=BossFairnessV073.hero(
+                    RealmBossV071.heroDamage(stage)*strength,heroMaxHp());
+            heroHp=Math.max(0f,heroHp-damage);
+            hurtCooldown=.8f;
+            heroAnimation.hurt();
+            pendingMelee=false;pendingMeleeWeapon=-1;
+            combatFeel.onDamage(heroX,heroY-18,tint,true,damage);
+            puff(heroX,heroY-20,15,tint);
+            audio.play(GameAudio.HURT);
+            hazardSlowTimer=Math.max(hazardSlowTimer,
+                    RealmBossV071.slowSeconds(stage));
+            pulseCooldown=Math.max(pulseCooldown,
+                    RealmBossV071.skillSuppression(stage));
+        }
+        float heal=RealmBossV071.selfHealFraction(stage,e.bossPhase,
+                e.anatomy!=null&&e.anatomy.canSummon());
+        if(heal>0f){
+            e.hp=Math.min(e.maxHp,e.hp+e.maxHp*heal);
+            puff(e.x,e.y-40,10,tint);
+        }
+        if(baseHp<=0){markDefeat();return;}
+        if(heroHp<=0){handleWardenDown();return;}
+        announce(RealmBossV071.name(stage)+" • "+
+                (e.anatomy!=null&&e.anatomy.broken(BossAnatomyV065.WEAPON)?
+                        "WEAPON BROKEN: REDUCED DAMAGE":"DODGE THE MARK"));
+    }
     private float bossArmorMultiplier(Enemy e){
         return e.boss&&e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
     }
@@ -1639,6 +2161,28 @@ public final class RiftGameView extends View {
         }
     }
 
+    /** Pick one real, visible gun target for the full siege wave.
+     * Only retarget on wave change or destruction, never track hidden inputs.
+     */
+    private void updateRaidFocus(){
+        if(wave!=siegeFocusWave){
+            siegeFocusWave=wave;siegeFocusPad=-1;
+        }
+        if(!EnemyCoordinationV075.raidActive(stage,wave,squadPlan,
+                SiegeMissionsV069.active(stage,wave),caveMode,0)){
+            siegeFocusPad=-1;return;
+        }
+        if(siegeFocusPad>=0&&siegeFocusPad<activeTowerCount&&
+                towers[siegeFocusPad]>0&&towerHp[siegeFocusPad]>0)return;
+        int prior=siegeFocusPad;
+        siegeFocusPad=EnemyCoordinationV075.focusTower(towers,towerHp,
+                activeTowerCount,fortressRank);
+        if(siegeFocusPad>=0&&siegeFocusPad!=prior&&
+                !waiting&&enemies.size()>0){
+            announce("SIEGE RAID • PAD "+(siegeFocusPad+1)+" MARKED • INTERCEPT!");
+            audio.play(GameAudio.BOSS_WARN);
+        }
+    }
     private int countArmedTowers(){
         int n=0;for(int i=0;i<activeTowerCount;i++)if(towers[i]>0)n++;
         return n;
@@ -1706,12 +2250,12 @@ public final class RiftGameView extends View {
             pendingMeleeTerrain=prop;
         } else if(prop!=null){
             terrainBolts.add(new TerrainBolt(muzzleX,muzzleY,
-                    weapon.damage*comboPower*ascension.attackMultiplier()*
+                    weapon.damage*comboPower*ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                     weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,equippedWeapon,prop));
         }else{
             Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*comboPower*
-                    ascension.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
+                    ascension.attackMultiplier()*wardenLevel.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,target,false);
             shot.weaponId=equippedWeapon;
             shots.add(shot);
@@ -1734,7 +2278,7 @@ public final class RiftGameView extends View {
             if(!prop.broken()&&distance(heroX,heroY,prop.x,prop.y)<
                     weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon))
                 damageTerrainProp(prop,weapon.damage*pendingMeleePower*
-                        ascension.attackMultiplier()*
+                        ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                         weaponMastery.damageMultiplier(pendingMeleeWeapon));
             pendingMeleeTerrain=null;pendingMeleeWeapon=-1;pendingMeleePower=1f;
             return;
@@ -1745,11 +2289,20 @@ public final class RiftGameView extends View {
                     weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon),
                     e.x,e.y))continue;
             float meleeDamage=weapon.damage*pendingMeleePower*
-                    ascension.attackMultiplier()*
+                    ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
             e.hp-=meleeDamage*bossArmorMultiplier(e)*
                     SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
             damageBossPart(e,meleeDamage);
+            if(weaponMastery.owned(pendingMeleeWeapon,6)){
+                float control=WeaponTacticsV068.slowSeconds(pendingMeleeWeapon);
+                e.slowTimer=Math.max(e.slowTimer,control);
+                float burn=WeaponTacticsV068.burnSeconds(pendingMeleeWeapon);
+                if(burn>0f){
+                    e.burnTimer=Math.max(e.burnTimer,burn);
+                    e.burnDps=Math.max(e.burnDps,12f);
+                }
+            }
             if(weaponMastery.mastered(pendingMeleeWeapon)) {
                 // Titan Splitter has a concussive shockwave; Phoenix Drive
                 // applies actual burning pressure on each sword contact.
@@ -1785,7 +2338,7 @@ public final class RiftGameView extends View {
         int skill=equippedSkill;
         WardenSkills.Skill info=WardenSkills.SKILLS[skill];
         pulseCooldown=Math.max(3f,WardenSkills.effectiveCooldown(skill,kingdom.shopRank(3))
-                -ascension.spellCooldownReduction());
+                -ascension.spellCooldownReduction()-wardenLevel.skillCooldownReduction());
         if(heroAnimation.cast()){
             // Casting interrupts a melee windup. No invisible late sword hit
             // is allowed after the visibly different skill clip begins.
@@ -1793,6 +2346,7 @@ public final class RiftGameView extends View {
         }
         pulseFlash=.55f;
         lastCastSkill=skill;
+        battleSkillCasts++;
         audio.play(GameAudio.SPELL);
         if(skill==WardenSkills.PULSE){
             battlePulses++;
@@ -1977,13 +2531,23 @@ public final class RiftGameView extends View {
         int earnedObjective=MissionObjectives.completed(stage,missionBuilds,
                 baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
                 defeatedElite)?MissionObjectives.bonus(stage):0;
+        // An optional first-clear challenge, not a stage-unlock gate.
+        int earnedContract=firstClear&&BattleContractsV068.completed(stage,
+                battleSkillCasts,towers,activeTowerCount,
+                baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
+                towersDestroyedInBattle)
+                ?BattleContractsV068.firstClearBonus(stage):0;
         int newSupplies=supplies+reward+
-                DifficultyRules.supplyBonus(difficultyMode,reward)+earnedObjective;
+                DifficultyRules.supplyBonus(difficultyMode,reward)+earnedObjective+
+                earnedContract;
         int newUnlocked=Campaign.unlockedAfter(unlocked,stage);
+        WardenLevelsV078.Award expAward=wardenLevel.planVictory(
+                stage,difficultyMode,firstClear);
         // Permanent rewards, new unlocks and deleting the replayable
         // checkpoint are one durable transaction. A failed commit must NOT
         // show the victory scene or change any in-memory permanent balance.
-        if(!durableBattle.commitVictory(newUnlocked,newSupplies)){
+        if(!durableBattle.commitVictory(newUnlocked,newSupplies,
+                expAward.newTotalXp)){
             paused=true;
             clearTouchControls();
             announce("SAVE FAILED • FREE SPACE, THEN RESUME TO RETRY");
@@ -1991,7 +2555,13 @@ public final class RiftGameView extends View {
         }
         supplies=newSupplies;
         unlocked=newUnlocked;
-        objectiveBonus=earnedObjective;
+        wardenLevel.applyCommittedAward(expAward);
+        lastEarnedWardenXp=expAward.xpGained;
+        lastWardenFromLevel=expAward.oldLevel;
+        lastGainedWardenLevels=expAward.levelsGained;
+        lastEarnedWardenPoints=expAward.pointsGained;
+        contractBonus=earnedContract;
+        objectiveBonus=earnedObjective+earnedContract;
         savedWave=null;
         recordBattleResult(true);
         outro=new BattleOutroV065(stage,true,heroX,heroY);
@@ -2121,17 +2691,32 @@ public final class RiftGameView extends View {
         // Architecture is generated natively and world-positioned.\n        // Mission identity, terrain props and lanes are now generated by
         // NativeDeployedMapArt from the same seed as real enemy AI.
         drawStageHazards(c);
+        if(scene==Scene.PLAY)drawRealmSite(c);
+        if(SiegeMissionsV069.active(stage,wave)&&
+                SiegeMissionsV069.mode(stage)==SiegeMissionsV069.SPLIT)
+            drawAlternateRoutes(c);
         // Boss warning now maps to the actual 265-unit hero impact radius
         // and the real keep target. No damage, AI or timing is changed.
         for(Enemy threat:enemies){
-            if(threat.boss&&threat.hp>0&&threat.specialCharge>0f)
-                BossThreatV066.draw(c,threat.x,threat.y,BASE_X,BASE_Y,
+            if(threat.boss&&threat.hp>0&&threat.specialCharge>0f){
+                if(RealmBossV071.enabled(stage,threat.worldBoss,caveMode))
+                    RealmBossThreatV071.draw(c,stage,threat.bossPhase,
+                            threat.x,threat.y,
+                            threat.realmLockedX,threat.realmLockedY,
+                            BASE_X,BASE_Y,threat.specialCharge,
+                            RealmBossV071.chargeSeconds(stage,threat.bossPhase),
+                            combatFeel.reducedMotion());
+                else BossThreatV066.draw(c,threat.x,threat.y,BASE_X,BASE_Y,
                         threat.specialCharge,
                         BossTactics.chargeTime(stage,threat.bossPhase),
                         BossTactics.tactic(stage),threat.bossPhase,
-                        combatFeel.reducedMotion());
+                        combatFeel.reducedMotion(),
+                        BossAssaultV067.heroRadius(stage,threat.bossPhase));
+            }
         }
         drawPlacedSkills(c);
+        if(scene==Scene.PLAY)drawEnemySquadOrders(c);
+        if(scene==Scene.PLAY)drawFieldObjectives(c);
         if(trial!=null&&trial.type==MemoryTrial.RELIC)drawMemoryRelic(c);
         if(scene==Scene.PLAY&&selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
             float sx=towerX[selectedTowerPad],sy=towerY[selectedTowerPad];
@@ -2162,6 +2747,9 @@ public final class RiftGameView extends View {
             if(viewport.visible(drop.x,drop.y,52f))
                 layer(DROP,drop.y+12,drop,0);
         layer(WARDEN,heroY+9,null,0);
+        if(SiegeMissionsV069.active(stage,wave)&&
+                SiegeMissionsV069.mode(stage)==SiegeMissionsV069.ESCORT)
+            layer(ESCORT,caravanY()+7,null,0);
         if(terrain!=null)for(int i=0;i<terrain.count();i++){
             DestructibleTerrainV065.Prop prop=terrain.at(i);
             layer(TERRAIN,prop.y+5,prop,i);
@@ -2186,6 +2774,7 @@ public final class RiftGameView extends View {
                 c.restore();
             }
             else if(entry.type==MONSTER)drawEnemy(c,(Enemy)entry.entity);
+            else if(entry.type==ESCORT)drawEscortCart(c);
             else if(entry.type==TERRAIN)
                 drawTerrainProp(c,(DestructibleTerrainV065.Prop)entry.entity);
             else if(entry.type==DROP)drawPickup(c,(Pickup)entry.entity);
@@ -2364,6 +2953,9 @@ public final class RiftGameView extends View {
     }
 
     private void updateStageHazards(float dt) {
+        // The physically activated Purifier genuinely silences the same
+        // hazard actors drawn on the map. It never removes terrain scenery.
+        if(realmPurifierTime>0f)return;
         for(int i=0;i<StageHazards.count(stage);i++) {
             hazardTimers[i]=Math.max(0,hazardTimers[i]-dt);
             if(hazardTimers[i]>0||!StageHazards.active(stage,i,gameTime))continue;
@@ -2375,7 +2967,8 @@ public final class RiftGameView extends View {
                 // Brambles and frost slow only, to keep early regions approachable.
                 if(StageHazards.slows(stage))hazardSlowTimer=1.3f;
                 if(!DodgeRules.invulnerable(dodgeTime))
-                    heroHp-=StageHazards.heroDamage(stage,difficultyMode);
+                    heroHp-=CombatReadabilityV076.heroHit(stage,
+                            StageHazards.heroDamage(stage,difficultyMode),heroMaxHp());
                 hit=true;
             }
             for(Enemy e:enemies)if(e.hp>0&&distance(e.x,e.y,x,y)<radius) {
@@ -2426,9 +3019,11 @@ public final class RiftGameView extends View {
             float x=StageHazards.x(stage,i),y=StageHazards.y(stage,i);
             float r=StageHazards.radius(stage,i);
             float phase=StageHazards.charge(stage,i,gameTime);
-            boolean active=StageHazards.active(stage,i,gameTime);
+            boolean suppressed=realmPurifierTime>0f;
+            boolean active=!suppressed&&StageHazards.active(stage,i,gameTime);
             oval(c,x-r,y-r*.34f,x+r,y+r*.34f,0x77202932);
-            circleStroke(c,x,y,r,color&0x88ffffff,active?5:2);
+            circleStroke(c,x,y,r,suppressed?0x9999efd5:color&0x88ffffff,
+                    active?5:2);
             float pulse=1+(float)Math.sin(gameTime*5+i)*.12f;
             circle(c,x,y,active?14*pulse:9,active?color:0xff526d70);
             int particles=kind==3||kind==7||kind==9?9:5;
@@ -2923,7 +3518,221 @@ public final class RiftGameView extends View {
                     x,top-89,19,GOLD,true);
         }
     }
+    /** Gameplay-linked cart and flank markers, layered above original terrain. */
+    /** World-space signals, never HUD overlays or fake tactical buttons. */
+    private void drawEnemySquadOrders(Canvas c){
+        if(EnemyCoordinationV075.raidActive(stage,wave,squadPlan,
+                SiegeMissionsV069.active(stage,wave),caveMode,siegeFocusPad)
+                &&siegeFocusPad<activeTowerCount&&towers[siegeFocusPad]>0){
+            float x=towerX[siegeFocusPad],y=towerY[siegeFocusPad];
+            float r=65f+(float)Math.sin(gameTime*3.1f)*5f;
+            circleStroke(c,x,y-22,r,0xd8ffb17d,4);
+            circleStroke(c,x,y-22,r-14,0x77ffd5ae,2);
+            line(c,x-32,y-78,x+32,y-78,0xaaffc78d,3);
+            text(c,"RAID TARGET • PAD "+(siegeFocusPad+1),
+                    x,y-111,18,0xffffcf97,true);
+        }
+    }
+    /** World-positioned, animated structure; interact using movement, not
+     * a new button. This same ring center/radius owns actual activation.
+     */
+    private void drawRealmSite(Canvas c){
+        if(!RealmInteractablesV077.scheduled(stage)||caveMode)return;
+        int type=RealmInteractablesV077.type(stage);
+        float x=realmSiteX,y=realmSiteY;
+        int biome=Campaign.world(stage);
+        int glow=StageHazards.COLORS[biome];
+        float pulse=(float)Math.sin(gameTime*2.9f)*5f;
+        boolean ready=!realmSiteUsed&&wave>=2&&!waiting;
+        boolean charged=realmSiteUsed;
+        oval(c,x-52,y+4,x+52,y+17,0x99091a27);
+        circle(c,x,y,RealmInteractablesV077.RADIUS,
+                charged?0x155bd4ae:ready?0x2cf2bf73:0x14317a8d);
+        circleStroke(c,x,y,RealmInteractablesV077.RADIUS+
+                (ready?pulse:0f),ready?0xffffd58e:charged?0xffa3e6c8:0x887f9ea3,3.6f);
+        for(int i=0;i<6;i++){
+            float angle=(float)Math.PI*i/3f+gameTime*.16f;
+            float px=x+(float)Math.cos(angle)*43f,py=y+(float)Math.sin(angle)*33f;
+            circle(c,px,py,3.8f,charged?0xffa5f9ce:glow);
+        }
+        if(type==RealmInteractablesV077.WARD){
+            // Reinforced standing stone with a three-part citadel crown.
+            polygon(c,x-35,y+3,x-27,y-85,x,y-113,x+27,y-85,x+35,y+3,
+                    0xff687783);
+            polygon(c,x-27,y-85,x,y-113,x+27,y-85,x,y-53,
+                    0xffc7d5cf);
+            for(int i=-1;i<=1;i++)
+                rect(c,x+i*23-7,y-66,x+i*23+7,y-47,0xffe2c18c);
+            circle(c,x,y-63,12,glow);
+        }else if(type==RealmInteractablesV077.FORGE){
+            // Working roadside forge with tall masonry furnace and anvil.
+            round(c,x-32,y-59,x+31,y+6,7,0xff5f6870);
+            polygon(c,x-37,y-59,x,y-82,x+36,y-59,0xffb7b5a3);
+            circle(c,x,y-29,18,0xffff9863);
+            circle(c,x,y-29,10+(float)Math.sin(gameTime*8)*2f,0xffffdc85);
+            polygon(c,new float[]{x+28,y-34,x+65,y-34,x+56,y-22,
+                    x+34,y-22,x+44,y+2,x+17,y+2},0xffc9d1ce);
+            line(c,x-30,y-73,x-15,y-102,0xffffd6a2,5);
+        }else{
+            // Shaped crystal lens and rotating purifier arms.
+            rect(c,x-15,y-56,x+15,y+8,0xff728c9c);
+            polygon(c,x-29,y-54,x,y-106,x+29,y-54,glow);
+            polygon(c,x,y-106,x+29,y-54,x,y-26,0xffc1e5ee);
+            c.save();c.rotate(gameTime*(charged?14f:33f),x,y-63);
+            line(c,x-47,y-63,x+47,y-63,0xffbadceb,5);
+            line(c,x,y-103,x,y-23,0xffbadceb,5);
+            c.restore();
+        }
+        String label=charged?"ACTIVATED":!ready?"READY IN WAVE 2":
+                "HOLD TO ACTIVATE";
+        textFit(c,label,x,y-138,210,17,charged?0xffb8f4d6:0xffffddaa,true);
+        if(ready&&realmSiteChannel>0)
+            bar(c,x-54,y-124,108,8,realmSiteChannel/
+                    RealmInteractablesV077.CHANNEL_SECONDS,0xffffd995);
+    }
+    private void drawFieldObjectives(Canvas c){
+        if(!SiegeMissionsV069.active(stage,wave))return;
+        int type=SiegeMissionsV069.mode(stage);
+        if(type==SiegeMissionsV069.RESCUE){
+            for(int i=0;i<villagerState.length;i++){
+                float x=FieldObjectivesV074.rescueX(stage,i),
+                        y=FieldObjectivesV074.rescueY(stage,i);
+                int state=villagerState[i];
+                if(state==2){
+                    oval(c,x-32,y+3,x+33,y+15,0x88231e2d);
+                    line(c,x-22,y,x+23,y-18,0xff9c7470,5);
+                    text(c,"LOST",x,y-53,16,0xffff9693,true);
+                    continue;
+                }
+                if(state==1){
+                    circle(c,x,y-21,23,0x4486ecc4);
+                    circleStroke(c,x,y-20,28,0xffb3e9bf,3);
+                    text(c,"SAFE",x,y-67,16,0xffc1f6d2,true);
+                    continue;
+                }
+                float bob=(float)Math.sin(gameTime*2.8f+i)*3f;
+                circle(c,x,y,FieldObjectivesV074.RESCUE_RADIUS,0x1558ffe0);
+                circleStroke(c,x,y,FieldObjectivesV074.RESCUE_RADIUS,
+                        0x99ffdb90,3.5f);
+                oval(c,x-23,y+2,x+24,y+14,0x770a1b29);
+                polygon(c,x-22,y-42,x,y-58+bob,x+23,y-41,x+18,y+4,
+                        x-21,y+4,0xffb18c61);
+                polygon(c,x-22,y-37,x,y-56+bob,x+22,y-37,0xff586fa1);
+                circle(c,x,y-68+bob,14,0xffedc4a1);
+                polygon(c,x-18,y-71+bob,x,y-90+bob,x+18,y-71+bob,
+                        0xff806a4f);
+                line(c,x+24,y-37,x+24,y-89,0xffe7ca86,3);
+                polygon(c,x+24,y-91,x+48,y-82,x+24,y-75,0xffffd083);
+                text(c,"RESCUE",x,y-113,18,0xffffdc99,true);
+                bar(c,x-44,y-103,88,7,villagerHp[i]/
+                        FieldObjectivesV074.survivorMaxHp(stage,difficultyMode),
+                        0xffc5eeb7);
+            }
+        }else if(type==SiegeMissionsV069.SEAL){
+            for(int i=0;i<sealDone.length;i++){
+                float x=FieldObjectivesV074.sealX(stage,i),
+                        y=FieldObjectivesV074.sealY(stage,i);
+                boolean done=sealDone[i];
+                float pulse=(float)Math.sin(gameTime*3+i)*5f;
+                circle(c,x,y,FieldObjectivesV074.SEAL_RADIUS,
+                        done?0x2252ffbf:0x334a2c95);
+                circleStroke(c,x,y,FieldObjectivesV074.SEAL_RADIUS+pulse,
+                        done?0xff8be3a9:0xffccadfa,4f);
+                for(int k=0;k<6;k++){
+                    float angle=k*(float)Math.PI/3+gameTime*.28f;
+                    circle(c,x+(float)Math.cos(angle)*55,
+                            y-36+(float)Math.sin(angle)*39,6,
+                            done?0xffa5f8c9:0xffcfadfb);
+                }
+                polygon(c,x-24,y+7,x-14,y-50,x,y-87,x+18,y-50,
+                        x+24,y+7,done?0xff5aaf92:0xff7753a7);
+                polygon(c,x-14,y-50,x,y-87,x+18,y-50,x+2,y-11,
+                        done?0xffa9ffdb:0xffd6b2ff);
+                text(c,done?"SEALED":"HOLD TO SEAL",x,y-115,18,
+                        done?0xffb8f4d2:0xffebd4ff,true);
+                if(!done)bar(c,x-53,y-108,106,8,sealCharge[i]/
+                        FieldObjectivesV074.SEAL_SECONDS,0xffc5a3f7);
+            }
+        }
+    }
+    private void drawEscortCart(Canvas c){
+        float x=caravanX,y=caravanY(),roll=gameTime*6f;
+        oval(c,x-72,y+12,x+72,y+29,0x770c1c25);
+        round(c,x-62,y-33,x+55,y+6,7,0xff6e4b37);
+        rect(c,x-57,y-25,x+47,y+1,0xffb88b55);
+        for(int i=0;i<3;i++){
+            rect(c,x-41+i*29,y-51,x-16+i*29,y-24,0xff99724e);
+            line(c,x-39+i*29,y-49,x-19+i*29,y-27,0xffe1bb7d,2);
+        }
+        polygon(c,x-69,y-52,x-16,y-89,x+57,y-52,0xff51697b);
+        polygon(c,x-63,y-52,x-14,y-79,x+48,y-52,0xff8cadb1);
+        for(int i=0;i<2;i++){
+            float wx=x-39+i*76f,wy=y+8;
+            circle(c,wx,wy,20,0xff263440);
+            circleStroke(c,wx,wy,15,0xffedc788,5);
+            for(int spoke=0;spoke<4;spoke++){
+                float a=roll+spoke*1.57f;
+                line(c,wx,wy,wx+(float)Math.cos(a)*14,
+                        wy+(float)Math.sin(a)*14,0xffaeb9b5,2);
+            }
+        }
+        line(c,x-6,y-80,x-6,y-125,0xffdccb91,4);
+        polygon(c,x-5,y-120,x+39+(float)Math.sin(gameTime*2)*4,y-109,
+                x-5,y-100,0xffffcb81);
+        text(c,"REFUGEES",x,y-151,19,0xffffdea1,true);
+        float maxCart=CampaignEncountersV073.cartMaxHp(stage,difficultyMode);
+        bar(c,x-69,y-142,138,9,caravanHp/maxCart,
+                caravanHp<maxCart*.35f?0xffff8975:0xffa5e8c7);
+        if(caravanGuarded()){
+            circleStroke(c,x,y-25,107,0x88a3f9d3,3);
+            text(c,"RALLY • DAMAGE -39%",x,y-171,15,0xffb6f4d3,true);
+        }
+        if(caravanUnderAttack)circleStroke(c,x,y-25,77,0x77ffa673,4);
+    }
+    private void drawAlternateRoutes(Canvas c){
+        for(int side=-1;side<=1;side+=2){
+            int tint=side<0?0x999dcbff:0x99cc9eff;
+            for(int x=1370;x<=1790;x+=60){
+                float y=LaneRules.stagePathY(stage,x)+
+                        SiegeMissionsV069.flankOffset(x,side);
+                circle(c,x,y,4,tint);
+                if((x-1370)%120==0)
+                    polygon(c,x-12,y-8,x+9,y,x-12,y+8,tint);
+            }
+        }
+    }
+    private void drawMissionEnemyMark(Canvas c,Enemy e){
+        if(e.siegeEngine){
+            rect(c,e.x-40,e.y-93,e.x+17,e.y-75,0xff485563);
+            round(c,e.x+9,e.y-97,e.x+70,e.y-79,5,0xff798590);
+            circle(c,e.x+70,e.y-88,11,0xff2e3640);
+            circle(c,e.x+70,e.y-88,5,0xffffba78);
+            if(e.engineWindup>0){
+                circleStroke(c,e.x,e.y-39,85+(float)Math.sin(gameTime*7)*5,
+                        0xffffa66c,5);
+                line(c,e.x,e.y-90,BASE_X,BASE_Y-110,0x77ffab64,3);
+                text(c,"SIEGE SHOT!",e.x,e.y-143,20,0xffffae84,true);
+            }else text(c,"SIEGE ENGINE",e.x,e.y-143,18,0xffffd2a3,true);
+        }
+        if(e.flankRoute){
+            circleStroke(c,e.x,e.y-43,48,0xaaab9dff,3);
+            polygon(c,e.x-14,e.y-91,e.x+13,e.y-79,e.x-14,e.y-67,
+                    0xffd3baff);
+            text(c,"FLANK",e.x,e.y-108,17,0xffd8c7ff,true);
+        }
+    }
     private void drawEnemy(Canvas c,Enemy e) {
+        if(e.retreatTime>0f){
+            circleStroke(c,e.x,e.y-44,43,0x99b1f5d2,3);
+            polygon(c,e.x+13,e.y-78,e.x+37,e.y-66,e.x+13,e.y-55,
+                    0xffb5f0d4);
+            text(c,"FALL BACK",e.x,e.y-111,17,0xffbbffdd,true);
+        }else if(e.pincerSide!=0&&e.moving){
+            circleStroke(c,e.x,e.y-42,38,0x88c4a9ff,2);
+            polygon(c,e.x+e.pincerSide*23,e.y-82,e.x,e.y-66,
+                    e.x-e.pincerSide*23,e.y-82,0xffcebcff);
+            text(c,"PINCER",e.x,e.y-101,14,0xffe1d1ff,true);
+        }
         if(e.kind==6 && e.dashWindup>0){
             line(c,e.x,e.y-30,heroX,heroY-18,0xaaffb778,4);
             text(c,"CHARGE!",e.x,e.y-98,20,0xffffd69b,true);
@@ -2949,8 +3758,9 @@ public final class RiftGameView extends View {
                         e.bossPhase,Campaign.world(stage),gameTime);
                 circleStroke(c,e.x,e.y-38,95+e.specialCharge*25,
                         0xffffc18f,5);
-                text(c,BossTactics.warning(stage),e.x,e.y-118,18,
-                     0xffffcb9c,true);
+                text(c,RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
+                        RealmBossV071.name(stage):BossTactics.warning(stage),
+                        e.x,e.y-118,18,0xffffcb9c,true);
             }
         }
         float attack=e.attackAnim>0?1-e.attackAnim/.42f:-1f;
@@ -2991,6 +3801,7 @@ public final class RiftGameView extends View {
                         e.x-w+1+(w*2-2)*Math.max(0,e.hp/e.maxHp),
                         e.y-(e.kind==5?105:73),0xfffc987d);
             }
+            drawMissionEnemyMark(c,e);
             return;
         }
         float bob=(float)Math.sin(e.phase)*4,scale=e.kind==2?1.6f:e.kind==1?.76f:1f;
@@ -3035,6 +3846,7 @@ public final class RiftGameView extends View {
             rect(c,-24,-51,-24+48*Math.max(0,e.hp/e.maxHp),-48,0xffff8c78);
         }
         c.restore();
+        drawMissionEnemyMark(c,e);
     }
     private void drawPickup(Canvas c,Pickup drop) {
         float bob=(float)Math.sin(gameTime*4+drop.x)*5;
@@ -3097,6 +3909,16 @@ public final class RiftGameView extends View {
             EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
             EvolutionEffects.greaves(c,heroX,heroY,speedForm());
         }
+        // LV40 battle focus marks the actual character, not the fortress;
+        // the LV100 capstone intensifies this restrained, animated aura.
+        if(wardenLevel.level()>=40){
+            boolean master=wardenLevel.level()>=100;
+            float wave=(float)Math.sin(gameTime*4.5f);
+            circleStroke(c,heroX,heroY+20,30f+wave*2.5f,
+                    master?0x99f3ce7d:0x6682d8c5,master?3f:2f);
+            if(master)circleStroke(c,heroX,heroY-30,47f+wave*3f,
+                    0x55e8ca90,2f);
+        }
     }
     private void drawHeroActor(Canvas c,boolean forcedHurt) {
         // State-machine clocks drive actual poses. Legacy preview callers
@@ -3117,14 +3939,15 @@ public final class RiftGameView extends View {
         final boolean injured=forcedHurt||heroAnimation.isHurt()||hurtCooldown>.1f;
         final float poseTime=heroMoving?walkClock:gameTime;
         final int mastery=weaponMastery.count(equippedWeapon);
+        final int mask=weaponMastery.purchasedMask(equippedWeapon);
         final int form=weaponForm(equippedWeapon),armor=armorForm();
         final boolean rigRendered=USE_VECTOR_WARDEN&&(
                 wardenFrames.draw(c,heroX,heroY,poseTime,heroDir,heroMoving,
                         attackProgress,castProgress,injured,equippedWeapon,
-                        mastery,form,armor,deathProgress) ||
+                        mastery,mask,form,armor,deathProgress) ||
                 wardenRig.hero(c,heroX,heroY,poseTime,heroDir,heroMoving,
                         attackProgress,castProgress,injured,equippedWeapon,
-                        mastery,form,armor,deathProgress));
+                        mastery,mask,form,armor,deathProgress));
         if(!firstBattleActorDiag && scene==Scene.PLAY) {
             firstBattleActorDiag=true;
             android.util.Log.i("RiftGuardVisual",
@@ -3147,6 +3970,7 @@ public final class RiftGameView extends View {
             c.save(); c.translate(heroX+22,heroY-27);
             c.rotate(fireFlash>0?28:0);
             EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                     0,0,.38f,gameTime);
             c.restore();
             return;
@@ -3170,6 +3994,7 @@ public final class RiftGameView extends View {
         c.save();
         c.rotate((float)Math.sin(gameTime*8)*5+(fireFlash>0?36:0),26,-13);
         EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                 26,-18,.66f,gameTime);
         c.restore();
         if(fireFlash>0 && (equippedWeapon==1 || equippedWeapon==2)){
@@ -3250,6 +4075,20 @@ public final class RiftGameView extends View {
                 WardenSkills.SKILLS[equippedSkill].name.toUpperCase().split(" ")[0],
                 pulseCooldown>0?""+(int)Math.ceil(pulseCooldown)+"s":"READY");
         action(c,attackHudX(),attackHudY(),70,0xffb3684c,"ATTACK","FIRE");
+        // Visual feedback uses the SAME mutable layout as touch handling.
+        // Only show the rings while unavailable or actively charging:
+        // no persistent text clutter and no shifted/mismatched tap targets.
+        HudActionFeedbackV067.cooldown(c,dodgeHudX(),dodgeHudY(),
+                hudLayout.radius(HudLayoutV065.DODGE),dodgeCooldown,
+                DodgeRules.COOLDOWN,0xffa6e9f2);
+        HudActionFeedbackV067.cooldown(c,pulseHudX(),pulseHudY(),
+                hudLayout.radius(HudLayoutV065.SKILL),pulseCooldown,
+                Math.max(3f,WardenSkills.effectiveCooldown(equippedSkill,
+                        kingdom.shopRank(3))-ascension.spellCooldownReduction()-wardenLevel.skillCooldownReduction()),
+                0xffddc6ff);
+        HudActionFeedbackV067.charge(c,attackHudX(),attackHudY(),
+                hudLayout.radius(HudLayoutV065.ATTACK),
+                attackGesture&&attackPointer>=0,heldAttackSeconds);
         if(waiting && (firstWavePending||wave<DifficultyRules.waves(stage,difficultyMode))){
             boolean bossNext=!firstWavePending&&DifficultyRules.worldBoss(stage)&&
                     wave+1==DifficultyRules.waves(stage,difficultyMode);
@@ -3293,12 +4132,23 @@ public final class RiftGameView extends View {
                     trial.type==MemoryTrial.NO_LOSS?"  "+towersDestroyedInBattle+" TOWERS LOST":"");
             round(c,448,119,830,153,8,0xcc203941);
             textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
+            if(BattleContractsV068.kind(stage)!=BattleContractsV068.NONE){
+                round(c,448,156,830,181,7,0xcc20434d);
+                textFit(c,(stage>=unlocked?"FIELD • ":"FIELD PRACTICE • ")+
+                        BattleContractsV068.progress(stage,
+                        battleSkillCasts,towers,activeTowerCount,
+                        baseHp/Math.max(1f,coreMaxHp()),
+                        heroHp/Math.max(1f,heroMaxHp()),towersDestroyedInBattle),
+                        639,174,364,15,0xffb3e8cc,true);
+            }
         }
+        drawSiegeMissionHud(c);
         text(c,"MOVE",stickX,Math.min(710f,stickHudY()+119),17,0xffb5cfc5,true);
         text(c,selectedTowerPad<0?"PADS "+activeTowerCount:
                 "PAD "+(selectedTowerPad+1)+"/"+activeTowerCount,
                 buildHudX(),Math.min(707f,buildHudY()+90),15,0xffb9ddd2,true);
         EvolvedWeaponArt.draw(c,equippedWeapon,weaponForm(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                 624,652,.61f,gameTime);
         text(c,Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
                 624,703,17,GOLD,true);
@@ -3312,6 +4162,96 @@ public final class RiftGameView extends View {
             }
         }
     }
+    /** Lightweight tactical guidance based ONLY on currently live objective
+     * state. Shared left-side panel never obscures the adjustable controls.
+     */
+    private void drawTacticalReadout(Canvas c,String title,String action,int tint){
+        round(c,40,189,367,279,11,0xe11a333e);
+        textFit(c,title,56,209,294,16,tint,false);
+        textFit(c,action,56,238,294,16,0xffdfefe5,false);
+        line(c,56,251,342,251,tint,2f);
+    }
+    private void drawSiegeMissionHud(Canvas c){
+        if(!SiegeMissionsV069.active(stage,wave)){
+            if(scene!=Scene.PLAY||waiting||wave<2)return;
+            if(EnemyCoordinationV075.raidActive(stage,wave,squadPlan,
+                    false,caveMode,siegeFocusPad)&&
+                    siegeFocusPad<activeTowerCount&&towers[siegeFocusPad]>0){
+                float ratio=towerHp[siegeFocusPad]/
+                        TowerDurability.maxHp(towers[siegeFocusPad],fortressRank);
+                drawTacticalReadout(c,"TACTIC • SIEGE TARGET",
+                        CombatReadabilityV076.raidAction(siegeFocusPad,ratio),
+                        ratio<.30f?0xffff9a85:0xffffcc8d);
+                return;
+            }
+            if(RealmInteractablesV077.scheduled(stage)&&!caveMode){
+                int type=RealmInteractablesV077.type(stage);
+                float remain=type==RealmInteractablesV077.WARD?realmWardTime:
+                        type==RealmInteractablesV077.FORGE?realmForgeTime:
+                        realmPurifierTime;
+                if(!realmSiteUsed||remain>0){
+                    String hint=realmSiteUsed?
+                            "ACTIVE "+Math.round(remain)+"s • "+
+                            (type==RealmInteractablesV077.WARD?"KEEP DEFENSE":
+                            type==RealmInteractablesV077.FORGE?"TURRET POWER":
+                            "HAZARDS SILENCED"):
+                            RealmInteractablesV077.guidance(type);
+                    drawTacticalReadout(c,"REALM • "+RealmInteractablesV077.name(type),
+                            hint,realmSiteUsed?0xffb4f3d1:0xffffd18a);
+                    return;
+                }
+            }
+            boolean retreat=false,pincer=false;
+            for(Enemy e:enemies)if(e.hp>0){
+                if(e.kind==4&&e.retreatTime>0)retreat=true;
+                if(e.pincerSide!=0&&e.moving)pincer=true;
+            }
+            String hint=CombatReadabilityV076.tacticalAction(pincer,retreat);
+            if(!hint.isEmpty())drawTacticalReadout(c,"TACTIC • ENEMY FORMATION",
+                    hint,retreat?0xffa5efd5:0xffd5bbff);
+            return;
+        }
+        int mode=SiegeMissionsV069.mode(stage);
+        String status=mode==SiegeMissionsV069.ESCORT?
+                (SiegeMissionsV069.cartSafe(caravanX)?"CARAVAN SAFE":
+                    "CART "+Math.round(caravanHp)+" HP • "+
+                    (caravanGuarded()?"GUARDED • ":"")+
+                    Math.round((SiegeMissionsV069.CART_START_X-caravanX)/
+                    (SiegeMissionsV069.CART_START_X-SiegeMissionsV069.CART_SAFE_X)*100)+"%"):
+                mode==SiegeMissionsV069.ENGINE?
+                    (engineStopped?"ENGINE DISABLED":"INTERRUPT CHARGE • SHOTS "+siegeShots):
+                    mode==SiegeMissionsV069.RESCUE?
+                            "SAVED "+villagersSaved+"/3 • LOST "+villagersLost:
+                    mode==SiegeMissionsV069.SEAL?
+                            "SEALED "+riftsSealed+"/2 • HOLD AT RIFTS":
+                    "FLANKS STOPPED "+flankKills+" • BREACHES "+flankBreaches;
+        float cannonCharge=0f;
+        for(Enemy e:enemies)if(e.siegeEngine&&e.hp>0&&e.engineWindup>0){
+            cannonCharge=e.engineWindup;break;
+        }
+        float progressRemaining=0f;
+        if(mode==SiegeMissionsV069.SEAL)for(int i=0;i<sealDone.length;i++)
+            if(!sealDone[i]&&FieldObjectivesV074.near(heroX,heroY,
+                    FieldObjectivesV074.sealX(stage,i),
+                    FieldObjectivesV074.sealY(stage,i),FieldObjectivesV074.SEAL_RADIUS)){
+                progressRemaining=FieldObjectivesV074.SEAL_SECONDS-sealCharge[i];
+                break;
+            }
+        String action=mode==SiegeMissionsV069.ENGINE&&engineStopped?
+                "ENGINE DISABLED • DEFEND THE KEEP":
+                CombatReadabilityV076.missionAction(mode,caravanGuarded(),
+                caravanHp/Math.max(1f,CampaignEncountersV073.cartMaxHp(stage,difficultyMode)),
+                villagersSaved,villagersLost,riftsSealed,progressRemaining,
+                sealPulseTimer,cannonCharge);
+        int tint=mode==SiegeMissionsV069.SEAL&&riftsSealed<2?
+                0xffcbaaff:mode==SiegeMissionsV069.RESCUE&&villagersLost>0?
+                0xffffa68d:0xffffd29a;
+        round(c,40,189,367,281,11,0xe1183642);
+        textFit(c,SiegeMissionsV069.name(stage),56,209,292,15,tint,false);
+        textFit(c,status,56,234,294,17,0xffb9ece0,false);
+        line(c,56,244,342,244,tint,2f);
+        textFit(c,action,56,266,294,15,tint,false);
+    }
     /** Boss display is a real HP snapshot, not a painted label. */
     private boolean drawBossHud(Canvas c) {
         for(Enemy e:enemies)if(e.boss&&e.hp>0) {
@@ -3322,9 +4262,14 @@ public final class RiftGameView extends View {
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
             if(e.specialCharge>0)
-                text(c,"PHASE "+e.bossPhase+" / 3 • "+
-                        BossTactics.warning(stage)+" • DODGE!",640,190,21,
-                        0xffffc18f,true);
+                textFit(c,"PHASE "+e.bossPhase+" / 3 • "+
+                        (RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
+                                RealmBossV071.name(stage):BossTactics.warning(stage))+
+                        " • WATCH THE MARK",640,190,580,20,0xffffc18f,true);
+            if(e.specialCharge>0&&RealmBossV071.enabled(
+                    stage,e.worldBoss,caveMode))
+                textFit(c,RealmBossV071.counter(stage),
+                        640,218,610,16,0xffe4d6b7,true);
             return true;
         }
         return false;
@@ -3360,10 +4305,24 @@ public final class RiftGameView extends View {
                 1080,137,16,0xffa5daca,true);
         if(activeComboHit!=null)text(c,"COMBO "+activeComboHit.step+
                 (activeComboHit.charged?" • CHARGED":""),872,133,17,0xffeac98b,false);
-        textFit(c,"ENEMY ORDER: "+SquadTacticsV065.name(squadPlan),
-                180,135,335,16,0xffffce9e,true);
+        textFit(c,"ACT "+(RealmActsV071.act(stage)+1)+" "+
+                RealmActsV071.name(stage)+" / "+
+                SquadTacticsV065.name(squadPlan),180,135,350,16,0xffffce9e,true);
         text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
         text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
+        // XP widget lives below the TOP HUD, outside every draggable control.
+        // The progress bar uses the same values as the character screen.
+        round(c,420,105,845,150,12,0xdd19343e);
+        text(c,"LV "+wardenLevel.level(),438,133,21,0xffffd390,false);
+        if(wardenLevel.level()>=WardenLevelsV078.MAX_LEVEL){
+            text(c,"WARDEN MAX LEVEL",538,133,18,0xffb8f1d2,false);
+        }else{
+            bar(c,531,113,202,12,wardenLevel.progress(),0xff9ce1bc);
+            text(c,"XP "+wardenLevel.xpIntoLevel()+"/"+wardenLevel.xpNeeded(),
+                    531,145,15,0xffc9dfdf,false);
+        }
+        if(wardenLevel.unspent()>0)
+            text(c,"PTS "+wardenLevel.unspent(),738,135,16,GOLD,false);
         round(c,1146,25,1223,89,16,0xff344c55);
         text(c,"II",1184,71,31,INK,true);
     }
@@ -3408,13 +4367,15 @@ public final class RiftGameView extends View {
         rect(c,93,259,577,264,0xff709c9d);
         text(c,"RECLAIM THE TEN REALMS",94,318,26,0xffe2b995,false);
         text(c,"Defend • Earn Supplies • Upgrade • Unlock",94,355,23,INK,false);
-        button(c,95,368,590,409,"RESOURCES  /  OFFLINE ART PACK",0xff33596c);
+        button(c,95,368,336,409,"RESOURCES",0xff33596c);
+        button(c,347,368,590,409,"WARDEN  LV "+wardenLevel.level(),0xff497d70);
         button(c,95,415,336,490,"CAMPAIGN",0xffa56a49);
         button(c,348,415,590,490,"CHRONICLE",0xff73567e);
         button(c,95,509,328,572,"ARMORY",0xff3d6971);
         button(c,348,509,590,572,"FORTRESS",0xff44645c);
-        text(c,"FORTRESS RANK "+fortressRank+"   •   SUPPLIES "+supplies,
-                98,614,21,GOLD,false);
+        textFit(c,"WARDEN LV "+wardenLevel.level()+"  •  "+
+                wardenLevel.unspent()+" FREE POINTS  •  FORT "+fortressRank+
+                "  •  SUPPLIES "+supplies,98,614,482,19,GOLD,false);
         text(c,"NO ADS  •  OFFLINE PLAY  •  OPTIONAL DOWNLOADS",101,643,15,0xff9eb8bb,false);
     }
 
@@ -3504,12 +4465,14 @@ public final class RiftGameView extends View {
             boolean rendered=(USE_VECTOR_WARDEN&&wardenRig.hero(c,heroX,heroY,
                     gameTime,-2.2f,false,-1,-1,false,equippedWeapon,
                     weaponMastery.count(equippedWeapon),
+                    weaponMastery.purchasedMask(equippedWeapon),
                     weaponForm(equippedWeapon),armorForm(),-1))
                     ||motionArt.hero(c,heroX,heroY,gameTime,
                     -2.2f,false,-1,-1,false,equippedWeapon,
                     weaponMastery.count(equippedWeapon),weaponForm(equippedWeapon));
             if(!rendered)EvolvedWeaponArt.draw(c,equippedWeapon,
-                    weaponForm(equippedWeapon),heroX,heroY-58,.9f,gameTime);
+                    weaponForm(equippedWeapon),weaponMastery.purchasedMask(equippedWeapon),
+                    heroX,heroY-58,.9f,gameTime);
             EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
             EvolutionEffects.greaves(c,heroX,heroY,speedForm());
             if(!USE_VECTOR_ENEMIES||!enemyRig.enemy(c,0,biome,1,
@@ -3554,6 +4517,9 @@ public final class RiftGameView extends View {
         round(c,893,111,1216,576,20,0xff182f3a);
         textFit(c,Campaign.WORLDS[current].toUpperCase(),912,155,287,23,GOLD,false);
         text(c,"LEVEL "+selectedLevel+" / 100",916,185,22,INK,false);
+        textFit(c,"ACT "+(RealmActsV071.act(Campaign.stage(selectedLevel,0))+1)+
+                " • "+RealmActsV071.name(Campaign.stage(selectedLevel,0)),
+                1169,184,132,14,0xffbdebd5,true);
         bar(c,912,189,284,5,unlocked/300f,0xffb9daa5);
         for(int m=0;m<3;m++) {
             int mission=Campaign.stage(selectedLevel,m);
@@ -3575,6 +4541,21 @@ public final class RiftGameView extends View {
             c.restore();
             rect(c,905,top+67,1204,top+99,0xee182e37);
             text(c,(char)('A'+m)+"  "+Campaign.MAPS[m],914,top+90,19,INK,false);
+            if(SiegeMissionsV069.mode(mission)!=SiegeMissionsV069.NONE) {
+                round(c,1088,top+4,1197,top+28,6,0xdd3b6274);
+                text(c,SiegeMissionsV069.mode(mission)==SiegeMissionsV069.ESCORT?
+                        "ESCORT":SiegeMissionsV069.mode(mission)==SiegeMissionsV069.ENGINE?
+                        "SIEGE":SiegeMissionsV069.mode(mission)==SiegeMissionsV069.RESCUE?
+                        "RESCUE":SiegeMissionsV069.mode(mission)==SiegeMissionsV069.SEAL?
+                        "SEALS":"2 ROUTES",1143,top+22,14,0xffe2f4e7,true);
+            }
+            if(RealmInteractablesV077.scheduled(mission)){
+                int kind=RealmInteractablesV077.type(mission);
+                round(c,1084,top+4,1197,top+28,6,0xdd516850);
+                text(c,kind==RealmInteractablesV077.WARD?"WARD":
+                        kind==RealmInteractablesV077.FORGE?"FORGE":
+                        "PURIFIER",1141,top+22,13,0xffffe8c5,true);
+            }
             if(DifficultyRules.worldBoss(mission)) {
                 round(c,1090,top+4,1197,top+28,6,0xdd71384e);
                 text(c,"WORLD BOSS",1143,top+22,15,0xffffdfbc,true);
@@ -3605,7 +4586,9 @@ public final class RiftGameView extends View {
         text(c,"+"+DifficultyRules.bonusWaves(difficultyMode)+" WAVES    BONUS +"+
                         DifficultyRules.supplyBonus(difficultyMode,baseReward)+"%",
                 905,679,15,INK,false);
-        text(c,"CLEARED  "+unlocked+" / 300",1110,699,15,GOLD,true);
+        text(c,"WARDEN EXP +"+WardenLevelsV078.stageXp(chosen,
+                difficultyMode,chosen>=unlocked),905,699,15,0xffa9e8c5,false);
+        text(c,"CLEARED  "+unlocked+" / 300",1143,699,15,GOLD,true);
     }
 
     private static final String[] KINGDOM_TABS={
@@ -3807,6 +4790,111 @@ public final class RiftGameView extends View {
         });
     }
 
+
+    /** Real, save-backed Warden RPG sheet. The illustrated avatar is the
+     * SAME equipped animated character/gear, scaled for a portrait preview.
+     * Button/touch geometry uses UpgradeActionLayout and explicit card rects.
+     */
+    private void drawCharacter(Canvas c){
+        drawBackdrop(c);
+        round(c,43,28,1237,695,24,0xf018313e);
+        text(c,"WARDEN • CHARACTER PROGRESSION",75,83,40,GOLD,false);
+        text(c,"LEVEL TO 100  •  WIN CAMPAIGN BATTLES  •  SPEND POINTS ON YOUR BUILD",
+                79,116,18,0xffc5dcd8,false);
+        round(c,73,149,445,598,18,0xff243d4b);
+        border(c,73,149,445,598,18,0xff749a97,2);
+        textFit(c,storyProgress.wardenName().toUpperCase(),260,190,320,23,
+                0xfff6d7a4,true);
+        text(c,"LV "+wardenLevel.level()+"  •  "+
+                (wardenLevel.level()<20?"RECRUIT":
+                 wardenLevel.level()<40?"SENTINEL":
+                 wardenLevel.level()<60?"VANGUARD":
+                 wardenLevel.level()<80?"CHAMPION":"RIFT LEGEND"),
+                260,219,18,0xffbadfd5,true);
+        // Draw the equipped Warden rig at 1.9x world scale, including
+        // the purchased armor and weapon forms, not a generic avatar icon.
+        c.save();
+        c.clipRect(96,232,428,509);
+        // Preserve the FULL helmet silhouette in the actual 1280x720
+        // emulator portrait; earlier center Y clipped the upper head.
+        c.translate(260f,462f);
+        c.scale(1.9f,1.9f);
+        c.translate(-heroX,-heroY);
+        drawHeroActor(c,false);
+        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
+        c.restore();
+        textFit(c,"EQUIPPED: "+Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
+                260,536,325,18,INK,true);
+        round(c,107,552,406,587,9,wardenLevel.unspent()>0?0xff536d51:0xff345564);
+        text(c,"UNSPENT ATTRIBUTE POINTS  "+wardenLevel.unspent(),
+                257,578,18,GOLD,true);
+
+        round(c,465,137,1204,226,15,0xff263f4b);
+        text(c,"CHARACTER LEVEL "+wardenLevel.level()+" / 100",487,165,24,GOLD,false);
+        textFit(c,"TOTAL XP  "+wardenLevel.totalXp()+" / "+WardenLevelsV078.maxXp(),
+                1055,166,260,16,0xffc6ddd5,true);
+        bar(c,490,181,675,15,wardenLevel.progress(),0xff9fe2bb);
+        text(c,wardenLevel.level()>=100?"MAX LEVEL • ALL POINTS EARNED":
+                "XP "+wardenLevel.xpIntoLevel()+" / "+wardenLevel.xpNeeded()+
+                " TO LV "+(wardenLevel.level()+1)+"  •  NEXT LEVEL +"+
+                WardenLevelsV078.pointsOnLevel(wardenLevel.level()+1)+" POINTS",
+                490,217,15,0xffdceada,false);
+        final int[] accents={0xffa5e9be,0xffffb99a,0xffa6dcf1,0xffcfb8ff};
+        for(int i=0;i<WardenLevelsV078.ATTRIBUTE_COUNT;i++){
+            int col=i%2,row=i/2;
+            float x=469+col*367f,y=242+row*160f;
+            boolean selected=i==selectedWardenAttribute;
+            round(c,x-4,y-4,x+352,y+148,15,selected?0xffe5bd81:0xff46616f);
+            round(c,x,y,x+348,y+144,12,selected?0xff304d54:0xff243e49);
+            circle(c,x+37,y+38,23,accents[i]&0x88ffffff);
+            text(c,i==WardenLevelsV078.VITALITY?"♥":
+                    i==WardenLevelsV078.POWER?"✦":
+                    i==WardenLevelsV078.AGILITY?"»":"✧",
+                    x+37,y+46,28,accents[i],true);
+            text(c,WardenLevelsV078.NAMES[i],x+78,y+39,24,accents[i],false);
+            text(c,wardenLevel.attribute(i)+" / "+WardenLevelsV078.MAX_ATTRIBUTE,
+                    x+325,y+39,19,INK,true);
+            textFit(c,WardenLevelsV078.DESCRIPTIONS[i],x+21,y+80,304,16,
+                    0xffd0e0dc,false);
+            bar(c,x+19,y+95,310,12,wardenLevel.attribute(i)/
+                    (float)WardenLevelsV078.MAX_ATTRIBUTE,accents[i]);
+            text(c,selected?"SELECTED • ALLOCATE BELOW":"TAP TO SELECT",
+                    x+23,y+132,16,selected?GOLD:0xff95b5b8,false);
+        }
+        text(c,"HERO HP +"+wardenLevel.healthBonus()+
+                "  |  ATTACK +"+Math.round((wardenLevel.attackMultiplier()-1)*100)+"%"+
+                "  |  MOVE +"+Math.round((wardenLevel.moveMultiplier()-1)*100)+"%"+
+                "  |  SPELL -"+Math.round(wardenLevel.skillCooldownReduction()*100)/100f+"s",
+                471,578,17,0xffc4eee0,false);
+        int oath=WardenMilestonesV079.currentIndex(wardenLevel.level());
+        int nextOath=WardenMilestonesV079.nextIndex(wardenLevel.level());
+        String oathLabel=oath>=0?"ACTIVE OATH: "+WardenMilestonesV079.NAMES[oath]+
+                " • "+WardenMilestonesV079.DETAILS[oath]:"OATHS NOT YET UNLOCKED";
+        String nextOathLabel=nextOath>=0?"  |  NEXT LV "+
+                WardenMilestonesV079.LEVELS[nextOath]+": "+
+                WardenMilestonesV079.NAMES[nextOath]:"  |  ALL SIX OATHS UNLOCKED";
+        textFit(c,oathLabel+nextOathLabel,640,612,1060,16,0xffffd89f,true);
+        upgradeActions(c,"HOME","ARMORY","+1 POINT","+5 POINTS",
+                wardenLevel.unspent()>=5&&wardenLevel.attribute(selectedWardenAttribute)<=
+                        WardenLevelsV078.MAX_ATTRIBUTE-5);
+        // Shared action geometry remains intact; both buy controls visibly
+        // gray out when the selected attribute cannot receive more points.
+        if(wardenLevel.unspent()<1||wardenLevel.attribute(selectedWardenAttribute)>=
+                WardenLevelsV078.MAX_ATTRIBUTE)
+            button(c,UpgradeActionLayout.LEFT[2],UpgradeActionLayout.TOP,
+                    UpgradeActionLayout.RIGHT[2],UpgradeActionLayout.BOTTOM,
+                    "+1 POINT",0xff52626b);
+    }
+    /** Spend exactly the selected amount; no currency, no accidental taps. */
+    private void spendWardenPoints(int amount){
+        if(wardenLevel.spend(selectedWardenAttribute,amount)){
+            audio.play(GameAudio.EVOLUTION);
+            announce(WardenLevelsV078.NAMES[selectedWardenAttribute]+
+                    " +"+amount+" • "+wardenLevel.unspent()+" POINTS LEFT");
+        }else announce("NOT ENOUGH POINTS OR ATTRIBUTE IS MAXED");
+    }
+
     private void drawArmory(Canvas c) {
         drawBackdrop(c);
         round(c,43,28,1237,695,25,0xf0172d35);
@@ -3823,7 +4911,7 @@ public final class RiftGameView extends View {
             round(c,x,y,x+340,y+192,14,available?0xff294955:0xff293640);
             round(c,x+12,y+15,x+128,y+167,12,0xff172d39);
             EvolvedWeaponArt.draw(c,i,weaponForm(i),
-                    x+69,y+109,1.10f,gameTime);
+                    weaponMastery.purchasedMask(i),x+69,y+109,1.10f,gameTime);
             textFit(c,EvolutionProgress.formName(i,weaponForm(i)),
                     x+146,y+54,180,22,available?INK:0xffa2a6aa,false);
             text(c,w.type+"  /  MASTERY "+weaponMastery.count(i)+"/11",
@@ -3854,7 +4942,7 @@ public final class RiftGameView extends View {
             round(c,left,122,left+176,166,11,
                     selected?0xffa27853:0xff405768);
             EvolvedWeaponArt.draw(c,weapon,weaponForm(weapon),
-                    left+23,159,.33f,gameTime);
+                    weaponMastery.purchasedMask(weapon),left+23,159,.33f,gameTime);
             String label=Progression.WEAPONS[weapon].name.toUpperCase();
             if(label.length()>15)label=label.substring(0,15);
             text(c,label,left+104,151,15,selected?0xffffe0a6:INK,true);
@@ -3914,8 +5002,11 @@ public final class RiftGameView extends View {
         round(c,846,297,1191,365,13,0xff152c38);
         int currentForm=weaponForm(selectedMasteryWeapon);
         int previewForm=Math.max(currentForm,node.tier);
-        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,currentForm,883,350,.52f,gameTime);
-        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,previewForm,954,350,.52f,gameTime);
+        int nodeMask=weaponMastery.purchasedMask(selectedMasteryWeapon);
+        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,currentForm,nodeMask,
+                883,350,.52f,gameTime);
+        EvolvedWeaponArt.draw(c,selectedMasteryWeapon,previewForm,
+                nodeMask|(1<<node.id),954,350,.52f,gameTime);
         textFit(c,"NOW  ->  NEXT APPEARANCE",1080,321,200,15,GOLD,true);
         textFit(c,EvolutionProgress.formName(selectedMasteryWeapon,previewForm),
                 1080,348,205,16,0xffc3eddb,true);
@@ -3955,9 +5046,13 @@ public final class RiftGameView extends View {
         round(c,x-32,y-33,x+32,y+31,11,
                 owned?0xff224d46:available?0xff29495a:0xff1b2f39);
         if(id==0||id==10){
-            EvolvedWeaponArt.draw(c,weapon,node.tier,x,y+21,.34f,gameTime);
+            EvolvedWeaponArt.draw(c,weapon,node.tier,
+                    weaponMastery.purchasedMask(weapon)|(1<<node.id),
+                    x,y+21,.34f,gameTime);
         }else if(node.lane==0){
-            EvolvedWeaponArt.draw(c,weapon,node.tier,x,y+21,.30f,gameTime);
+            EvolvedWeaponArt.draw(c,weapon,node.tier,
+                    weaponMastery.purchasedMask(weapon)|(1<<node.id),
+                    x,y+21,.30f,gameTime);
         }else if(node.lane==1){
             polygon(c,x-16,y+9,x-9,y-10,x+3,y-15,
                     x+19,y+5,x+1,y+18,0xffb5d9e9);
@@ -4240,7 +5335,8 @@ public final class RiftGameView extends View {
         switch(category){
             case AscensionTree.ATTACK:
                 // The actual Warden's independent greatsword model.
-                EvolvedWeaponArt.draw(c,1,weaponForm(1),0,19,.45f,gameTime);
+                EvolvedWeaponArt.draw(c,1,weaponForm(1),
+                        weaponMastery.purchasedMask(1),0,19,.45f,gameTime);
                 break;
             case AscensionTree.CORE:
                 polygon(c,new float[]{-23,27,-23,-10,-14,-10,-14,-25,
@@ -4413,9 +5509,26 @@ public final class RiftGameView extends View {
         }
         text(c,"Enemies defeated: "+kills+"     Gold earned: "+gold,
                 640,388,21,INK,true);
+        if(scene==Scene.WIN){
+            round(c,414,104,868,160,13,0xee203a43);
+            textFit(c,"EXP +"+lastEarnedWardenXp+"  •  LV "+
+                    (lastGainedWardenLevels>0?
+                            lastWardenFromLevel+" → "+wardenLevel.level():
+                            ""+wardenLevel.level())+
+                    (lastGainedWardenLevels>0?"  •  LEVEL UP +"+
+                            lastEarnedWardenPoints+" POINTS":""),640,139,
+                    414,20,lastGainedWardenLevels>0?0xffffd48d:0xffb1ecd0,true);
+            int newOath=WardenMilestonesV079.latestUnlocked(
+                    lastWardenFromLevel,wardenLevel.level());
+            if(newOath>=0)textFit(c,"NEW WARDEN OATH • "+
+                    WardenMilestonesV079.NAMES[newOath]+"  |  "+
+                    WardenMilestonesV079.DETAILS[newOath],
+                    640,204,530,18,0xffffd89f,true);
+        }
         if(scene==Scene.WIN)
-            textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES",640,418,
-                    430,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
+            textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES"+
+                    (contractBonus>0?" • FIELD +"+contractBonus:""),640,418,
+                    500,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
         boolean waveRetry=canRetryWave();
         button(c,435,429,845,502,scene==Scene.WIN?
                 (outcomeStory.isEmpty()?"NEXT STAGE":"VIEW STORY"):
@@ -4423,7 +5536,10 @@ public final class RiftGameView extends View {
                 (WaveCheckpointV065.retries(difficultyMode)-waveRetriesUsed)+" LEFT)":
                 "RETRY STAGE",0xffae7652);
         button(c,435,520,845,585,waveRetry?"RESTART STAGE":"CAMPAIGN MAP",0xff3f626e);
-        if(waveRetry)button(c,435,590,845,651,"CAMPAIGN MAP",0xff485e66);
+        if(scene==Scene.WIN)button(c,435,594,845,651,
+                wardenLevel.unspent()>0?"SPEND "+wardenLevel.unspent()+" WARDEN POINTS":
+                "WARDEN LEVEL / STATS",0xff547b6f);
+        else if(waveRetry)button(c,435,590,845,651,"CAMPAIGN MAP",0xff485e66);
     }
     /**
      * Storybook mission panel is a real tap-gated overlay above a live battlefield.
@@ -4452,7 +5568,10 @@ public final class RiftGameView extends View {
         text(c,"WARDEN'S ORDERS",596,384,18,0xff9cb6ba,false);
         drawStoryParagraph(c,story.order,594,418,552,22,31,INK);
         textFit(c,story.objective,134,570,410,21,0xffc0e0bf,false);
-        textFit(c,trial!=null?"MEMORY: "+trial.title:
+        textFit(c,BattleContractsV068.kind(stage)!=BattleContractsV068.NONE?
+                "FIELD CONTRACT • "+BattleContractsV068.name(stage)+
+                        (stage<unlocked?" (PRACTICE)":""):
+                trial!=null?"MEMORY: "+trial.title:
                 TowerPadLayout.count(stage)+" PADS • "+MissionObjectives.name(stage),
                 134,604,413,16,0xffffd7a1,false);
         drawStoryParagraph(c,story.warning,594,523,538,19,26,0xffffc38f);
@@ -4538,6 +5657,7 @@ public final class RiftGameView extends View {
         c.scale(.85f,.85f);
         wardenRig.hero(c,0,0,gameTime,-.2f,false,-1,-1,false,
                 equippedWeapon,weaponMastery.count(equippedWeapon),
+                weaponMastery.purchasedMask(equippedWeapon),
                 weaponForm(equippedWeapon),armorForm(),-1);
         c.restore();
         if(cael){
@@ -4583,7 +5703,15 @@ public final class RiftGameView extends View {
                 (captionAlpha<<24)|(INK&0x00ffffff));
         text(c,memory?"MEMORY REVEALED":"SCENE "+(storyIndex+1)+" / "+storyLines.length,
                 83,76,19,0xffffe2ae,false);
-        text(c,"TAP TO CONTINUE  •  BACK TO SKIP",1010,650,17,0xffb9d2d3,true);
+        text(c,"TAP ANYWHERE TO CONTINUE",982,650,17,0xffb9d2d3,true);
+        // BACK gestures are not reliable on every Android 16 immersive phone.
+        // Make chapter skipping an obvious, accessible on-screen action;
+        // does not erase any unlocked memories or permanent progress.
+        round(c,STORY_SKIP_LEFT,STORY_SKIP_TOP,
+                STORY_SKIP_RIGHT,STORY_SKIP_BOTTOM,13,0xd3243949);
+        border(c,STORY_SKIP_LEFT,STORY_SKIP_TOP,
+                STORY_SKIP_RIGHT,STORY_SKIP_BOTTOM,13,0xffd6c6a3,2);
+        text(c,"SKIP CHAPTER",1130,81,20,0xffffdfaf,true);
         cinematic.drawCutOverlay(c,seconds,memory,dramatic);
     }
 
@@ -4888,7 +6016,12 @@ public final class RiftGameView extends View {
             invalidate();return true;
         }
         if(storyOpen){
-            if(action==MotionEvent.ACTION_DOWN)advanceStoryLine();
+            if(action==MotionEvent.ACTION_DOWN){
+                if(x>=STORY_SKIP_LEFT&&x<=STORY_SKIP_RIGHT&&
+                        y>=STORY_SKIP_TOP&&y<=STORY_SKIP_BOTTOM)
+                    dismissStory();
+                else advanceStoryLine();
+            }
             invalidate();return true;
         }
         if(scene==Scene.CAVE_CHOICE){
@@ -5144,11 +6277,23 @@ public final class RiftGameView extends View {
             else if(x>1007 && x<1216 && y>39 && y<104)audio.toggle();
             else if(x>710 && x<1004 && y>39 && y<104)cycleGraphicsMode();
             else if(x>665 && x<1205 && y>447 && y<517)scene=Scene.KINGDOM;
-            else if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
+            else if(x>93 && x<341 && y>361 && y<412)scene=Scene.RESOURCES;
+            else if(x>343 && x<610 && y>361 && y<412)scene=Scene.CHARACTER;
             else if(x>93 && x<345 && y>408 && y<492)scene=Scene.MAP;
             else if(x>=345 && x<610 && y>408 && y<492)scene=Scene.CHRONICLE;
             else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
             else if(x>345 && x<610 && y>502 && y<580)scene=Scene.FORTRESS;
+        }else if(scene==Scene.CHARACTER){
+            int action=UpgradeActionLayout.hit(x,y);
+            if(action==0)scene=Scene.HOME;
+            else if(action==1)scene=Scene.ARMORY;
+            else if(action==2)spendWardenPoints(1);
+            else if(action==3)spendWardenPoints(5);
+            else if(x>=469&&x<=1184&&y>=238&&y<=548){
+                int col=x<823?0:x>=836?1:-1;
+                int row=y<390?0:y>=398?1:-1;
+                if(col>=0&&row>=0)selectedWardenAttribute=row*2+col;
+            }
         }else if(scene==Scene.KINGDOM) {
             tapKingdom(x,y);
         }else if(scene==Scene.RESOURCES) {
@@ -5254,6 +6399,8 @@ public final class RiftGameView extends View {
             }else if(x>420 && x<860 && y>514 && y<588){
                 if(canRetryWave())start(stage);
                 else {scene=Scene.MAP;caveMode=false;}
+            }else if(scene==Scene.WIN&&x>420&&x<860&&y>=590&&y<=660){
+                scene=Scene.CHARACTER;
             }else if(x>420&&x<860&&y>=590&&canRetryWave()){
                 scene=Scene.MAP;caveMode=false;
             }

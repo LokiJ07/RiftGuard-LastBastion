@@ -3,6 +3,12 @@ package com.lokij07.riftguard;
 /** Pure gameplay math: easy to unit-test separately from Android graphics. */
 public final class BattleRules {
     private BattleRules() {}
+    // Read on every enemy movement tick: never allocate a fresh speed array
+    // for every active enemy, every rendered frame.
+    private static final float[] ENEMY_HP_MULTIPLIERS=
+            {1f,.63f,3.1f,.88f,1.45f,2f,1.8f};
+    private static final float[] ENEMY_SPEEDS=
+            {57f,93f,34f,77f,52f,46f,83f};
     public static final int MAX_TOWER_TIER = 5;
     public static float clamp(float x, float low, float high) {
         return Math.max(low, Math.min(high, x));
@@ -15,12 +21,11 @@ public final class BattleRules {
     public static float enemyHealth(int stage, int type) {
         Campaign.checkStage(stage);
         float factor = 1f + stage * 0.029f;
-        float[] multipliers = {1f, .63f, 3.1f, .88f, 1.45f, 2f, 1.8f};
-        return 25f * factor * multipliers[Math.floorMod(type, multipliers.length)];
+        return 25f * factor *
+                ENEMY_HP_MULTIPLIERS[Math.floorMod(type,ENEMY_HP_MULTIPLIERS.length)];
     }
     public static float enemySpeed(int type) {
-        float[] speeds = {57f, 93f, 34f, 77f, 52f, 46f, 83f};
-        return speeds[Math.floorMod(type, speeds.length)];
+        return ENEMY_SPEEDS[Math.floorMod(type,ENEMY_SPEEDS.length)];
     }
     public static float towerDamage(int tier) {
         return 18 + 13 * tier;

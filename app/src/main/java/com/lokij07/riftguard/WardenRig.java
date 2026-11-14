@@ -76,6 +76,13 @@ public final class WardenRig {
                         boolean running, float attackProgress, float castProgress,
                         boolean hurt, int weaponId, int masteryNodes,
                         int weaponForm, int armorTier, float death) {
+        return hero(c,x,y,time,facing,running,attackProgress,castProgress,
+                hurt,weaponId,masteryNodes,1,weaponForm,armorTier,death);
+    }
+    public boolean hero(Canvas c, float x, float y, float time, float facing,
+                        boolean running, float attackProgress, float castProgress,
+                        boolean hurt, int weaponId, int masteryNodes,int masteryMask,
+                        int weaponForm, int armorTier, float death) {
         if(weaponId < 0 || weaponId >= 6 || weaponForm < 0 ||
                 weaponForm > 4 || armorTier < 0 || armorTier > 4)
             return false; // original MotionArt fallback can handle invalid state
@@ -168,7 +175,7 @@ public final class WardenRig {
         // Front (weapon) arm uses the absolute pose that already contains the shift.
         drawFrontArmAndWeapon(c, pose, id, time, attacking ? attackProgress : -1f,
                 casting ? castProgress : -1f, running, facing,
-                masteryNodes, weaponForm);
+                masteryNodes, masteryMask, weaponForm);
         c.restore(); // upper body group
         c.restore();
         return true;
@@ -508,7 +515,7 @@ public final class WardenRig {
     private void drawFrontArmAndWeapon(Canvas c, WeaponRig.Pose pose, int id,
                                        float time, float attack, float castProgress,
                                        boolean running, float facing, int masteryNodes,
-                                       int weaponForm) {
+                                       int masteryMask,int weaponForm) {
         boolean blade = id == 1 || id == 2;
         // blade slash trail follows the real moving tip (same data as hit cone)
         if (blade && attack >= .07f && attack < .92f) {
@@ -550,7 +557,7 @@ public final class WardenRig {
         c.scale(rs, rs);
         // Exact save-backed mastery form in the actual glove socket.
         // Do not draw the old static WorldArt weapon over the upgraded blade.
-        EvolvedWeaponArt.draw(c, id, weaponForm, 0, 0, 1f, time);
+        EvolvedWeaponArt.draw(c, id, weaponForm,masteryMask,0, 0, 1f, time);
         if (masteryNodes >= 2) drawMasteryMarks(c, id, masteryNodes, time);
         c.restore();
         gauntlet(c, pose.handX, pose.handY, pose.angle - 12f);

@@ -21,6 +21,7 @@ public final class CombatAnimationFeel {
     private int color=0xffffd3a4;
     private boolean reducedMotion;
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path contactSlash=new Path();
 
     public void reset(){
         pauseRemaining=shakeRemaining=shakeDuration=amplitude=flashRemaining=clock=0f;
@@ -95,10 +96,10 @@ public final class CombatAnimationFeel {
                     (float)Math.sin(angle)*length,p);
         }
         p.setColor((Math.min(255,alpha)<<24)|0x00fff8df);
-        Path slash=new Path();
-        slash.moveTo(-24-progress*10,9);
-        slash.quadTo(3,-11,24+progress*11,-10);
-        c.drawPath(slash,p);
+        contactSlash.reset();
+        contactSlash.moveTo(-24-progress*10,9);
+        contactSlash.quadTo(3,-11,24+progress*11,-10);
+        c.drawPath(contactSlash,p);
         p.setStyle(Paint.Style.FILL);
         c.restore();
     }

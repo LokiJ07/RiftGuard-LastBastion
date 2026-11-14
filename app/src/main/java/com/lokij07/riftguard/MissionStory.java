@@ -44,11 +44,18 @@ public final class MissionStory {
         String chapter="CHAPTER "+(world+1)+"  /  "+Campaign.WORLDS[world].toUpperCase();
         String headline=Campaign.title(stage)+"  -  "+Campaign.MAPS[map].toUpperCase();
         String warning=DifficultyRules.worldBoss(stage)
-                ?"WORLD BOSS: "+DifficultyRules.worldBossName(stage)
-                :WARNINGS[map];
-        String objective="DEFEND YOUR CORE  /  "+
+                ?"WORLD BOSS: "+DifficultyRules.worldBossName(stage)+" / "+
+                        RealmBossV071.name(stage)+": "+RealmBossV071.counter(stage)
+                :SiegeMissionsV069.mode(stage)!=SiegeMissionsV069.NONE
+                    ?SiegeMissionsV069.warning(stage)
+                    :RealmActsV071.threatKind(stage)>=0
+                        ?RealmActsV071.warning(stage):WARNINGS[map];
+        String objective="ACT "+(RealmActsV071.act(stage)+1)+" • "+
+                RealmActsV071.name(stage)+" / DEFEND CORE / "+
                 Campaign.waves(stage)+" WAVES";
-        return new Briefing(chapter,headline,REGION_LORE[world],ORDERS[map],
+        String order=SiegeMissionsV069.mode(stage)!=SiegeMissionsV069.NONE
+                ?SiegeMissionsV069.orders(stage):ORDERS[map];
+        return new Briefing(chapter,headline,REGION_LORE[world],order,
                 warning,objective);
     }
 }

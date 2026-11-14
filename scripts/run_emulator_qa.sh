@@ -46,6 +46,13 @@ adb pull /sdcard/rg-ascension.png emulator-qa/05-ascension-upgrade-tree.png
 adb shell input tap 204 656
 adb shell input tap 204 656
 sleep 1
+# The actual HOME WARDEN LV tile opens a fully native, interactive stat sheet.
+adb shell input tap 449 389
+sleep 2
+adb shell screencap -p /sdcard/rg-warden-level.png
+adb pull /sdcard/rg-warden-level.png emulator-qa/05b-warden-level-and-stats.png
+adb shell input tap 202 655
+sleep 1
 adb shell input tap 220 452
 sleep 2
 adb shell screencap -p /sdcard/rg-map.png
@@ -56,18 +63,18 @@ adb shell screencap -p /sdcard/rg-brief.png
 adb pull /sdcard/rg-brief.png emulator-qa/03-mission-briefing.png
 adb shell input tap 930 624
 sleep 2
-# Android 16 can show the *system-owned* "Viewing full screen" coach
-# again when a new immersive screen appears, even when the earlier secure
-# settings flag was written successfully. Its "Got it" button sits near
-# 928,284 on the CI 1280x720 landscape emulator. Dismiss it BEFORE BACK.
-# A tap outside that OS dialog only advances a story panel, which BACK
-# subsequently skips; no combat state or progression is altered.
+# Android 16 sometimes displays the *system-owned* fullscreen coach;
+# dismiss it first. Then use the real visible SKIP CHAPTER button.
+# A physical BACK key can be intercepted by that system coach and leave
+# the authored story open, producing fake "combat" screenshots.
 adb shell input tap 927 284 || true
 sleep 1
-# The opening story intercepts ALL touch input. Skipping it by Android BACK
-# clears the authored chapter without modifying gameplay difficulty/saves.
-# Previously the "combat" shots were actually STORY 1/7 and STORY 5/7.
-adb shell input keyevent 4
+adb shell input tap 1130 76
+sleep 1
+# A second identical tap is harmless after the chapter closes (its
+# location is outside Pause and all live action controls), but makes
+# the test robust when Android consumed the first tap as system coaching.
+adb shell input tap 1130 76
 sleep 2
 # First wave has an 18-second in-game preparation timer. Launch it using
 # the same visible BEGIN WAVE 1 button a player must press; otherwise the
@@ -80,26 +87,10 @@ adb shell dumpsys gfxinfo "$PKG" reset >/dev/null || true
 sleep 8
 adb shell screencap -p /sdcard/rg-battle.png
 adb pull /sdcard/rg-battle.png emulator-qa/04-battle.png
-# Exercise all four major combat controls on an actual Android touchscreen emulator:
-# MOVE via swipe, DODGE, BUILD and ATTACK.
-adb shell input swipe 180 570 280 570 500 || true
-adb shell input tap 729 590
-adb shell input tap 849 590
-adb shell input tap 974 593
-adb shell input tap 1118 590
-sleep 4
-adb shell screencap -p /sdcard/rg-combat.png
-adb pull /sdcard/rg-combat.png emulator-qa/05-touch-combat.png
-# Debug-only app diagnostics prove the screenshot was genuinely PLAY
-# and that the five gameplay controls received taps, not cutscene taps.
-adb shell logcat -d -v brief -s RiftGuardQA:I > emulator-qa/qa-state.txt
-adb shell dumpsys gfxinfo "$PKG" framestats > emulator-qa/gfxinfo-framestats.txt
-adb shell dumpsys meminfo "$PKG" > emulator-qa/memory.txt
-adb shell dumpsys activity processes > emulator-qa/processes.txt
-adb shell logcat -d -v threadtime > emulator-qa/logcat.txt
-# Process-death acceptance: the wave-boundary checkpoint must survive an
-# actual Android force-stop/new Activity, not just a Robolectric new View.
-# Run AFTER battle captures, so the combat screenshots remain unaltered.
+# Verify genuine Android process-death recovery WHILE THE WARDEN IS STILL
+# ALIVE. Dumping multiple slow gfxinfo/meminfo/logcat reports before killing
+# the app previously let the unattended enemies win and legitimately clear
+# the checkpoint. Never alter battle/defeat rules just to pass CI.
 adb shell am force-stop "$PKG"
 # Keep recovery log isolated from the previous Activity instance.
 adb shell logcat -c || true
@@ -107,10 +98,34 @@ adb shell am start -W -n "$PKG/.MainActivity" > emulator-qa/relaunch.txt
 sleep 4
 adb shell screencap -p /sdcard/rg-recovered-home.png
 adb pull /sdcard/rg-recovered-home.png emulator-qa/06-relaunch-with-continue.png
-# The continue affordance has its own hit region at 682..1189 x 309..375.
+# Use the actual visible CONTINUE action on HOME.
 adb shell input tap 950 338
 sleep 4
 adb shell screencap -p /sdcard/rg-recovered-wave.png
 adb pull /sdcard/rg-recovered-wave.png emulator-qa/07-restored-wave-paused.png
 adb shell logcat -d -v brief -s RiftGuardQA:I > emulator-qa/qa-recovery-state.txt
+
+# A recovered wave is intentionally paused. RESUME via the real button; then
+# verify the live combat controls against the same recovered battle.
+adb shell input tap 640 280
+sleep 2
+adb shell dumpsys gfxinfo "$PKG" reset >/dev/null || true
+sleep 5
+# Exercise all five live touchscreen controls on the running Android game:
+# MOVE via swipe, DODGE, BUILD, SKILL and ATTACK.
+adb shell input swipe 180 570 280 570 500 || true
+adb shell input tap 729 590
+adb shell input tap 849 590
+adb shell input tap 974 593
+adb shell input tap 1118 590
+# Capture IMMEDIATELY; the Warden must be alive when testing input.
+adb shell screencap -p /sdcard/rg-combat.png
+adb pull /sdcard/rg-combat.png emulator-qa/05-touch-combat.png
+# Debug-only app diagnostics prove the recovered battle has real enemies
+# and that all five input controls received touches, not story/menu taps.
+adb shell logcat -d -v brief -s RiftGuardQA:I > emulator-qa/qa-state.txt
+adb shell dumpsys gfxinfo "$PKG" framestats > emulator-qa/gfxinfo-framestats.txt
+adb shell dumpsys meminfo "$PKG" > emulator-qa/memory.txt
+adb shell dumpsys activity processes > emulator-qa/processes.txt
+adb shell logcat -d -v threadtime > emulator-qa/logcat.txt
 python3 scripts/analyze_emulator_qa.py emulator-qa

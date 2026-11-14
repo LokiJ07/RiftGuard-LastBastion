@@ -80,6 +80,11 @@ public final class WeaponMastery {
         node(weapon,id);
         return (bits(weapon)&(1L<<id))!=0;
     }
+    /** Exact purchased-node engraving mask, derived from old save bitset.
+     * The bitset is NOT a second cosmetic progress database. */
+    public int purchasedMask(int weapon){
+        return (int)(bits(weapon)&((1L<<NODES_PER_WEAPON)-1L));
+    }
     /** Pinnacle requires ALL three preceding branches, not one cheap shortcut. */
     public boolean available(int weapon,int id,int fortressRank){
         Node n=node(weapon,id);
@@ -129,6 +134,9 @@ public final class WeaponMastery {
     public static String benefit(Node n){
         if(n.id==0)return "Every weapon begins here";
         if(n.id==10)return "MASTERY +24% damage, -7% cooldown, +26 reach + special";
+        if(n.id==6)return n.weapon==2?
+                "SPECIAL • IGNITE ENEMIES ON HIT + ATTACK REACH":
+                "SPECIAL • SLOW ENEMIES ON HIT + ATTACK REACH";
         if(n.lane==POWER)return "+"+Math.round(n.damageBonus*100)+"% DAMAGE";
         if(n.lane==CADENCE)return "-"+Math.round(n.speedBonus*100)+"% COOLDOWN";
         return "+"+Math.round(n.rangeBonus)+" ATTACK REACH";

@@ -1,0 +1,94 @@
+name: RiftGuard Signed Release Candidate (Manual and Protected)
+
+# Never triggered by pushes, tags, PRs or schedules.
+on:
+  workflow_dispatch:
+    inputs:
+      qa_reviewed:
+        description: "Confirm real-device QA, player testing, rights/privacy review and store materials complete"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  signed-release-candidate:
+    if: github.ref == 'refs/heads/main' && inputs.qa_reviewed
+    environment: production-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android API 36 tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          test -n "$MANAGER"
+          yes | "$MANAGER" --licenses > /dev/null || true
+          "$MANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Decode protected Play upload signing key
+        shell: bash
+        env:
+          RIFTGUARD_RELEASE_JKS_B64: ${{ secrets.RIFTGUARD_RELEASE_JKS_B64 }}
+          RIFTGUARD_RELEASE_STORE_PASSWORD: ${{ secrets.RIFTGUARD_RELEASE_STORE_PASSWORD }}
+          RIFTGUARD_RELEASE_KEY_ALIAS: ${{ secrets.RIFTGUARD_RELEASE_KEY_ALIAS }}
+          RIFTGUARD_RELEASE_KEY_PASSWORD: ${{ secrets.RIFTGUARD_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for k in RIFTGUARD_RELEASE_JKS_B64 RIFTGUARD_RELEASE_STORE_PASSWORD RIFTGUARD_RELEASE_KEY_ALIAS RIFTGUARD_RELEASE_KEY_PASSWORD; do
+            if [ -z "${!k:-}" ]; then
+              echo "::error::Protected production signing configuration is incomplete"
+              exit 1
+            fi
+          done
+          KEY_FILE="$RUNNER_TEMP/riftguard-play-upload.jks"
+          umask 077
+          printf '%s' "$RIFTGUARD_RELEASE_JKS_B64" | base64 --decode > "$KEY_FILE"
+          test "$(wc -c < "$KEY_FILE")" -gt 100
+          echo "RIFTGUARD_RELEASE_KEYSTORE_FILE=$KEY_FILE" >> "$GITHUB_ENV"
+          echo "Play upload signing key loaded from protected secret"
+      - name: Fail-closed production gate and build signed bundle
+        shell: bash
+        env:
+          RIFTGUARD_RELEASE_STORE_PASSWORD: ${{ secrets.RIFTGUARD_RELEASE_STORE_PASSWORD }}
+          RIFTGUARD_RELEASE_KEY_ALIAS: ${{ secrets.RIFTGUARD_RELEASE_KEY_ALIAS }}
+          RIFTGUARD_RELEASE_KEY_PASSWORD: ${{ secrets.RIFTGUARD_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release_gate.py --mode production --human-qa --output app/build/release-audit.json
+          gradle --no-daemon :app:testDebugUnitTest :app:bundleRelease
+      - name: Verify final AAB signature before artifact upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=app/build/outputs/bundle/release/app-release.aab
+          test -s "$FILE"
+          jarsigner -verify "$FILE" > "$RUNNER_TEMP/riftguard-signature-check.txt"
+          if ! grep -q "jar verified" "$RUNNER_TEMP/riftguard-signature-check.txt"; then
+            echo "::error::AAB signature missing or invalid"
+            exit 1
+          fi
+          echo "Signed AAB verified; no Play publication performed"
+      - name: Upload signed candidate for manual internal Play testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: RiftGuard-SIGNED-RELEASE-CANDIDATE
+          path: |
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/release-audit.json
+          if-no-files-found: error
+          retention-days: 10
+      - name: Remove protected signing key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/riftguard-play-upload.jks"
