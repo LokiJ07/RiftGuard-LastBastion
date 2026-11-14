@@ -208,6 +208,14 @@ public final class RiftGameView extends View {
     private float caravanX=SiegeMissionsV069.CART_START_X,caravanHp=SiegeMissionsV069.CART_MAX_HP;
     private boolean missionEventRewarded,caravanUnderAttack,engineStopped;
     private int siegeShots,flankKills,flankBreaches;
+    // Actual wave-two field objectives, reset at deterministic save boundaries.
+    // 0=unrescued,1=saved,2=lost. No persistent schema changes.
+    private final float[] villagerHp=new float[FieldObjectivesV074.SURVIVORS];
+    private final int[] villagerState=new int[FieldObjectivesV074.SURVIVORS];
+    private int villagersSaved,villagersLost,riftsSealed;
+    private final float[] sealCharge=new float[FieldObjectivesV074.SEALS];
+    private final boolean[] sealDone=new boolean[FieldObjectivesV074.SEALS];
+    private float sealPulseTimer;
     private boolean defeatedElite,healerWarningShown;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
@@ -938,11 +946,24 @@ public final class RiftGameView extends View {
                     SiegeMissionsV069.mode(stage)==SiegeMissionsV069.ESCORT&&
                     !SiegeMissionsV069.cartSafe(caravanX)&&caravanHp>0&&!hunt&&
                     distance(e.x,e.y,caravanX,caravanY())<190f;
-            boolean traveling=!hunt&&!toCaravan &&
+            int victim=-1;
+            if(SiegeMissionsV069.active(stage,wave)&&
+                    SiegeMissionsV069.mode(stage)==SiegeMissionsV069.RESCUE&&!hunt){
+                float best=200f;
+                for(int i=0;i<villagerState.length;i++){
+                    if(villagerState[i]!=0)continue;
+                    float dNpc=distance(e.x,e.y,FieldObjectivesV074.rescueX(stage,i),
+                            FieldObjectivesV074.rescueY(stage,i));
+                    if(dNpc<best){best=dNpc;victim=i;}
+                }
+            }
+            boolean traveling=!hunt&&!toCaravan&&victim<0 &&
                     e.x>LaneRules.CASTLE_GATE_X+120f;
-            float tx=hunt?heroX:toCaravan?caravanX:traveling?
+            float tx=hunt?heroX:toCaravan?caravanX:victim>=0?
+                    FieldObjectivesV074.rescueX(stage,victim):traveling?
                     LaneRules.stageWaypointX(e.x,stage):BASE_X;
-            float ty=hunt?heroY:toCaravan?caravanY():traveling?
+            float ty=hunt?heroY:toCaravan?caravanY():victim>=0?
+                    FieldObjectivesV074.rescueY(stage,victim):traveling?
                     LaneRules.stageWaypointY(e.x,stage):BASE_Y;
             if(traveling&&e.flankRoute)
                 ty=LaneRules.stageWaypointY(e.x,stage)+
@@ -952,7 +973,7 @@ public final class RiftGameView extends View {
             float d=distance(e.x,e.y,tx,ty);
             // Final fortress boundary, not each intermediate lane sample,
             // determines how close monsters may stop to attack.
-            float stop=traveling?3f:toCaravan?61f:
+            float stop=traveling?3f:toCaravan?61f:victim>=0?57f:
                     MovementRules.enemyStopDistance(hunt,e.kind);
             // World bosses lock their position during a telegraphed cast.
             // Otherwise the ring would chase the player while charging.
@@ -1113,6 +1134,24 @@ public final class RiftGameView extends View {
                     if(caravanHp<=0){
                         announce("CARAVAN LOST • DEFENSE FAILED");
                         markDefeat();return;
+                    }
+                }
+                continue;
+            }
+            if(victim>=0&&FieldObjectivesV074.near(e.x,e.y,
+                    FieldObjectivesV074.rescueX(stage,victim),
+                    FieldObjectivesV074.rescueY(stage,victim),82f)){
+                e.attackTimer-=dt;
+                if(e.attackTimer<=0){
+                    villagerHp[victim]=Math.max(0f,villagerHp[victim]-
+                            FieldObjectivesV074.survivorHit(stage,difficultyMode,e.kind));
+                    e.attackAnim=.42f;e.attackTimer=1.8f;
+                    puff(FieldObjectivesV074.rescueX(stage,victim),
+                            FieldObjectivesV074.rescueY(stage,victim)-20,9,0xffffa17c);
+                    if(villagerHp[victim]<=0&&villagerState[victim]==0){
+                        villagerState[victim]=2;villagersLost++;
+                        announce("VILLAGER LOST • RESCUE THE OTHERS!");
+                        if(villagersLost>=2){markDefeat();return;}
                     }
                 }
                 continue;
@@ -1357,9 +1396,18 @@ public final class RiftGameView extends View {
         if(remaining==0 && enemies.isEmpty()) {
             if(caveMode){completeEclipseCave();return;}
             // Do not advance until living convoy reaches the gate.
-            if(SiegeMissionsV069.active(stage,wave)&&
-                    SiegeMissionsV069.mode(stage)==SiegeMissionsV069.ESCORT&&
-                    !SiegeMissionsV069.cartSafe(caravanX))return;
+            if(SiegeMissionsV069.active(stage,wave)){
+                int type=SiegeMissionsV069.mode(stage);
+                if(type==SiegeMissionsV069.ESCORT&&
+                        !SiegeMissionsV069.cartSafe(caravanX))return;
+                // Enemies being cleared never silently skips a movement-based
+                // objective. Both are reachable within the Warden's world limits.
+                if(type==SiegeMissionsV069.RESCUE&&
+                        !FieldObjectivesV074.canAdvanceRescue(villagersSaved,
+                                villagersLost))return;
+                if(type==SiegeMissionsV069.SEAL&&
+                        riftsSealed<FieldObjectivesV074.SEALS)return;
+            }
             if(SiegeMissionsV069.active(stage,wave)&&
                     SiegeMissionsV069.mode(stage)==SiegeMissionsV069.SPLIT&&
                     !missionEventRewarded&&flankKills>=2&&flankBreaches==0){
@@ -1495,6 +1543,15 @@ public final class RiftGameView extends View {
         caravanHp=CampaignEncountersV073.cartMaxHp(stage,difficultyMode);
         caravanUnderAttack=false;missionEventRewarded=false;engineStopped=false;
         siegeShots=0;flankKills=0;flankBreaches=0;
+        villagersSaved=0;villagersLost=0;riftsSealed=0;
+        sealPulseTimer=FieldObjectivesV074.SEAL_PULSE_INTERVAL;
+        for(int i=0;i<villagerState.length;i++){
+            villagerState[i]=0;
+            villagerHp[i]=FieldObjectivesV074.survivorMaxHp(stage,difficultyMode);
+        }
+        for(int i=0;i<sealCharge.length;i++){
+            sealCharge[i]=0f;sealDone[i]=false;
+        }
     }
     private float caravanY(){return LaneRules.stagePathY(stage,caravanX)+16f;}
     private boolean caravanGuarded(){
@@ -1502,7 +1559,69 @@ public final class RiftGameView extends View {
     }
     private void updateSiegeMission(float dt){
         if(!SiegeMissionsV069.active(stage,wave)||waiting||scene!=Scene.PLAY)return;
-        if(SiegeMissionsV069.mode(stage)==SiegeMissionsV069.ESCORT&&
+        int type=SiegeMissionsV069.mode(stage);
+        if(type==SiegeMissionsV069.RESCUE){
+            // The actual hero position saves a villager; no hidden tap target.
+            for(int i=0;i<villagerState.length;i++){
+                if(villagerState[i]!=0)continue;
+                float x=FieldObjectivesV074.rescueX(stage,i);
+                float y=FieldObjectivesV074.rescueY(stage,i);
+                if(FieldObjectivesV074.near(heroX,heroY,x,y,
+                        FieldObjectivesV074.RESCUE_RADIUS)){
+                    villagerState[i]=1;villagersSaved++;
+                    puff(x,y-38,14,0xffa9efd1);
+                    announce("VILLAGER "+villagersSaved+" RESCUED • "+
+                            (FieldObjectivesV074.SURVIVORS-villagersSaved-villagersLost)+
+                            " STILL OUT THERE");
+                    audio.play(GameAudio.EVOLUTION);
+                }
+            }
+            if(FieldObjectivesV074.canAdvanceRescue(villagersSaved,villagersLost)&&
+                    !missionEventRewarded){
+                missionEventRewarded=true;
+                int bonus=CampaignEncountersV073.bonusGold(stage,type)+
+                        (villagersSaved==FieldObjectivesV074.SURVIVORS?20:0);
+                gold+=bonus;
+                announce("VILLAGERS SAVED • +"+bonus+" BATTLE GOLD");
+            }
+        }
+        if(type==SiegeMissionsV069.SEAL){
+            for(int i=0;i<sealCharge.length;i++){
+                if(sealDone[i])continue;
+                float x=FieldObjectivesV074.sealX(stage,i),
+                        y=FieldObjectivesV074.sealY(stage,i);
+                boolean near=FieldObjectivesV074.near(heroX,heroY,x,y,
+                        FieldObjectivesV074.SEAL_RADIUS);
+                sealCharge[i]=FieldObjectivesV074.charge(sealCharge[i],dt,near);
+                if(sealCharge[i]>=FieldObjectivesV074.SEAL_SECONDS){
+                    sealDone[i]=true;riftsSealed++;
+                    puff(x,y-37,25,0xffa9f7d0);
+                    audio.play(GameAudio.EVOLUTION);
+                    announce("RIFT "+riftsSealed+" SEALED • "+
+                            (FieldObjectivesV074.SEALS-riftsSealed)+" REMAINING");
+                }
+            }
+            if(riftsSealed==FieldObjectivesV074.SEALS&&!missionEventRewarded){
+                missionEventRewarded=true;
+                int bonus=CampaignEncountersV073.bonusGold(stage,type);
+                gold+=bonus;
+                announce("BOTH RIFTS SEALED • +"+bonus+" BATTLE GOLD");
+            }
+            // An active portal imposes meaningful, bounded pressure; it does
+            // not spawn more units or bypass existing enemy count limits.
+            if(riftsSealed<FieldObjectivesV074.SEALS){
+                sealPulseTimer-=dt;
+                if(sealPulseTimer<=0){
+                    sealPulseTimer=FieldObjectivesV074.SEAL_PULSE_INTERVAL;
+                    baseHp=Math.max(0f,baseHp-FieldObjectivesV074.sealDamage(
+                            stage,difficultyMode,coreMaxHp()));
+                    puff(BASE_X,BASE_Y-90,18,0xffba8bff);
+                    announce("UNSEALED RIFT • KEEP TAKING DAMAGE!");
+                    if(baseHp<=0){markDefeat();return;}
+                }
+            }
+        }
+        if(type==SiegeMissionsV069.ESCORT&&
                 !SiegeMissionsV069.cartSafe(caravanX)&&caravanHp>0){
             caravanX=Math.max(SiegeMissionsV069.CART_SAFE_X,
                     caravanX-CampaignEncountersV073.cartSpeed(stage,caravanGuarded())*dt);
@@ -2409,6 +2528,7 @@ public final class RiftGameView extends View {
             }
         }
         drawPlacedSkills(c);
+        if(scene==Scene.PLAY)drawFieldObjectives(c);
         if(trial!=null&&trial.type==MemoryTrial.RELIC)drawMemoryRelic(c);
         if(scene==Scene.PLAY&&selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
             float sx=towerX[selectedTowerPad],sy=towerY[selectedTowerPad];
@@ -3205,6 +3325,71 @@ public final class RiftGameView extends View {
         }
     }
     /** Gameplay-linked cart and flank markers, layered above original terrain. */
+    private void drawFieldObjectives(Canvas c){
+        if(!SiegeMissionsV069.active(stage,wave))return;
+        int type=SiegeMissionsV069.mode(stage);
+        if(type==SiegeMissionsV069.RESCUE){
+            for(int i=0;i<villagerState.length;i++){
+                float x=FieldObjectivesV074.rescueX(stage,i),
+                        y=FieldObjectivesV074.rescueY(stage,i);
+                int state=villagerState[i];
+                if(state==2){
+                    oval(c,x-32,y+3,x+33,y+15,0x88231e2d);
+                    line(c,x-22,y,x+23,y-18,0xff9c7470,5);
+                    text(c,"LOST",x,y-53,16,0xffff9693,true);
+                    continue;
+                }
+                if(state==1){
+                    circle(c,x,y-21,23,0x4486ecc4);
+                    circleStroke(c,x,y-20,28,0xffb3e9bf,3);
+                    text(c,"SAFE",x,y-67,16,0xffc1f6d2,true);
+                    continue;
+                }
+                float bob=(float)Math.sin(gameTime*2.8f+i)*3f;
+                circle(c,x,y-31,FieldObjectivesV074.RESCUE_RADIUS,0x1558ffe0);
+                circleStroke(c,x,y-31,FieldObjectivesV074.RESCUE_RADIUS,
+                        0x99ffdb90,3.5f);
+                oval(c,x-23,y+2,x+24,y+14,0x770a1b29);
+                polygon(c,x-22,y-42,x,y-58+bob,x+23,y-41,x+18,y+4,
+                        x-21,y+4,0xffb18c61);
+                polygon(c,x-22,y-37,x,y-56+bob,x+22,y-37,0xff586fa1);
+                circle(c,x,y-68+bob,14,0xffedc4a1);
+                polygon(c,x-18,y-71+bob,x,y-90+bob,x+18,y-71+bob,
+                        0xff806a4f);
+                line(c,x+24,y-37,x+24,y-89,0xffe7ca86,3);
+                polygon(c,x+24,y-91,x+48,y-82,x+24,y-75,0xffffd083);
+                text(c,"RESCUE",x,y-113,18,0xffffdc99,true);
+                bar(c,x-44,y-103,88,7,villagerHp[i]/
+                        FieldObjectivesV074.survivorMaxHp(stage,difficultyMode),
+                        0xffc5eeb7);
+            }
+        }else if(type==SiegeMissionsV069.SEAL){
+            for(int i=0;i<sealDone.length;i++){
+                float x=FieldObjectivesV074.sealX(stage,i),
+                        y=FieldObjectivesV074.sealY(stage,i);
+                boolean done=sealDone[i];
+                float pulse=(float)Math.sin(gameTime*3+i)*5f;
+                circle(c,x,y-36,FieldObjectivesV074.SEAL_RADIUS,
+                        done?0x2252ffbf:0x334a2c95);
+                circleStroke(c,x,y-36,FieldObjectivesV074.SEAL_RADIUS+pulse,
+                        done?0xff8be3a9:0xffccadfa,4f);
+                for(int k=0;k<6;k++){
+                    float angle=k*(float)Math.PI/3+gameTime*.28f;
+                    circle(c,x+(float)Math.cos(angle)*55,
+                            y-36+(float)Math.sin(angle)*39,6,
+                            done?0xffa5f8c9:0xffcfadfb);
+                }
+                polygon(c,x-24,y+7,x-14,y-50,x,y-87,x+18,y-50,
+                        x+24,y+7,done?0xff5aaf92:0xff7753a7);
+                polygon(c,x-14,y-50,x,y-87,x+18,y-50,x+2,y-11,
+                        done?0xffa9ffdb:0xffd6b2ff);
+                text(c,done?"SEALED":"HOLD TO SEAL",x,y-115,18,
+                        done?0xffb8f4d2:0xffebd4ff,true);
+                if(!done)bar(c,x-53,y-108,106,8,sealCharge[i]/
+                        FieldObjectivesV074.SEAL_SECONDS,0xffc5a3f7);
+            }
+        }
+    }
     private void drawEscortCart(Canvas c){
         float x=caravanX,y=caravanY(),roll=gameTime*6f;
         oval(c,x-72,y+12,x+72,y+29,0x770c1c25);
@@ -3702,6 +3887,10 @@ public final class RiftGameView extends View {
                     (SiegeMissionsV069.CART_START_X-SiegeMissionsV069.CART_SAFE_X)*100)+"%"):
                 mode==SiegeMissionsV069.ENGINE?
                     (engineStopped?"ENGINE DISABLED":"INTERRUPT CHARGE • SHOTS "+siegeShots):
+                    mode==SiegeMissionsV069.RESCUE?
+                            "SAVED "+villagersSaved+"/3 • LOST "+villagersLost:
+                    mode==SiegeMissionsV069.SEAL?
+                            "SEALED "+riftsSealed+"/2 • HOLD AT RIFTS":
                     "FLANKS STOPPED "+flankKills+" • BREACHES "+flankBreaches;
         round(c,40,189,360,239,11,0xde183644);
         textFit(c,SiegeMissionsV069.name(stage),56,209,289,15,0xffffd29a,false);
@@ -3985,7 +4174,9 @@ public final class RiftGameView extends View {
                 round(c,1088,top+4,1197,top+28,6,0xdd3b6274);
                 text(c,SiegeMissionsV069.mode(mission)==SiegeMissionsV069.ESCORT?
                         "ESCORT":SiegeMissionsV069.mode(mission)==SiegeMissionsV069.ENGINE?
-                        "SIEGE":"2 ROUTES",1143,top+22,14,0xffe2f4e7,true);
+                        "SIEGE":SiegeMissionsV069.mode(mission)==SiegeMissionsV069.RESCUE?
+                        "RESCUE":SiegeMissionsV069.mode(mission)==SiegeMissionsV069.SEAL?
+                        "SEALS":"2 ROUTES",1143,top+22,14,0xffe2f4e7,true);
             }
             if(DifficultyRules.worldBoss(mission)) {
                 round(c,1090,top+4,1197,top+28,6,0xdd71384e);
