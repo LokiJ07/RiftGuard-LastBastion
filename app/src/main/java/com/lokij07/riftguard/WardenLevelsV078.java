@@ -157,8 +157,8 @@ public final class WardenLevelsV078 {
         return true;
     }
     /** Modest, capped Warden-only bonuses; do NOT boost fortress turrets. */
-    public int healthBonus(){return 2*allocated[VITALITY];}
-    public float attackMultiplier(){return 1f+allocated[POWER]*.0016f;}
-    public float moveMultiplier(){return 1f+allocated[AGILITY]*.0009f;}
-    public float skillCooldownReduction(){return allocated[ARCANA]*.015f;}
+    public int healthBonus(){return 2*allocated[VITALITY]+WardenMilestonesV079.healthBonus(level());}
+    public float attackMultiplier(){return 1f+allocated[POWER]*.0016f+WardenMilestonesV079.attackBonus(level());}
+    public float moveMultiplier(){return 1f+allocated[AGILITY]*.0009f+WardenMilestonesV079.moveBonus(level());}
+    public float skillCooldownReduction(){return allocated[ARCANA]*.015f+WardenMilestonesV079.cooldownBonus(level());}
 }
