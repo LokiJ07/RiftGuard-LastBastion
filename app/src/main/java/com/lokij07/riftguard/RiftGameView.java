@@ -5750,11 +5750,6 @@ public final class RiftGameView extends View {
                 storyProgress.caelCount()+"/"+StoryProgress.caelTotal()+
                 "  •  SEALS "+storyProgress.ownedSeals()+"/10",
                 938,120,516,19,GOLD,true);
-        // The true-ending threshold is readable before the final Cave,
-        // but the primary story and other endings are not gated by keys.
-        textFit(c,"SAVE CAEL  "+Math.min(storyProgress.caelCount(),
-                StoryProgress.caelNeeded())+"/"+StoryProgress.caelNeeded()+
-                "  •  OPTIONAL MEMORIES",905,163,528,16,0xffb4e6da,true);
         for(int world=0;world<10;world++){
             float y=149+world*45;
             round(c,72,y,572,y+41,8,chronicleWorld==world?0xff70674d:0xff2c4b55);
@@ -5767,7 +5762,12 @@ public final class RiftGameView extends View {
                     storyProgress.count(world)==10?0xff91dfb6:GOLD,true);
         }
         round(c,594,148,1202,597,16,0xff233f4b);
-        textFit(c,Campaign.WORLDS[chronicleWorld],898,192,556,24,GOLD,true);
+        // Draw above the selected-realm title AFTER its background panel;
+        // the previous order hid this optional-ending progress under paint.
+        textFit(c,"SAVE CAEL  "+Math.min(storyProgress.caelCount(),
+                StoryProgress.caelNeeded())+"/"+StoryProgress.caelNeeded()+
+                "  •  OPTIONAL MEMORIES",898,168,560,15,0xffb4e6da,true);
+        textFit(c,Campaign.WORLDS[chronicleWorld],898,199,556,23,GOLD,true);
         // Transparent distinction between recovered memories (tap to read)
         // and missing optional trials (replay stage C).
         textFit(c,"SELECT A MEMORY  •  GREEN = RECOVERED",898,588,560,15,
