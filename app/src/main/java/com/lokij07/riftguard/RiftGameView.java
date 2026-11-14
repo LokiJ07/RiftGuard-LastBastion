@@ -172,7 +172,7 @@ public final class RiftGameView extends View {
     private int kingdomTab=0;
     private String kingdomMessage="Complete challenges to earn rewards!";
     private boolean battleRecorded=false;
-    private int battlePulses=0;
+    private int battlePulses=0,battleSkillCasts=0;
     private final Random random=new Random(13);
     private final List<Enemy> enemies=new ArrayList<>();
     private final List<Shot> shots=new ArrayList<>();
@@ -203,8 +203,8 @@ public final class RiftGameView extends View {
     private float meteorX,meteorY,meteorTime;
     private int selectedLevel=1, selectedMap=0, stage=0;
     private boolean regionalMap=false;
-    private int wave, remaining, gold, kills,missionBuilds,objectiveBonus;
-    private boolean defeatedElite;
+    private int wave, remaining, gold, kills,missionBuilds,objectiveBonus,contractBonus;
+    private boolean defeatedElite,healerWarningShown;
     private float baseHp, heroHp, heroX, heroY, heroDir=-1.57f, spawnTimer, intermission, waveNotice;
     private float shotTimer, pulseCooldown, pulseFlash, hurtCooldown, fireFlash, noticeTimer, gameTime;
     private final float[] allyCooldown=new float[AllySupportV065.COUNT];
@@ -583,8 +583,9 @@ public final class RiftGameView extends View {
             towerX[pad]=TowerPadLayout.x(stage,pad);
             towerY[pad]=TowerPadLayout.y(stage,pad);
         }
-        battleRecorded=false; battlePulses=0;
-        missionBuilds=0;objectiveBonus=0;defeatedElite=false;
+        battleRecorded=false; battlePulses=0; battleSkillCasts=0;
+        missionBuilds=0;objectiveBonus=0;contractBonus=0;defeatedElite=false;
+        healerWarningShown=false;
         hazardSlowTimer=0;
         for(int i=0;i<hazardTimers.length;i++)hazardTimers[i]=.5f;
         // Full Java version of deployed-map-generator.html. No old scenery.
@@ -863,6 +864,19 @@ public final class RiftGameView extends View {
                 hostileBolts.add(new HostileBolt(e.x,e.y-44,heroX,heroY-25));
                 e.shamanCooldown=3.8f;
                 e.attackAnim=.42f;
+                // Heal one wounded ally; never the boss, never above max HP.
+                Enemy wounded=null;
+                float highestInjury=0f;
+                for(Enemy ally:enemies){
+                    if(ally==e||!EnemySpecials.canAid(e.kind,e.x,e.y,ally.x,ally.y,
+                            ally.hp,ally.maxHp,ally.boss))continue;
+                    float injury=(ally.maxHp-ally.hp)/Math.max(1f,ally.maxHp);
+                    if(injury>highestInjury){highestInjury=injury;wounded=ally;}
+                }
+                if(wounded!=null){
+                    wounded.hp+=EnemySpecials.aidAmount(wounded.hp,wounded.maxHp);
+                    puff(wounded.x,wounded.y-22,8,0xffa9efb6);
+                }
             }
             boolean hunt=!revival.isDown()&&(MovementRules.huntsHero(dHero,e.kind)||
                     e.dashWindup>0||e.dashTime>0);
@@ -1109,6 +1123,16 @@ public final class RiftGameView extends View {
                             break;
                         }
                 }
+                if(!shot.tower&&shot.weaponId>=0&&
+                        weaponMastery.owned(shot.weaponId,6)){
+                    shot.target.slowTimer=Math.max(shot.target.slowTimer,
+                            WeaponTacticsV068.slowSeconds(shot.weaponId));
+                    float burn=WeaponTacticsV068.burnSeconds(shot.weaponId);
+                    if(burn>0f){
+                        shot.target.burnTimer=Math.max(shot.target.burnTimer,burn);
+                        shot.target.burnDps=Math.max(shot.target.burnDps,12f);
+                    }
+                }
                 if(shot.weaponId==3) {
                     // Arc Staff chains lightning to a second nearby monster.
                     for(Enemy nearby:enemies) {
@@ -1269,9 +1293,9 @@ public final class RiftGameView extends View {
         if(early)announce("EARLY WAVE • +"+bonus+" BATTLE GOLD");
     }
     private void captureWaveCheckpoint(){
-        waveCheckpoint=WaveCheckpointV065.capture(
+        waveCheckpoint=WaveCheckpointV065.captureWithSkills(
                 stage,wave,Math.max(0,gold),kills,missionBuilds,revival.usedCharges(),
-                towersDestroyedInBattle,battlePulses,defeatedElite,
+                towersDestroyedInBattle,battlePulses,battleSkillCasts,defeatedElite,
                 Math.max(0,heroHp),Math.max(0,baseHp),Math.max(0,relicHp),
                 heroX,heroY,towers,towerTypes,destroyedTowerTier,towerHp);
         // Persist only at deterministic wave boundaries. Never serialize
@@ -1298,6 +1322,8 @@ public final class RiftGameView extends View {
         snap.restore(towers,towerTypes,destroyedTowerTier,towerHp);
         gold=snap.gold;wave=snap.wave;kills=snap.kills;
         missionBuilds=snap.built;battlePulses=snap.pulses;
+        battleSkillCasts=snap.skillCasts;
+        battleSkillCasts=snap.skillCasts;
         towersDestroyedInBattle=snap.destroyedCount;
         defeatedElite=snap.defeatedElite;
         heroHp=snap.heroHp;baseHp=snap.coreHp;relicHp=snap.relicHp;
@@ -1368,6 +1394,9 @@ public final class RiftGameView extends View {
         int kind=random.nextInt(Math.max(1,pool));
         // The Forest Boar becomes a recognizable charging enemy from wave two.
         if(wave>=2 && random.nextFloat()<.15f)kind=6;
+        // Replace exactly one ordinary wave-2 spawn. Population is unchanged.
+        kind=SiegeEncountersV068.chooseKind(stage,wave,remaining,
+                DifficultyRules.enemies(stage,wave,difficultyMode),kind);
         boolean elite=DifficultyRules.eliteWave(stage,wave,difficultyMode)
                 && remaining==1;
         boolean actualWorldBoss=elite&&DifficultyRules.worldBoss(stage)&&
@@ -1390,6 +1419,10 @@ public final class RiftGameView extends View {
             enemy.specialTimer=5.0f;
         }
         enemies.add(enemy);
+        if(kind==4&&!healerWarningShown){
+            healerWarningShown=true;
+            announce("SHAMAN SUPPORT • INTERRUPT THE HEALER!");
+        }
         if(elite) {
             waveNotice=2.7f;
             announce(actualWorldBoss?
@@ -1766,6 +1799,15 @@ public final class RiftGameView extends View {
             e.hp-=meleeDamage*bossArmorMultiplier(e)*
                     SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
             damageBossPart(e,meleeDamage);
+            if(weaponMastery.owned(pendingMeleeWeapon,6)){
+                float control=WeaponTacticsV068.slowSeconds(pendingMeleeWeapon);
+                e.slowTimer=Math.max(e.slowTimer,control);
+                float burn=WeaponTacticsV068.burnSeconds(pendingMeleeWeapon);
+                if(burn>0f){
+                    e.burnTimer=Math.max(e.burnTimer,burn);
+                    e.burnDps=Math.max(e.burnDps,12f);
+                }
+            }
             if(weaponMastery.mastered(pendingMeleeWeapon)) {
                 // Titan Splitter has a concussive shockwave; Phoenix Drive
                 // applies actual burning pressure on each sword contact.
@@ -1809,6 +1851,7 @@ public final class RiftGameView extends View {
         }
         pulseFlash=.55f;
         lastCastSkill=skill;
+        battleSkillCasts++;
         audio.play(GameAudio.SPELL);
         if(skill==WardenSkills.PULSE){
             battlePulses++;
@@ -1993,8 +2036,15 @@ public final class RiftGameView extends View {
         int earnedObjective=MissionObjectives.completed(stage,missionBuilds,
                 baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
                 defeatedElite)?MissionObjectives.bonus(stage):0;
+        // An optional first-clear challenge, not a stage-unlock gate.
+        int earnedContract=firstClear&&BattleContractsV068.completed(stage,
+                battleSkillCasts,towers,activeTowerCount,
+                baseHp/Math.max(1,coreMaxHp()),heroHp/Math.max(1,heroMaxHp()),
+                towersDestroyedInBattle)
+                ?BattleContractsV068.firstClearBonus(stage):0;
         int newSupplies=supplies+reward+
-                DifficultyRules.supplyBonus(difficultyMode,reward)+earnedObjective;
+                DifficultyRules.supplyBonus(difficultyMode,reward)+earnedObjective+
+                earnedContract;
         int newUnlocked=Campaign.unlockedAfter(unlocked,stage);
         // Permanent rewards, new unlocks and deleting the replayable
         // checkpoint are one durable transaction. A failed commit must NOT
@@ -2007,7 +2057,8 @@ public final class RiftGameView extends View {
         }
         supplies=newSupplies;
         unlocked=newUnlocked;
-        objectiveBonus=earnedObjective;
+        contractBonus=earnedContract;
+        objectiveBonus=earnedObjective+earnedContract;
         savedWave=null;
         recordBattleResult(true);
         outro=new BattleOutroV065(stage,true,heroX,heroY);
@@ -3324,6 +3375,14 @@ public final class RiftGameView extends View {
                     trial.type==MemoryTrial.NO_LOSS?"  "+towersDestroyedInBattle+" TOWERS LOST":"");
             round(c,448,119,830,153,8,0xcc203941);
             textFit(c,challenge,639,142,365,18,0xffe5d9b1,true);
+            if(BattleContractsV068.kind(stage)!=BattleContractsV068.NONE){
+                round(c,448,156,830,181,7,0xcc20434d);
+                textFit(c,"FIELD • "+BattleContractsV068.progress(stage,
+                        battleSkillCasts,towers,activeTowerCount,
+                        baseHp/Math.max(1f,coreMaxHp()),
+                        heroHp/Math.max(1f,heroMaxHp()),towersDestroyedInBattle),
+                        639,174,364,15,0xffb3e8cc,true);
+            }
         }
         text(c,"MOVE",stickX,Math.min(710f,stickHudY()+119),17,0xffb5cfc5,true);
         text(c,selectedTowerPad<0?"PADS "+activeTowerCount:
@@ -4445,8 +4504,9 @@ public final class RiftGameView extends View {
         text(c,"Enemies defeated: "+kills+"     Gold earned: "+gold,
                 640,388,21,INK,true);
         if(scene==Scene.WIN)
-            textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES",640,418,
-                    430,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
+            textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES"+
+                    (contractBonus>0?" • FIELD +"+contractBonus:""),640,418,
+                    500,19,objectiveBonus>0?0xff9bedd0:0xffc0c6c8,true);
         boolean waveRetry=canRetryWave();
         button(c,435,429,845,502,scene==Scene.WIN?
                 (outcomeStory.isEmpty()?"NEXT STAGE":"VIEW STORY"):
@@ -4483,7 +4543,9 @@ public final class RiftGameView extends View {
         text(c,"WARDEN'S ORDERS",596,384,18,0xff9cb6ba,false);
         drawStoryParagraph(c,story.order,594,418,552,22,31,INK);
         textFit(c,story.objective,134,570,410,21,0xffc0e0bf,false);
-        textFit(c,trial!=null?"MEMORY: "+trial.title:
+        textFit(c,BattleContractsV068.kind(stage)!=BattleContractsV068.NONE?
+                "FIELD CONTRACT • "+BattleContractsV068.name(stage):
+                trial!=null?"MEMORY: "+trial.title:
                 TowerPadLayout.count(stage)+" PADS • "+MissionObjectives.name(stage),
                 134,604,413,16,0xffffd7a1,false);
         drawStoryParagraph(c,story.warning,594,523,538,19,26,0xffffc38f);

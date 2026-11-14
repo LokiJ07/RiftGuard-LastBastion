@@ -11,18 +11,19 @@ public final class WaveCheckpointV065 {
         return new int[]{3,1,0,0}[DifficultyRules.safe(mode)];
     }
     public static final class Snapshot {
-        public final int stage,wave,gold,kills,built,revivalsUsed,destroyedCount,pulses;
+        public final int stage,wave,gold,kills,built,revivalsUsed,destroyedCount,pulses,skillCasts;
         public final boolean defeatedElite;
         public final float heroHp,coreHp,relicHp,heroX,heroY;
         public final int[] towerTier,towerTypes,destroyedTier;
         public final float[] towerHealth;
         private Snapshot(int stage,int wave,int gold,int kills,int built,int revivalsUsed,int destroyedCount,
-                         int pulses,boolean defeatedElite,float heroHp,float coreHp,float relicHp,
+                         int pulses,int skillCasts,boolean defeatedElite,float heroHp,float coreHp,float relicHp,
                          float heroX,float heroY,
                          int[] towerTier,int[] towerTypes,int[] destroyedTier,
                          float[] towerHealth){
             this.stage=stage;this.wave=wave;this.gold=gold;this.kills=kills;
             this.built=built;this.destroyedCount=destroyedCount;this.pulses=pulses;
+            this.skillCasts=skillCasts;
             this.revivalsUsed=revivalsUsed;this.defeatedElite=defeatedElite;
             this.heroHp=heroHp;this.coreHp=coreHp;this.relicHp=relicHp;
             this.heroX=heroX;this.heroY=heroY;
@@ -47,13 +48,23 @@ public final class WaveCheckpointV065 {
                                    boolean defeatedElite,float heroHp,float coreHp,float relicHp,
                                    float heroX,float heroY,
                                    int[] tiers,int[] types,int[] destroyed,float[] hp){
+        return captureWithSkills(stage,wave,gold,kills,built,revivalsUsed,
+                destroyedCount,pulses,pulses,defeatedElite,
+                heroHp,coreHp,relicHp,heroX,heroY,tiers,types,destroyed,hp);
+    }
+    public static Snapshot captureWithSkills(int stage,int wave,int gold,int kills,int built,
+                                   int revivalsUsed,int destroyedCount,int pulses,int skillCasts,
+                                   boolean defeatedElite,float heroHp,float coreHp,float relicHp,
+                                   float heroX,float heroY,
+                                   int[] tiers,int[] types,int[] destroyed,float[] hp){
         Campaign.checkStage(stage);
-        if(wave<1||gold<0||destroyedCount<0||pulses<0||heroHp<0||coreHp<0||relicHp<0||
+        if(wave<1||gold<0||destroyedCount<0||pulses<0||skillCasts<0||
+                heroHp<0||coreHp<0||relicHp<0||
                 tiers.length!=TowerPadLayout.MAX||types.length!=TowerPadLayout.MAX||
                 destroyed.length!=TowerPadLayout.MAX||hp.length!=TowerPadLayout.MAX)
             throw new IllegalArgumentException("invalid checkpoint");
         return new Snapshot(stage,wave,gold,kills,built,revivalsUsed,destroyedCount,
-                pulses,defeatedElite,heroHp,coreHp,relicHp,heroX,heroY,
+                pulses,skillCasts,defeatedElite,heroHp,coreHp,relicHp,heroX,heroY,
                 tiers,types,destroyed,hp);
     }
 }

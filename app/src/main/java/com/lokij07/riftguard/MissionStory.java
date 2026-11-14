@@ -45,7 +45,8 @@ public final class MissionStory {
         String headline=Campaign.title(stage)+"  -  "+Campaign.MAPS[map].toUpperCase();
         String warning=DifficultyRules.worldBoss(stage)
                 ?"WORLD BOSS: "+DifficultyRules.worldBossName(stage)
-                :WARNINGS[map];
+                :SiegeEncountersV068.signatureKind(stage)>=0
+                    ?SiegeEncountersV068.warning(stage):WARNINGS[map];
         String objective="DEFEND YOUR CORE  /  "+
                 Campaign.waves(stage)+" WAVES";
         return new Briefing(chapter,headline,REGION_LORE[world],ORDERS[map],

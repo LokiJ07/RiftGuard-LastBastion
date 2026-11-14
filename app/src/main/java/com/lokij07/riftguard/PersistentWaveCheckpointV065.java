@@ -83,6 +83,7 @@ public final class PersistentWaveCheckpointV065 {
             data.put("revivals",snap.revivalsUsed);
             data.put("destroyed",snap.destroyedCount);
             data.put("pulses",snap.pulses);
+            data.put("skillCasts",snap.skillCasts);
             data.put("elite",snap.defeatedElite);
             data.put("heroHp",snap.heroHp);
             data.put("coreHp",snap.coreHp);
@@ -147,10 +148,13 @@ public final class PersistentWaveCheckpointV065 {
             int gold=data.getInt("gold"),kills=data.getInt("kills");
             int built=data.getInt("built"),revivals=data.getInt("revivals");
             int destroyed=data.getInt("destroyed"),pulses=data.getInt("pulses");
+            // Version 1 save compatibility: original Pulse casts were skills.
+            int skillCasts=data.optInt("skillCasts",pulses);
             if(gold<0||gold>10000000||kills<0||built<0||revivals<0||
-                    destroyed<0||pulses<0)throw new IllegalArgumentException("statistics");
-            WaveCheckpointV065.Snapshot snap=WaveCheckpointV065.capture(
-                    stage,wave,gold,kills,built,revivals,destroyed,pulses,
+                    destroyed<0||pulses<0||skillCasts<0||skillCasts>100000)
+                throw new IllegalArgumentException("statistics");
+            WaveCheckpointV065.Snapshot snap=WaveCheckpointV065.captureWithSkills(
+                    stage,wave,gold,kills,built,revivals,destroyed,pulses,skillCasts,
                     data.getBoolean("elite"),heroHp,coreHp,relicHp,heroX,heroY,
                     tiers,types,rubble,hp);
             return new Recovery(snap,first,difficulty,retries);
