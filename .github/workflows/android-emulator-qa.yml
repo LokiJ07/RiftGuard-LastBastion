@@ -2,7 +2,7 @@ name: RiftGuard Evolution - Android Emulator QA
 
 on:
   pull_request:
-    branches: [main, feature/v067-combat-feel-hud-boss-polish]
+    branches: [main, feature/v067-combat-feel-hud-boss-polish, feature/v068-tactical-engagement]
   workflow_dispatch:
 
 permissions:
