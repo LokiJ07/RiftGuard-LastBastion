@@ -3545,8 +3545,8 @@ public final class RiftGameView extends View {
             polygon(c,x-37,y-59,x,y-82,x+36,y-59,0xffb7b5a3);
             circle(c,x,y-29,18,0xffff9863);
             circle(c,x,y-29,10+(float)Math.sin(gameTime*8)*2f,0xffffdc85);
-            polygon(c,x+28,y-34,x+65,y-34,x+56,y-22,x+34,y-22,x+44,y+2,
-                    x+17,y+2,0xffc9d1ce);
+            polygon(c,new float[]{x+28,y-34,x+65,y-34,x+56,y-22,
+                    x+34,y-22,x+44,y+2,x+17,y+2},0xffc9d1ce);
             line(c,x-30,y-73,x-15,y-102,0xffffd6a2,5);
         }else{
             // Shaped crystal lens and rotating purifier arms.
