@@ -211,6 +211,10 @@ public final class RiftGameView extends View {
     // Team-wide, public and persistent for ONE wave only. Targets reselect
     // if destroyed; no hidden player coordinates or permanent save schema.
     private int siegeFocusPad=-1,siegeFocusWave=-1;
+    // Reachable native world object, unlocked for one battle wave at a time.
+    private float realmSiteX,realmSiteY,realmSiteChannel;
+    private boolean realmSiteUsed;
+    private float realmWardTime,realmForgeTime,realmPurifierTime;
     // Actual wave-two field objectives, reset at deterministic save boundaries.
     // 0=unrescued,1=saved,2=lost. No persistent schema changes.
     private final float[] villagerHp=new float[FieldObjectivesV074.SURVIVORS];
@@ -585,6 +589,10 @@ public final class RiftGameView extends View {
         caveMode=false;caveWinRecorded=false;caveEnding=StoryProgress.ENDING_NONE;
         dismissStory();bossIntroSeen=false;
         trial=MemoryTrial.forStage(s);trialPassed=false;trialAwarded=false;
+        if(RealmInteractablesV077.scheduled(stage)){
+            float[] site=RealmInteractablesV077.position(stage);
+            realmSiteX=site[0];realmSiteY=site[1];
+        }else{realmSiteX=0f;realmSiteY=0f;}
         towersDestroyedInBattle=0;
         relicX=BASE_X+240;relicY=BASE_Y+150;
         relicMaxHp=trial!=null&&trial.type==MemoryTrial.RELIC?
@@ -746,6 +754,7 @@ public final class RiftGameView extends View {
         updateSkillObjects(dt);
         updateTerrainBolts(dt);
         updateAllySupport(dt);
+        updateRealmSite(dt);
         if (!waiting) {
             if(bossWarningCountdown>0){
                 bossWarningCountdown=Math.max(0,bossWarningCountdown-dt);
@@ -786,9 +795,11 @@ public final class RiftGameView extends View {
                 if (target!=null) {
                     // Static family coefficients: no per-shot Java array allocation.
                     Shot turretShot=new Shot(towerX[i],towerY[i]-25,
-                            BattleRules.towerDamage(towers[i])*TOWER_FAMILY_DAMAGE[towerFamily(i)]*
+                            RealmInteractablesV077.turretDamage(
+                                    BattleRules.towerDamage(towers[i])*
+                                    TOWER_FAMILY_DAMAGE[towerFamily(i)]*
                                     kingdom.towerDamageMultiplier()*ascension.towerMultiplier()*
-                                    FortressEvolutionArt.damageBonus(arsenalTier()),
+                                    FortressEvolutionArt.damageBonus(arsenalTier()),realmForgeTime),
                             towerFamily(i)==1?550:750,target,true);
                     turretShot.towerSlot=i;
                     shots.add(turretShot);
@@ -896,8 +907,9 @@ public final class RiftGameView extends View {
                     if(!interrupted&&e.engineWindup<=0){
                         siegeShots++;
                         baseHp=Math.max(0,baseHp-
+                                RealmInteractablesV077.coreDamage(
                                 CampaignEncountersV073.engineDamage(stage,
-                                        difficultyMode,coreMaxHp()));
+                                        difficultyMode,coreMaxHp()),realmWardTime));
                         puff(BASE_X,BASE_Y-95,19,0xffffa871);
                         e.attackAnim=.42f;
                         audio.play(GameAudio.TOWER_CANNON);
@@ -1121,8 +1133,10 @@ public final class RiftGameView extends View {
                             int tactic=BossTactics.tactic(stage);
                             if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
                                 baseHp-=caveMode?(tactic==1?20f:28f)*strength:
+                                        RealmInteractablesV077.coreDamage(
                                         CombatReadabilityV076.coreHit(stage,
-                                                (tactic==1?20f:28f)*strength,coreMaxHp());
+                                                (tactic==1?20f:28f)*strength,coreMaxHp()),
+                                                realmWardTime);
                                 puff(BASE_X,BASE_Y,19,tactic==2?0xffa7eb9c:0xffffac83);
                                 // Legacy elites and story-cave boss retain their
                                 // already-tested siege/attack mechanics.
@@ -1260,10 +1274,11 @@ public final class RiftGameView extends View {
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0) {
                     if(e.flankRoute)flankBreaches++;
-                    baseHp-=CombatReadabilityV076.coreHit(stage,
+                    baseHp-=RealmInteractablesV077.coreDamage(
+                            CombatReadabilityV076.coreHit(stage,
                             (e.kind==2?30f:(e.kind==5?18f:12f))*
                             DifficultyRules.enemyDamage(difficultyMode)*
-                            (e.boss?2.0f:1f),coreMaxHp());
+                            (e.boss?2.0f:1f),coreMaxHp()),realmWardTime);
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.7f:2.2f;
                     puff(BASE_X,BASE_Y,6,0xffff9f74);
@@ -1621,6 +1636,8 @@ public final class RiftGameView extends View {
         caravanHp=CampaignEncountersV073.cartMaxHp(stage,difficultyMode);
         caravanUnderAttack=false;missionEventRewarded=false;engineStopped=false;
         siegeShots=0;flankKills=0;flankBreaches=0;
+        realmSiteChannel=0f;realmSiteUsed=false;
+        realmWardTime=0f;realmForgeTime=0f;realmPurifierTime=0f;
         villagersSaved=0;villagersLost=0;riftsSealed=0;
         sealPulseTimer=FieldObjectivesV074.SEAL_PULSE_INTERVAL;
         for(int i=0;i<villagerState.length;i++){
@@ -1630,6 +1647,47 @@ public final class RiftGameView extends View {
         for(int i=0;i<sealCharge.length;i++){
             sealCharge[i]=0f;sealDone[i]=false;
         }
+    }
+    /** Optional side objective: player stands inside the real art ring and
+     * channels a realm power. Effects are wave-local and never persist to disk.
+     */
+    private void updateRealmSite(float dt){
+        if(!RealmInteractablesV077.scheduled(stage)||caveMode)return;
+        realmWardTime=Math.max(0f,realmWardTime-dt);
+        realmForgeTime=Math.max(0f,realmForgeTime-dt);
+        realmPurifierTime=Math.max(0f,realmPurifierTime-dt);
+        if(waiting||wave<2||realmSiteUsed||revival.isDown())return;
+        boolean near=RealmInteractablesV077.inRing(heroX,heroY,
+                realmSiteX,realmSiteY);
+        realmSiteChannel=RealmInteractablesV077.channel(realmSiteChannel,dt,near);
+        if(realmSiteChannel<RealmInteractablesV077.CHANNEL_SECONDS)return;
+        realmSiteUsed=true;
+        int type=RealmInteractablesV077.type(stage);
+        if(type==RealmInteractablesV077.WARD){
+            realmWardTime=RealmInteractablesV077.WARD_SECONDS;
+            announce("WARDSTONE AWAKENED • KEEP SHIELDED");
+        }else if(type==RealmInteractablesV077.FORGE){
+            realmForgeTime=RealmInteractablesV077.FORGE_SECONDS;
+            int target=RealmInteractablesV077.mostDamagedPad(towers,towerHp,
+                    activeTowerCount,fortressRank);
+            if(target>=0){
+                float max=TowerDurability.maxHp(towers[target],fortressRank);
+                towerHp[target]=RealmInteractablesV077.repair(towerHp[target],max);
+                announce("FIELD FORGE • PAD "+(target+1)+" REPAIRED • GUNS EMPOWERED");
+            }else{
+                // If no valid damaged turret exists, its power still empowers
+                // built guns; a turret-less fort instead gets a tiny keep aid.
+                if(countArmedTowers()==0)
+                    baseHp=Math.min(coreMaxHp(),baseHp+coreMaxHp()*.07f);
+                announce("FIELD FORGE • FORTRESS ARTILLERY EMPOWERED");
+            }
+        }else if(type==RealmInteractablesV077.PURIFIER){
+            realmPurifierTime=RealmInteractablesV077.PURIFIER_SECONDS;
+            hazardSlowTimer=0f;
+            announce("STORM PURIFIER • TERRAIN HAZARDS SILENCED");
+        }
+        puff(realmSiteX,realmSiteY-55,22,0xffd3f4cd);
+        audio.play(GameAudio.EVOLUTION);
     }
     private float caravanY(){return LaneRules.stagePathY(stage,caravanX)+16f;}
     private boolean caravanGuarded(){
@@ -2005,8 +2063,9 @@ public final class RiftGameView extends View {
         if(!e.worldBoss||caveMode||e.hp<=0)return;
         int tint=RealmBossV071.color(stage);
         if(BossThreatV066.threatensCore(e.x,e.y,BASE_X,BASE_Y)){
-            baseHp=Math.max(0f,baseHp-BossFairnessV073.core(
-                    RealmBossV071.coreDamage(stage)*strength,coreMaxHp()));
+            baseHp=Math.max(0f,baseHp-RealmInteractablesV077.coreDamage(
+                    BossFairnessV073.core(RealmBossV071.coreDamage(stage)*strength,
+                            coreMaxHp()),realmWardTime));
             puff(BASE_X,BASE_Y-60,16,tint);
         }
         int slot=e.realmLockedTower;
@@ -2607,6 +2666,7 @@ public final class RiftGameView extends View {
         // Architecture is generated natively and world-positioned.\n        // Mission identity, terrain props and lanes are now generated by
         // NativeDeployedMapArt from the same seed as real enemy AI.
         drawStageHazards(c);
+        if(scene==Scene.PLAY)drawRealmSite(c);
         if(SiegeMissionsV069.active(stage,wave)&&
                 SiegeMissionsV069.mode(stage)==SiegeMissionsV069.SPLIT)
             drawAlternateRoutes(c);
@@ -2868,6 +2928,9 @@ public final class RiftGameView extends View {
     }
 
     private void updateStageHazards(float dt) {
+        // The physically activated Purifier genuinely silences the same
+        // hazard actors drawn on the map. It never removes terrain scenery.
+        if(realmPurifierTime>0f)return;
         for(int i=0;i<StageHazards.count(stage);i++) {
             hazardTimers[i]=Math.max(0,hazardTimers[i]-dt);
             if(hazardTimers[i]>0||!StageHazards.active(stage,i,gameTime))continue;
@@ -2931,9 +2994,11 @@ public final class RiftGameView extends View {
             float x=StageHazards.x(stage,i),y=StageHazards.y(stage,i);
             float r=StageHazards.radius(stage,i);
             float phase=StageHazards.charge(stage,i,gameTime);
-            boolean active=StageHazards.active(stage,i,gameTime);
+            boolean suppressed=realmPurifierTime>0f;
+            boolean active=!suppressed&&StageHazards.active(stage,i,gameTime);
             oval(c,x-r,y-r*.34f,x+r,y+r*.34f,0x77202932);
-            circleStroke(c,x,y,r,color&0x88ffffff,active?5:2);
+            circleStroke(c,x,y,r,suppressed?0x9999efd5:color&0x88ffffff,
+                    active?5:2);
             float pulse=1+(float)Math.sin(gameTime*5+i)*.12f;
             circle(c,x,y,active?14*pulse:9,active?color:0xff526d70);
             int particles=kind==3||kind==7||kind==9?9:5;
@@ -3442,6 +3507,63 @@ public final class RiftGameView extends View {
             text(c,"RAID TARGET • PAD "+(siegeFocusPad+1),
                     x,y-111,18,0xffffcf97,true);
         }
+    }
+    /** World-positioned, animated structure; interact using movement, not
+     * a new button. This same ring center/radius owns actual activation.
+     */
+    private void drawRealmSite(Canvas c){
+        if(!RealmInteractablesV077.scheduled(stage)||caveMode)return;
+        int type=RealmInteractablesV077.type(stage);
+        float x=realmSiteX,y=realmSiteY;
+        int biome=Campaign.world(stage);
+        int glow=StageHazards.COLORS[biome];
+        float pulse=(float)Math.sin(gameTime*2.9f)*5f;
+        boolean ready=!realmSiteUsed&&wave>=2&&!waiting;
+        boolean charged=realmSiteUsed;
+        oval(c,x-52,y+4,x+52,y+17,0x99091a27);
+        circle(c,x,y,RealmInteractablesV077.RADIUS,
+                charged?0x155bd4ae:ready?0x2cf2bf73:0x14317a8d);
+        circleStroke(c,x,y,RealmInteractablesV077.RADIUS+
+                (ready?pulse:0f),ready?0xffffd58e:charged?0xffa3e6c8:0x887f9ea3,3.6f);
+        for(int i=0;i<6;i++){
+            float angle=(float)Math.PI*i/3f+gameTime*.16f;
+            float px=x+(float)Math.cos(angle)*43f,py=y+(float)Math.sin(angle)*33f;
+            circle(c,px,py,3.8f,charged?0xffa5f9ce:glow);
+        }
+        if(type==RealmInteractablesV077.WARD){
+            // Reinforced standing stone with a three-part citadel crown.
+            polygon(c,x-35,y+3,x-27,y-85,x,y-113,x+27,y-85,x+35,y+3,
+                    0xff687783);
+            polygon(c,x-27,y-85,x,y-113,x+27,y-85,x,y-53,
+                    0xffc7d5cf);
+            for(int i=-1;i<=1;i++)
+                rect(c,x+i*23-7,y-66,x+i*23+7,y-47,0xffe2c18c);
+            circle(c,x,y-63,12,glow);
+        }else if(type==RealmInteractablesV077.FORGE){
+            // Working roadside forge with tall masonry furnace and anvil.
+            round(c,x-32,y-59,x+31,y+6,7,0xff5f6870);
+            polygon(c,x-37,y-59,x,y-82,x+36,y-59,0xffb7b5a3);
+            circle(c,x,y-29,18,0xffff9863);
+            circle(c,x,y-29,10+(float)Math.sin(gameTime*8)*2f,0xffffdc85);
+            polygon(c,x+28,y-34,x+65,y-34,x+56,y-22,x+34,y-22,x+44,y+2,
+                    x+17,y+2,0xffc9d1ce);
+            line(c,x-30,y-73,x-15,y-102,0xffffd6a2,5);
+        }else{
+            // Shaped crystal lens and rotating purifier arms.
+            rect(c,x-15,y-56,x+15,y+8,0xff728c9c);
+            polygon(c,x-29,y-54,x,y-106,x+29,y-54,glow);
+            polygon(c,x,y-106,x+29,y-54,x,y-26,0xffc1e5ee);
+            c.save();c.rotate(gameTime*(charged?14f:33f),x,y-63);
+            line(c,x-47,y-63,x+47,y-63,0xffbadceb,5);
+            line(c,x,y-103,x,y-23,0xffbadceb,5);
+            c.restore();
+        }
+        String label=charged?"ACTIVATED":!ready?"READY IN WAVE 2":
+                "HOLD TO ACTIVATE";
+        textFit(c,label,x,y-138,210,17,charged?0xffb8f4d6:0xffffddaa,true);
+        if(ready&&realmSiteChannel>0)
+            bar(c,x-54,y-124,108,8,realmSiteChannel/
+                    RealmInteractablesV077.CHANNEL_SECONDS,0xffffd995);
     }
     private void drawFieldObjectives(Canvas c){
         if(!SiegeMissionsV069.active(stage,wave))return;
@@ -4026,6 +4148,23 @@ public final class RiftGameView extends View {
                         CombatReadabilityV076.raidAction(siegeFocusPad,ratio),
                         ratio<.30f?0xffff9a85:0xffffcc8d);
                 return;
+            }
+            if(RealmInteractablesV077.scheduled(stage)&&!caveMode){
+                int type=RealmInteractablesV077.type(stage);
+                float remain=type==RealmInteractablesV077.WARD?realmWardTime:
+                        type==RealmInteractablesV077.FORGE?realmForgeTime:
+                        realmPurifierTime;
+                if(!realmSiteUsed||remain>0){
+                    String hint=realmSiteUsed?
+                            "ACTIVE "+Math.round(remain)+"s • "+
+                            (type==RealmInteractablesV077.WARD?"KEEP DEFENSE":
+                            type==RealmInteractablesV077.FORGE?"TURRET POWER":
+                            "HAZARDS SILENCED"):
+                            RealmInteractablesV077.guidance(type);
+                    drawTacticalReadout(c,"REALM • "+RealmInteractablesV077.name(type),
+                            hint,realmSiteUsed?0xffb4f3d1:0xffffd18a);
+                    return;
+                }
             }
             boolean retreat=false,pincer=false;
             for(Enemy e:enemies)if(e.hp>0){
