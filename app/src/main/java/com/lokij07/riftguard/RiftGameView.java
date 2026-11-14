@@ -4797,7 +4797,9 @@ public final class RiftGameView extends View {
         // the purchased armor and weapon forms, not a generic avatar icon.
         c.save();
         c.clipRect(96,232,428,509);
-        c.translate(260f,430f);
+        // Preserve the FULL helmet silhouette in the actual 1280x720
+        // emulator portrait; earlier center Y clipped the upper head.
+        c.translate(260f,462f);
         c.scale(1.9f,1.9f);
         c.translate(-heroX,-heroY);
         drawHeroActor(c,false);
@@ -4850,6 +4852,13 @@ public final class RiftGameView extends View {
         upgradeActions(c,"HOME","ARMORY","+1 POINT","+5 POINTS",
                 wardenLevel.unspent()>=5&&wardenLevel.attribute(selectedWardenAttribute)<=
                         WardenLevelsV078.MAX_ATTRIBUTE-5);
+        // Shared action geometry remains intact; both buy controls visibly
+        // gray out when the selected attribute cannot receive more points.
+        if(wardenLevel.unspent()<1||wardenLevel.attribute(selectedWardenAttribute)>=
+                WardenLevelsV078.MAX_ATTRIBUTE)
+            button(c,UpgradeActionLayout.LEFT[2],UpgradeActionLayout.TOP,
+                    UpgradeActionLayout.RIGHT[2],UpgradeActionLayout.BOTTOM,
+                    "+1 POINT",0xff52626b);
     }
     /** Spend exactly the selected amount; no currency, no accidental taps. */
     private void spendWardenPoints(int amount){
