@@ -971,12 +971,13 @@ public final class RiftGameView extends View {
                     e.dashWindup>0||e.dashTime>0);
             // Follow the actual stage-specific painted lane, not a separate
             // invisible straight line. Hero aggro can temporarily interrupt it.
-            boolean toCaravan=SiegeMissionsV069.active(stage,wave)&&
+            boolean toCaravan=!retreating&&
+                    SiegeMissionsV069.active(stage,wave)&&
                     SiegeMissionsV069.mode(stage)==SiegeMissionsV069.ESCORT&&
                     !SiegeMissionsV069.cartSafe(caravanX)&&caravanHp>0&&!hunt&&
                     distance(e.x,e.y,caravanX,caravanY())<190f;
             int victim=-1;
-            if(SiegeMissionsV069.active(stage,wave)&&
+            if(!retreating&&SiegeMissionsV069.active(stage,wave)&&
                     SiegeMissionsV069.mode(stage)==SiegeMissionsV069.RESCUE&&!hunt){
                 float best=200f;
                 for(int i=0;i<villagerState.length;i++){
@@ -990,6 +991,7 @@ public final class RiftGameView extends View {
                     stage,wave,squadPlan,SiegeMissionsV069.active(stage,wave),
                     caveMode,siegeFocusPad)&&!retreating&&!hunt&&!toCaravan&&victim<0&&
                     siegeFocusPad<activeTowerCount&&
+                    towers[siegeFocusPad]>0&&towerHp[siegeFocusPad]>0&&
                     EnemyCoordinationV075.raidAttacker(e.kind,e.boss,hunt,
                             distance(e.x,e.y,towerX[siegeFocusPad],towerY[siegeFocusPad]));
             boolean traveling=!retreating&&!hunt&&!toCaravan&&victim<0&&
@@ -1229,7 +1231,7 @@ public final class RiftGameView extends View {
                             DifficultyRules.enemyDamage(difficultyMode)*
                             SquadTacticsV065.towerAttackMultiplier(
                                     e.squadRole,squadPlan,commanderAlive);
-                    if(coordinatedRaid)strike=Math.min(strike,
+                    if(coordinatedRaid&&towers[siegeTower]>0)strike=Math.min(strike,
                             TowerDurability.maxHp(towers[siegeTower],fortressRank)*.22f);
                     damageTower(siegeTower,strike);
                     e.attackAnim=.42f;
