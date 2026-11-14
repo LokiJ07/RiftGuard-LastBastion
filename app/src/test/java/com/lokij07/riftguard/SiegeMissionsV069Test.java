@@ -27,9 +27,9 @@ public class SiegeMissionsV069Test {
                 assertEquals(SiegeMissionsV069.orders(stage),brief.order);
             }
         }
-        assertEquals(5,seen[SiegeMissionsV069.ESCORT]);
-        assertEquals(5,seen[SiegeMissionsV069.ENGINE]);
-        assertEquals(5,seen[SiegeMissionsV069.SPLIT]);
+        assertEquals(32,seen[SiegeMissionsV069.ESCORT]);
+        assertEquals(32,seen[SiegeMissionsV069.ENGINE]);
+        assertEquals(32,seen[SiegeMissionsV069.SPLIT]);
         assertThrows(IllegalArgumentException.class,()->SiegeMissionsV069.mode(300));
     }
     @Test public void siegeEngineReplacesOnlyOneNormalWaveSpawn(){

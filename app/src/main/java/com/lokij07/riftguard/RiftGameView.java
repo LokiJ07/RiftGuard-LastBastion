@@ -868,14 +868,17 @@ public final class RiftGameView extends View {
             float dHero=distance(e.x,e.y,heroX,heroY);
             if(e.siegeEngine){
                 if(e.engineWindup>0){
-                    if(e.hp<=e.engineWindupHp-e.maxHp*
-                            CampaignEncountersV073.interruptFraction(stage)){
+                    boolean interrupted=e.hp<=e.engineWindupHp-e.maxHp*
+                            CampaignEncountersV073.interruptFraction(stage);
+                    if(interrupted){
                         e.engineWindup=0f;
                         e.engineCooldown=Math.max(e.engineCooldown,3.2f);
                         puff(e.x,e.y-70,15,0xffc7f0d5);
                         announce("CANNON INTERRUPTED • KEEP DEFENDED!");
                     }else e.engineWindup=Math.max(0,e.engineWindup-dt);
-                    if(e.engineWindup<=0){
+                    // An interrupted windup must NOT execute the impact on
+                    // the very frame it was canceled.
+                    if(!interrupted&&e.engineWindup<=0){
                         siegeShots++;
                         baseHp=Math.max(0,baseHp-
                                 CampaignEncountersV073.engineDamage(stage,
