@@ -11,7 +11,7 @@
 - **300 campaign stages** spanning **10 kingdoms × 10 levels × 3 maps (A/B/C)**, including 10 kingdom bosses and the final Eclipse Cave after the campaign.
 - **Action combat:** movement joystick, chained/charged attacks, directional dodge, equipable spells and abilities, six evolving weapon families, visual feedback and telegraphed boss attacks.
 - **Fortress defense:** real buildable/upgradable turret sites, five fortress ranks, attached siege weapons and visually changing purchased weapon/fortress/ascension upgrades.
-- **Worlds and story:** region journeys, procedural native illustrated scenery, animated Warden/enemies, weather/hazards, optional objectives, Memory Trials, 100 collectible memories and branching story outcomes. The 300 environments are *not* 300 individually painted HD scenes.
+- **Worlds and story:** region journeys, procedural native illustrated scenery, animated Warden/enemies, weather/hazards, optional objectives, Memory Trials, 100 collectible memories and branching story outcomes. The v0.80 branch adds skippable one-time camp dialogue every 3 levels, including for older saves replaying those maps. The 300 environments are *not* 300 individually painted HD scenes.
 - **Character Level 1–100:** separate from the 100 campaign levels; experience scales with stage and difficulty, first clears pay more than replays, and each level awards growing attribute points (402 in total by Lv100).
 - **Four Warden attributes:** Vitality, Power, Agility and Arcana; each capped at 120. Upgrades apply to actual combat without replacing fortress/weapon progression.
 - **Six automatic Warden oaths:** Guardian Heart (Lv10), Rift Siphon (Lv25), Battle Focus (Lv40), Arc Conduit (Lv60), Vanguard Stride (Lv80) and Rift Sovereign (Lv100).
