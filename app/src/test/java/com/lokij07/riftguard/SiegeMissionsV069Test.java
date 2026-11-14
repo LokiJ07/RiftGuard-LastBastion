@@ -11,7 +11,7 @@ public class SiegeMissionsV069Test {
         assertEquals(SiegeMissionsV069.SPLIT,SiegeMissionsV069.mode(8));
         assertEquals(SiegeMissionsV069.ESCORT,SiegeMissionsV069.mode(18));
         assertEquals(SiegeMissionsV069.NONE,SiegeMissionsV069.mode(21));
-        int[] seen=new int[4];
+        int[] seen=new int[6];
         for(int stage=0;stage<Campaign.STAGES;stage++){
             int mode=SiegeMissionsV069.mode(stage);
             seen[mode]++;
