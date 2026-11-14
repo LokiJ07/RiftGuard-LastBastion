@@ -51,6 +51,27 @@ public final class StoryProgress {
     }
     public int count(int world){return Integer.bitCount(bits(world));}
     public int total(){int n=0;for(int w=0;w<10;w++)n+=count(w);return n;}
+    /** Cael's history—not collecting every unrelated optional Knight memory—
+     * unlocks the compassionate ending. No save schema change is needed.
+     */
+    public static final int CAEL_MARGIN=3;
+    public static int caelTotal(){
+        int n=0;
+        for(int world=0;world<KeyMemories.ALL.length;world++)
+            for(KeyMemories.Memory memory:KeyMemories.ALL[world])
+                if(memory.fromCael)n++;
+        return n;
+    }
+    public static int caelNeeded(){return Math.max(1,caelTotal()-CAEL_MARGIN);}
+    public int caelCount(){
+        int n=0;
+        for(int world=0;world<KeyMemories.ALL.length;world++){
+            int owned=bits(world);
+            for(int key=0;key<KeyMemories.ALL[world].length;key++)
+                if((owned&(1<<key))!=0&&KeyMemories.ALL[world][key].fromCael)n++;
+        }
+        return n;
+    }
     public boolean hasRestoredSeal(int world){return hasOwnedSeal(world)&&count(world)==10;}
     /**
      * Legacy migration: 300-stage campaign is linear and existing 'unlocked'
@@ -66,7 +87,9 @@ public final class StoryProgress {
     public boolean caveUnlocked(){
         return prefs.getInt("unlocked",0)>=Campaign.STAGES&&ownedSeals()==10;
     }
-    public boolean trueEndingUnlocked(){return caveUnlocked()&&total()==100;}
+    public boolean trueEndingUnlocked(){
+        return caveUnlocked()&&caelCount()>=caelNeeded();
+    }
     public static final int ENDING_NONE=0,ENDING_GOOD=1,ENDING_TRUE=2,ENDING_PARTIAL=3;
     public int ending(){return prefs.getInt("story.v065.caveEnding",ENDING_NONE);}
     public boolean saveEnding(int result){
