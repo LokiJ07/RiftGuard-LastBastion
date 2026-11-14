@@ -4499,6 +4499,13 @@ public final class RiftGameView extends View {
                         "RESCUE":SiegeMissionsV069.mode(mission)==SiegeMissionsV069.SEAL?
                         "SEALS":"2 ROUTES",1143,top+22,14,0xffe2f4e7,true);
             }
+            if(RealmInteractablesV077.scheduled(mission)){
+                int kind=RealmInteractablesV077.type(mission);
+                round(c,1084,top+4,1197,top+28,6,0xdd516850);
+                text(c,kind==RealmInteractablesV077.WARD?"WARD":
+                        kind==RealmInteractablesV077.FORGE?"FORGE":
+                        "PURIFIER",1141,top+22,13,0xffffe8c5,true);
+            }
             if(DifficultyRules.worldBoss(mission)) {
                 round(c,1090,top+4,1197,top+28,6,0xdd71384e);
                 text(c,"WORLD BOSS",1143,top+22,15,0xffffdfbc,true);
