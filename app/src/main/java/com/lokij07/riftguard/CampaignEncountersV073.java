@@ -1,8 +1,8 @@
 package com.lokij07.riftguard;
 
-/** 96 live stage events, spaced to avoid the same objective every level.
- * Original first-world 15 event slots stay exactly as v0.69. Later realms
- * contain 3 events per act, with all 3 gameplay mechanics represented.
+/** 96 live stage events. Original first-world 15 stay unchanged.
+ * Later realms mix three classic defenses with two player-driven objectives;
+ * no extra mobs or permanent progression key changes.
  */
 public final class CampaignEncountersV073 {
     private CampaignEncountersV073(){}
@@ -11,8 +11,13 @@ public final class CampaignEncountersV073 {
         Campaign.checkStage(stage);
         if(stage>=6&&stage<=20)return SiegeMissionsV069.ESCORT+(stage-6)%3;
         if(stage<30||DifficultyRules.worldBoss(stage))return SiegeMissionsV069.NONE;
-        for(int i=0;i<SLOTS.length;i++)if(SLOTS[i]==stage%30)
+        for(int i=0;i<SLOTS.length;i++)if(SLOTS[i]==stage%30){
+            // One Rescue and one Rift Seal per later realm, preserving each
+            // existing mission type elsewhere in the nine-event schedule.
+            if(i==4)return SiegeMissionsV069.RESCUE;
+            if(i==7)return SiegeMissionsV069.SEAL;
             return SiegeMissionsV069.ESCORT+(i+Campaign.world(stage))%3;
+        }
         return SiegeMissionsV069.NONE;
     }
     public static float cartMaxHp(int stage,int difficulty){

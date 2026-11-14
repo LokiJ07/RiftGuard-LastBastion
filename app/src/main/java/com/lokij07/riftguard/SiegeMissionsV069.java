@@ -3,7 +3,7 @@ package com.lokij07.riftguard;
 /** Live, save-compatible missions across the 300-stage campaign. */
 public final class SiegeMissionsV069 {
     private SiegeMissionsV069(){}
-    public static final int NONE=0,ESCORT=1,ENGINE=2,SPLIT=3;
+    public static final int NONE=0,ESCORT=1,ENGINE=2,SPLIT=3,RESCUE=4,SEAL=5;
     public static final int FIRST=6,LAST=20,FEATURE_WAVE=2;
     public static final float CART_START_X=1620f,CART_SAFE_X=1250f;
     public static final float CART_MAX_HP=260f,CART_SPEED=26f;
@@ -39,6 +39,8 @@ public final class SiegeMissionsV069 {
             case ESCORT:return "PROTECT THE REFUGEE CARAVAN";
             case ENGINE:return "INTERCEPT THE SIEGE ENGINE";
             case SPLIT:return "DEFEND AGAINST SPLIT ROUTES";
+            case RESCUE:return "RESCUE THE STRANDED VILLAGERS";
+            case SEAL:return "CLOSE THE UNSTABLE RIFTS";
             default:return "";
         }
     }
@@ -47,6 +49,8 @@ public final class SiegeMissionsV069 {
             case ESCORT:return "Wave two: stay close to shield and rally the moving caravan; losing it fails the battle.";
             case ENGINE:return "Wave two: interrupt the siege cannon by damaging it during its visible windup.";
             case SPLIT:return "Wave two: attackers use two entry paths. Move to intercept and cover your turret positions.";
+            case RESCUE:return "Wave two: approach stranded villagers on the road to rescue them. Save at least two of three before raiders kill them.";
+            case SEAL:return "Wave two: stand near both exposed rifts until their seals finish charging. Unsealed portals periodically strike your keep.";
             default:return "";
         }
     }
@@ -55,10 +59,13 @@ public final class SiegeMissionsV069 {
             case ESCORT:return "The golden caravan has health. Staying close shields it and speeds its escape.";
             case ENGINE:return "Attack during the glowing cannon windup to cancel the siege shot.";
             case SPLIT:return "Purple arrow markers reveal flankers from two approaches converging at the gate.";
+            case RESCUE:return "Gold signals mark three villagers. Walk to their circles; nearby enemies will attack anyone not rescued.";
+            case SEAL:return "Two glowing portals are open. Hold within each marked ring to channel its seal, or your fortress takes pulse damage.";
             default:return "";
         }
     }
     public static int bonusGold(int kind){
-        return kind==ESCORT?45:kind==ENGINE?35:kind==SPLIT?30:0;
+        return kind==ESCORT?45:kind==ENGINE?35:kind==SPLIT?30:
+                kind==RESCUE?55:kind==SEAL?60:0;
     }
 }
