@@ -4,7 +4,7 @@
 
 **RiftGuard** is a single-player, offline-first **Android Java / Canvas** action and fortress-defense game. Control a Warden, fight the Rift, build and upgrade the Last Bastion, and discover the histories of the Knight, the First Warden and their companions.
 
-> **Status:** v0.79 systems were integrated through [PR #40](https://github.com/LokiJ07/RiftGuard-LastBastion/pull/40); the v0.80 line adds story-continuity, ending and mid-chapter pacing improvements. **v0.81** polishes in-game cinematic subtitles, Chronicle, Cave choices/endings and HUD editor clarity. The Android package declares **`0.81.0-alpha1` / versionCode `77`**. This remains a development alpha, not a signed production release or Play Store publication.
+> **Status:** v0.79 systems were integrated through [PR #40](https://github.com/LokiJ07/RiftGuard-LastBastion/pull/40); the v0.80 line adds story-continuity, ending and mid-chapter pacing improvements. **v0.81** polishes in-game cinematic subtitles, Chronicle, Cave choices/endings and HUD editor clarity. **v0.82** adds tactical enemy wave rhythms, earned Warden Flow and shorter idle wave preparation. The Android package declares **`0.82.0-alpha1` / versionCode `78`**. This remains a development alpha, not a signed production release or Play Store publication.
 
 ## Play at a glance
 
@@ -16,6 +16,15 @@
 - **Four Warden attributes:** Vitality, Power, Agility and Arcana; each capped at 120. Upgrades apply to actual combat without replacing fortress/weapon progression.
 - **Six automatic Warden oaths:** Guardian Heart (Lv10), Rift Siphon (Lv25), Battle Focus (Lv40), Arc Conduit (Lv60), Vanguard Stride (Lv80) and Rift Sovereign (Lv100).
 - **Save continuity:** offline progression, persistent fortress/equipment/attributes, old-save Warden XP migration, and a durable campaign victory transaction.
+
+## v0.82 combat engagement and balancing
+
+- **Distinct later-wave tactics:** From stage 31 onward, later waves rotate Shield Vanguard, Swift Raiders, Hex Support and Boar Stampede. Existing enemy species replace ordinary slots; **no extra population**, health inflation, new bosses or stage unlock changes. First-realm onboarding and authored mission actors stay intact.
+- **Warden Flow:** Land two different confirmed techniques (combo finisher, charged hit or close-range dodge of a telegraphed attack) inside nine seconds for a **7-second +9% Warden weapon-power boost**. One capped 14–26 battle-gold stipend per wave, with an 18-second Flow cooldown; turret autoplay and repeated button spam cannot award it.
+- **Less downtime:** Normal preparation reduced from 20 to 17 seconds; boss preparation from 40 to 34 seconds. All four difficulty tiers retain manual early start, existing enemy counts, HP/attack tuning and the separate final-boss entrance warning.
+- **Safe progression:** Flow is battle-only, not permanent supplies, stat/XP inflation or a changed save schema. Boss fights, terrain art, fortress meshes and responsive touch HUD remain as before.
+
+See [v0.82 combat engagement and balance notes](docs/V082_COMBAT_ENGAGEMENT.md).
 
 ## v0.81 story and interface improvements
 
@@ -55,7 +64,7 @@ For downloadable debug builds, open [GitHub Actions → Android CI](https://gith
 
 ## Documentation
 
-- [v0.81 UI presentation and visual QA](docs/V081_STORY_UI_POLISH.md) · [v0.80 critique triage](docs/V080_CRITIQUE_TRIAGE.md)
+- [v0.82 combat rhythm and balance](docs/V082_COMBAT_ENGAGEMENT.md) · [v0.81 UI presentation and visual QA](docs/V081_STORY_UI_POLISH.md) · [v0.80 critique triage](docs/V080_CRITIQUE_TRIAGE.md)
 - [Character Lv1–100 rules](docs/V078_WARDEN_LEVELS_AND_STATS.md) · [Warden milestone oaths](docs/V079_WARDEN_OATHS.md)
 - [Commercial release / physical QA gates](docs/V072_COMMERCIAL_RELEASE_GATES.md)
 - [Full archived milestone history (previous README)](docs/archive/README_THROUGH_V079.md)
