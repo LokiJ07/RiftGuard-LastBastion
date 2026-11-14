@@ -14,6 +14,8 @@
 | B2: Bantay distant in partial ending | He was physically waiting in Cave before the partial ending claimed only a distant bark | In the partial ending Bantay actually runs to Knight; they leave together while Cael remains bound and the Rift unresolved |
 | E: unreadable, outdated README | 350+ lines of version-by-version release notes; obsolete 'stable v0.30' sections | Preserve original complete README under `docs/archive/README_THROUGH_V079.md`, replace root README with a concise current overview, testing, play instructions and links; correct outdated v0.79 notes |
 
+**Additional pacing improvement:** Short, two-line camp dialogue plays once per save every third campaign level when entering Map A. It can be skipped, never gates combat, cannot pay a reward, and is available to older saves that replay the level. Tessa speaks only before Frostpeak ends; later lines use allies already recruited.
+
 **Verification:** Existing story/XP/save/weapon/fortress tests remain part of CI. Added `StoryContinuityV080Test` covers early speaker secrecy, Chada/Tessa/Bantay continuity, gate boundary at 29 vs 30, persistence and 300-stage cave restriction. Updated legacy story test to expect the mask rather than the premature name reveal. Emulator/API29/36 and production packaging preflight run through the existing workflows.
 
 ## Not changed yet — intentional risk control
