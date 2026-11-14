@@ -35,10 +35,12 @@ public class EngagementIntegrationV068Test {
         return p;
     }
     @Test public void realSignatureShamanHealsOneWoundedAlly()throws Exception{
-        Context ctx=RuntimeEnvironment.getApplication();reset(ctx,7);
+        // World 1 signature at stage 7 is now the v0.69 siege machine.
+        // Stage 25 still uses the v0.68 shaman signature without an override.
+        Context ctx=RuntimeEnvironment.getApplication();reset(ctx,25);
         RiftGameView g=new RiftGameView(ctx);g.layout(0,0,1280,720);
-        call(g,"start",new Class<?>[]{int.class},7);
-        int total=DifficultyRules.enemies(7,2,DifficultyRules.NORMAL);
+        call(g,"start",new Class<?>[]{int.class},25);
+        int total=DifficultyRules.enemies(25,2,DifficultyRules.NORMAL);
         set(g,"wave",2);set(g,"remaining",Math.max(2,total/2));
         action(g,"spawnEnemy");
         @SuppressWarnings("unchecked") List<Object> mobs=(List<Object>)get(g,"enemies");
