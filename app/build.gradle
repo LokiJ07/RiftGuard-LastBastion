@@ -20,8 +20,8 @@ android {
         applicationId 'com.lokij07.riftguard'
         minSdk 24
         targetSdk 36
-        versionCode 78
-        versionName '0.82.0-alpha1'
+        versionCode 79
+        versionName '0.83.0-alpha1'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     signingConfigs {
