@@ -62,7 +62,9 @@ public final class BossCounterplayV083IntegrationTest {
     private static void screenshot(RiftGameView game,String file)throws Exception{
         Bitmap image=Bitmap.createBitmap(1280,720,Bitmap.Config.ARGB_8888);
         game.draw(new Canvas(image));
-        File dir=new File(System.getProperty("user.dir"),"build/screenshots");
+        File cwd=new File(System.getProperty("user.dir"));
+        File dir=new File(cwd,new File(cwd,"app/build.gradle").exists()?
+                "app/build/screenshots":"build/screenshots");
         if(!dir.exists())assertTrue(dir.mkdirs());
         try(FileOutputStream stream=new FileOutputStream(new File(dir,file))){
             assertTrue(image.compress(Bitmap.CompressFormat.PNG,95,stream));
@@ -94,7 +96,9 @@ public final class BossCounterplayV083IntegrationTest {
                 (Float)get(boss,"counterStagger"),.001f);
         assertEquals(1,get(game,"bossCounters"));
         assertEquals(0f,(Float)get(boss,"counterPressure"),.001f);
-        assertEquals(1.14f,(Float)invoke(game,"bossArmorMultiplier",
+        assertEquals(1f,(Float)invoke(game,"bossArmorMultiplier",
+                new Class<?>[]{boss.getClass()},boss),.001f);
+        assertEquals(1.14f,(Float)invoke(game,"bossCounterWeaponMultiplier",
                 new Class<?>[]{boss.getClass()},boss),.001f);
         assertTrue(((String)get(game,"notice")).contains("INTERRUPTED"));
         screenshot(game,"287-v083-boss-stagger-confirmation.png");
@@ -125,6 +129,48 @@ public final class BossCounterplayV083IntegrationTest {
         assertEquals(0,get(game,"bossCounters"));
     }
 
+    @Test public void realWardenProjectileInterruptsButTurretShotsNeverDo()
+            throws Exception{
+        int id=Campaign.stage(10,2);
+        Context ctx=RuntimeEnvironment.getApplication();
+        SharedPreferences prefs=ctx.getSharedPreferences(
+                "riftguard_campaign_v1",Context.MODE_PRIVATE);
+        prefs.edit().clear().putInt("unlocked",id).commit();
+        RiftGameView game=stage(ctx,id);
+        Object boss=enemy(id,true,false);
+        @SuppressWarnings("unchecked")
+        List<Object> mobs=(List<Object>)get(game,"enemies");
+        mobs.add(boss);
+        set(game,"waiting",false);
+        set(game,"spawnTimer",999f);
+        @SuppressWarnings("unchecked")
+        List<Object> shots=(List<Object>)get(game,"shots");
+        Class<?> shotType=Class.forName("com.lokij07.riftguard.RiftGameView$Shot");
+        Constructor<?> shotCtor=shotType.getDeclaredConstructor(
+                float.class,float.class,float.class,float.class,
+                boss.getClass(),boolean.class);
+        shotCtor.setAccessible(true);
+        Object wardenShot=shotCtor.newInstance(1220f,510f,75f,730f,boss,false);
+        set(wardenShot,"weaponId",0);
+        shots.add(wardenShot);
+        invoke(game,"update",new Class<?>[]{float.class},.02f);
+        assertEquals(1,get(game,"bossCounters"));
+        assertEquals(0f,(Float)get(boss,"specialCharge"),.001f);
+        // Reset the real enemy for a later cast; turret damage may hit the
+        // boss but must never grant a Warden-only pressure interrupt.
+        set(boss,"counterStagger",0f);
+        set(boss,"specialCharge",1.3f);
+        set(boss,"counterPressure",0f);
+        Object turretShot=shotCtor.newInstance(1220f,510f,175f,730f,boss,true);
+        set(turretShot,"towerSlot",0);
+        shots.add(turretShot);
+        invoke(game,"update",new Class<?>[]{float.class},.02f);
+        assertEquals(1,get(game,"bossCounters"));
+        assertTrue((Float)get(boss,"specialCharge")>0f);
+        assertEquals(0f,(Float)get(boss,"counterPressure"),.001f);
+        assertEquals(0,prefs.getInt("supplies",0));
+    }
+
     @Test public void firstClearMasteryUsesExistingDurableVictoryOnlyOnce()
             throws Exception{
         int id=Campaign.stage(10,2);
@@ -152,7 +198,7 @@ public final class BossCounterplayV083IntegrationTest {
                 prefs.getInt("supplies",-1));
     }
 
-    @Test public void failedSaveDoesNotPayBossMasteryOrShowVictory()
+    @Test public void defeatCannotPayBossMasteryOrShowVictory()
             throws Exception{
         int id=Campaign.stage(10,2);
         Context ctx=RuntimeEnvironment.getApplication();
