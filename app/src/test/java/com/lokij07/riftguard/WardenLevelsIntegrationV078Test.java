@@ -150,7 +150,7 @@ public class WardenLevelsIntegrationV078Test {
         WardenLevelsV078 levels=(WardenLevelsV078)get(g,"wardenLevel");
         assertEquals(5,levels.attribute(WardenLevelsV078.ARCANA));
         assertEquals(.075f,levels.skillCooldownReduction(),.0001f);
-        tap(g,480,650); // +1
+        tap(g,760,650); // +1: third shared UpgradeActionLayout slot
         assertEquals(6,levels.attribute(WardenLevelsV078.ARCANA));
         tap(g,180,650); // back HOME
         assertEquals("HOME",get(g,"scene").toString());
