@@ -292,6 +292,49 @@ public final class StoryScript {
             l("NARRATOR","The Warden pours a second cup each morning. No one ever drinks it.",EMPTY_CUP)
         };
     }
+    /**
+     * First-clear mid-chapter moments: one tiny skippable scene every three
+     * campaign levels, never a combat objective or replay requirement.
+     * Characters only speak after they could have joined the Bastion;
+     * Tessa never appears in a present-day scene after Frostpeak (world 5).
+     */
+    public static Line[] campBanter(int level,String name){
+        if(level<1||level>100)throw new IllegalArgumentException("level");
+        if(level%3!=0)return new Line[0];
+        int world=(level-1)/10;
+        switch(world){
+            case 0:return new Line[]{
+                l("OLD TESSA","You kept the gate standing, "+name+". Have you eaten anything today?",TESSA),
+                l("WARDEN","Does coffee count? No? I was afraid you would say that.",WARDEN)};
+            case 1:return new Line[]{
+                l("OLD TESSA","A single lantern cannot light the whole forest. But it can lead one traveler home.",TESSA),
+                l("WARDEN","Then we leave another burning for the next traveler.",WARDEN)};
+            case 2:return new Line[]{
+                l("OLD TESSA","Being afraid is not the same as giving up, you know.",TESSA),
+                l("WARDEN","Good. I have been afraid since the first bridge.",WARDEN)};
+            case 3:return new Line[]{
+                l("OLD TESSA","Chada can break. The promise you made with her cannot.",TESSA),
+                l("WARDEN","Then I will carry the pieces until I can put her back together.",WARDEN)};
+            case 4:return new Line[]{
+                l("OLD TESSA","If the snow closes the road, come home slowly. I will keep the fire lit.",TESSA),
+                l("WARDEN","I am saving a seat beside that fire.",WARDEN)};
+            case 5:return new Line[]{
+                l("CAPTAIN YSOLDE","I have kept the fire burning by Tessa's empty chair.",ALLY),
+                l("WARDEN","Good. A home is more than the walls we can still defend.",WARDEN)};
+            case 6:return new Line[]{
+                l("PELL","The old brewing pot is warm again. I think Tessa would have scolded my soldering.",ALLY),
+                l("WARDEN","She would have. Then she would have poured us both a cup.",WARDEN)};
+            case 7:return new Line[]{
+                l("LUME","These crystals remember footsteps, voices, and people we thought lost.",ALLY),
+                l("WARDEN","Then listen for Bantay. I know he is still out there.",WARDEN)};
+            case 8:return new Line[]{
+                l("NESSA","Bantay's trail does not end in the storm. It turns toward the old citadel.",ALLY),
+                l("WARDEN","I am coming, old friend. Keep barking.",WARDEN)};
+            default:return new Line[]{
+                l("NESSA","Everyone is at their post. The Bastion is holding because they chose to stay.",ALLY),
+                l("WARDEN","Then I choose to come back to them.",WARDEN)};
+        }
+    }
     public static Line[] memory(KeyMemories.Memory m){
         if(m==null)return null;
         return new Line[]{l(m.fromCael?"CAEL'S MEMORY":"WARDEN'S MEMORY",m.text,
