@@ -1332,6 +1332,7 @@ public final class RiftGameView extends View {
             float d=distance(shot.x,shot.y,shot.target.x,shot.target.y-10);
             if(d<24) {
                 float actualDamage=shot.damage*bossArmorMultiplier(shot.target)*
+                        (shot.tower?1f:bossCounterWeaponMultiplier(shot.target))*
                         SquadTacticsV065.incomingDamage(shot.target.squadRole,
                                 squadPlan,commanderPresent());
                 shot.target.hp-=actualDamage;
@@ -2157,11 +2158,14 @@ public final class RiftGameView extends View {
                         "WEAPON BROKEN: REDUCED DAMAGE":"DODGE THE MARK"));
     }
     private float bossArmorMultiplier(Enemy e){
-        if(!e.boss)return 1f;
-        float armor=e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
-        return armor*(e.counterStagger>0f&&
+        return e.boss&&e.anatomy!=null?e.anatomy.incomingMultiplier():1f;
+    }
+    /** Stagger bonus belongs to the Warden's actual weapon ONLY; no
+     * temporary auto-turret damage inflation or permanent stat changes. */
+    private float bossCounterWeaponMultiplier(Enemy e){
+        return e.counterStagger>0f&&
                 RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
-                BossCounterplayV083.STAGGER_WEAPON_MULTIPLIER:1f);
+                BossCounterplayV083.STAGGER_WEAPON_MULTIPLIER:1f;
     }
     /** Invoked only on a landed WARDEN weapon hit, not tower autoplay,
      * attacks against empty air, burning DOT or the story Cave boss. */
@@ -2358,6 +2362,7 @@ public final class RiftGameView extends View {
                     ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
             float dealt=meleeDamage*bossArmorMultiplier(e)*
+                    bossCounterWeaponMultiplier(e)*
                     SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
             e.hp-=dealt;
             registerBossCounterHit(e,dealt);
