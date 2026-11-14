@@ -48,7 +48,15 @@ public final class EvolvedWeaponArt {
     }
     public static void draw(Canvas c,int weapon,int tier,float x,float y,
                             float scale,float time){
-        if(weapon<0||weapon>=6||tier<0||tier>=5||scale<=0)
+        draw(c,weapon,tier,1,x,y,scale,time);
+    }
+    /** The same actual purchased node mask draws in Home, the Armory, live
+     * Warden hand and cached locomotion frames. Node previews use a marked
+     * hypothetical mask; never persist preview bits to owned progression. */
+    public static void draw(Canvas c,int weapon,int tier,int purchasedMask,
+                            float x,float y,float scale,float time){
+        if(weapon<0||weapon>=6||tier<0||tier>=5||scale<=0||
+                purchasedMask<1||(purchasedMask&~0x7ff)!=0)
             throw new IllegalArgumentException("weapon form");
         c.save();c.translate(x,y);c.scale(scale,scale);
         int metal=METAL[weapon],shade=SHADE[weapon],rune=RUNE[weapon];
@@ -60,7 +68,38 @@ public final class EvolvedWeaponArt {
         // Real silhouette details participate in the very same scaled and
         // rotated in-game weapon layer, not in a disconnected menu graphic.
         WeaponSilhouettePolish.draw(c,weapon,tier,time);
+        ownedNodeEngravings(c,weapon,purchasedMask,time);
         c.restore();
+    }
+    /** Every purchased node makes a distinct, glove-anchored geometric rune.
+     * These tiny physical blade/rail ornaments are not screen-space overlays.
+     * Separate branch shapes prevent a power node looking like a speed node. */
+    private static void ownedNodeEngravings(Canvas c,int weapon,int bits,float time){
+        int sigil=RUNE[weapon];
+        for(int id=1;id<=10;id++){
+            if((bits&(1<<id))==0)continue;
+            if(id==10){
+                float throb=2f+(float)Math.sin(time*4.2f)*1.2f;
+                oval(c,0,-53,6+throb,7+throb,0x5577ecff);
+                oval(c,0,-53,3.5f,5,sigil);
+                line(c,-15,-58,0,-68,0xfff6e0aa,2f);
+                line(c,0,-68,15,-58,0xfff6e0aa,2f);
+                continue;
+            }
+            int row=(id-1)/3,lane=(id-1)%3;
+            float xx=(lane-1)*15f,yy=-18-row*12f;
+            int hue=lane==0?0xffffd18c:lane==1?0xffa3eeef:0xffd3b5ff;
+            if(lane==0){
+                line(c,xx-4,yy-3,xx+4,yy+3,hue,3.1f);
+                line(c,xx-4,yy+3,xx+4,yy-3,sigil,1.5f);
+            }else if(lane==1){
+                rect(c,xx-3,yy-4,xx+3,yy+4,0xff365a67);
+                line(c,xx,yy-5,xx,yy+5,hue,2.5f);
+            }else{
+                oval(c,xx,yy,4f,4f,0x665c98fb);
+                oval(c,xx,yy,2.7f,3.6f,hue);
+            }
+        }
     }
     private static void grip(Canvas c,int tier,int shade,int rune){
         // Distinct handle winding and finished pommel apply to every variant.

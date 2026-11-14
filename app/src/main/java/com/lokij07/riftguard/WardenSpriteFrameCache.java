@@ -24,7 +24,7 @@ public final class WardenSpriteFrameCache {
     private static final float FOOT_Y=232f;
     private final WardenRig rig;
     private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private final LinkedHashMap<Integer,Bitmap> frames=new LinkedHashMap<>(64,.75f,true);
+    private final LinkedHashMap<Long,Bitmap> frames=new LinkedHashMap<>(64,.75f,true);
     private int builds=0;
     private int cacheLimit=MAX_CACHED_FRAMES;
     private boolean disabled=false;
@@ -57,25 +57,32 @@ public final class WardenSpriteFrameCache {
         if(phase<0f)phase+=TWO_PI;
         return Math.min(FRAME_COUNT-1,(int)(phase/TWO_PI*FRAME_COUNT));
     }
-    private static int key(int weapon,int form,int armor,int mastery,
-                           boolean running,int dir,int tile){
-        int id=weapon*5+form;
-        id=id*5+armor;
-        id=id*128+mastery;
-        id=id*2+(running?1:0);
-        id=id*8+dir;
+    private static long key(int weapon,int form,int armor,int mastery,int mask,
+                            boolean running,int dir,int tile){
+        long id=weapon*5L+form;
+        id=id*5L+armor;
+        id=id*128L+mastery;
+        id=id*2048L+(mask&0x7ff);
+        id=id*2L+(running?1:0);
+        id=id*8L+dir;
         return id*FRAME_COUNT+tile;
     }
     public boolean draw(Canvas canvas,float x,float y,float time,float facing,
                         boolean running,float attack,float cast,boolean hurt,
                         int weapon,int mastery,int form,int armor,float death){
-        if(disabled||!Float.isFinite(x)||!Float.isFinite(y)||
+        return draw(canvas,x,y,time,facing,running,attack,cast,hurt,weapon,
+                mastery,1,form,armor,death);
+    }
+    public boolean draw(Canvas canvas,float x,float y,float time,float facing,
+                        boolean running,float attack,float cast,boolean hurt,
+                        int weapon,int mastery,int masteryMask,int form,int armor,float death){
+        if(disabled||masteryMask<1||masteryMask>0x7ff||!Float.isFinite(x)||!Float.isFinite(y)||
            !Float.isFinite(time)||!Float.isFinite(facing)||
            attack>=0f||cast>=0f||hurt||death>=0f||
            weapon<0||weapon>=6||form<0||form>4||armor<0||armor>4||
            mastery<0||mastery>127)return false;
         int dir=direction(facing),tile=frame(time,running);
-        int id=key(weapon,form,armor,mastery,running,dir,tile);
+        long id=key(weapon,form,armor,mastery,masteryMask,running,dir,tile);
         Bitmap bitmap=frames.get(id);
         if(bitmap==null||bitmap.isRecycled()){
             try {
@@ -86,10 +93,10 @@ public final class WardenSpriteFrameCache {
                 float heading=dir*TWO_PI/8f;
                 boolean okay=rig.hero(target,WIDTH*.5f,FOOT_Y,
                         sample,heading,running,-1f,-1f,false,
-                        weapon,mastery,form,armor,-1f);
+                        weapon,mastery,masteryMask,form,armor,-1f);
                 if(!okay){bitmap.recycle();return false;}
                 if(frames.size()>=cacheLimit){
-                    Iterator<Map.Entry<Integer,Bitmap>> it=frames.entrySet().iterator();
+                    Iterator<Map.Entry<Long,Bitmap>> it=frames.entrySet().iterator();
                     if(it.hasNext()){it.next();it.remove();}
                 }
                 frames.put(id,bitmap);
