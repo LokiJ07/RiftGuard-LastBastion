@@ -208,6 +208,9 @@ public final class RiftGameView extends View {
     private float caravanX=SiegeMissionsV069.CART_START_X,caravanHp=SiegeMissionsV069.CART_MAX_HP;
     private boolean missionEventRewarded,caravanUnderAttack,engineStopped;
     private int siegeShots,flankKills,flankBreaches;
+    // Team-wide, public and persistent for ONE wave only. Targets reselect
+    // if destroyed; no hidden player coordinates or permanent save schema.
+    private int siegeFocusPad=-1,siegeFocusWave=-1;
     // Actual wave-two field objectives, reset at deterministic save boundaries.
     // 0=unrescued,1=saved,2=lost. No persistent schema changes.
     private final float[] villagerHp=new float[FieldObjectivesV074.SURVIVORS];
@@ -253,6 +256,8 @@ public final class RiftGameView extends View {
         boolean moving,boss,worldBoss,siegeEngine,flankRoute;
         int flankSide;
         float engineCooldown,engineWindup,engineWindupHp;
+        float retreatTime,retreatCooldown;
+        int pincerSide;
         // Locked when world-boss channel begins, not retargeted every frame.
         int realmLockedTower=-1;
         float realmLockedX,realmLockedY;
@@ -614,6 +619,7 @@ public final class RiftGameView extends View {
         heroX=LaneRules.startX(); heroY=LaneRules.startY(); heroHp=heroMaxHp();
         baseHp=coreMaxHp();
         wave=1; remaining=DifficultyRules.enemies(stage,wave,difficultyMode);
+        siegeFocusPad=-1;siegeFocusWave=-1;
         spawnTimer=2f;
         intermission=WavePacingV065.seconds(difficultyMode,false);
         waiting=true;
@@ -830,6 +836,7 @@ public final class RiftGameView extends View {
         for(Enemy unit:enemies)if(unit.hp>0&&unit.squadRole==SquadTacticsV065.COMMANDER){
             commanderAlive=true;break;
         }
+        updateRaidFocus();
         updateSiegeMission(dt);
         if(scene!=Scene.PLAY)return;
         // Boss reinforcements are collected separately so the active enemy
@@ -938,7 +945,29 @@ public final class RiftGameView extends View {
                     puff(wounded.x,wounded.y-22,8,0xffa9efb6);
                 }
             }
-            boolean hunt=!revival.isDown()&&(MovementRules.huntsHero(dHero,e.kind)||
+            // Wounded shamans visibly fall back behind living shield allies.
+            // Player can eliminate their shield or intercept before retreat;
+            // no extra summons/health and a long individual cooldown.
+            e.retreatCooldown=Math.max(0f,e.retreatCooldown-dt);
+            e.retreatTime=Math.max(0f,e.retreatTime-dt);
+            if(e.kind==4&&!e.boss&&!caveMode&&e.retreatTime<=0f){
+                boolean hasCover=false;
+                for(Enemy ally:enemies){
+                    if(ally==e)continue;
+                    if(EnemyCoordinationV075.protectiveShield(
+                            ally.kind,ally.boss,ally.hp,
+                            ally.x,ally.y,e.x,e.y)){hasCover=true;break;}
+                }
+                if(EnemyCoordinationV075.shouldRetreat(stage,e.kind,e.boss,
+                        e.hp,e.maxHp,dHero,hasCover,e.x,e.retreatCooldown)){
+                    e.retreatTime=EnemyCoordinationV075.RETREAT_SECONDS;
+                    e.retreatCooldown=EnemyCoordinationV075.RETREAT_COOLDOWN;
+                    puff(e.x,e.y-50,8,0xffa5e7d4);
+                }
+            }
+            boolean retreating=e.retreatTime>0f;
+            boolean hunt=!retreating&&!revival.isDown()&&
+                    (MovementRules.huntsHero(dHero,e.kind)||
                     e.dashWindup>0||e.dashTime>0);
             // Follow the actual stage-specific painted lane, not a separate
             // invisible straight line. Hero aggro can temporarily interrupt it.
@@ -957,23 +986,38 @@ public final class RiftGameView extends View {
                     if(dNpc<best){best=dNpc;victim=i;}
                 }
             }
-            boolean traveling=!hunt&&!toCaravan&&victim<0 &&
-                    e.x>LaneRules.CASTLE_GATE_X+120f;
-            float tx=hunt?heroX:toCaravan?caravanX:victim>=0?
-                    FieldObjectivesV074.rescueX(stage,victim):traveling?
+            boolean coordinatedRaid=EnemyCoordinationV075.raidActive(
+                    stage,wave,squadPlan,SiegeMissionsV069.active(stage,wave),
+                    caveMode,siegeFocusPad)&&!retreating&&!hunt&&!toCaravan&&victim<0&&
+                    siegeFocusPad<activeTowerCount&&
+                    EnemyCoordinationV075.raidAttacker(e.kind,e.boss,hunt,
+                            distance(e.x,e.y,towerX[siegeFocusPad],towerY[siegeFocusPad]));
+            boolean traveling=!retreating&&!hunt&&!toCaravan&&victim<0&&
+                    !coordinatedRaid&&e.x>LaneRules.CASTLE_GATE_X+120f;
+            float tx=retreating?EnemyCoordinationV075.retreatX(e.x):
+                    hunt?heroX:toCaravan?caravanX:victim>=0?
+                    FieldObjectivesV074.rescueX(stage,victim):coordinatedRaid?
+                    towerX[siegeFocusPad]:traveling?
                     LaneRules.stageWaypointX(e.x,stage):BASE_X;
-            float ty=hunt?heroY:toCaravan?caravanY():victim>=0?
-                    FieldObjectivesV074.rescueY(stage,victim):traveling?
+            float ty=retreating?EnemyCoordinationV075.retreatY(e.y,heroY):
+                    hunt?heroY:toCaravan?caravanY():victim>=0?
+                    FieldObjectivesV074.rescueY(stage,victim):coordinatedRaid?
+                    towerY[siegeFocusPad]:traveling?
                     LaneRules.stageWaypointY(e.x,stage):BASE_Y;
             if(traveling&&e.flankRoute)
                 ty=LaneRules.stageWaypointY(e.x,stage)+
                         SiegeMissionsV069.flankOffset(e.x,e.flankSide);
+            else if(traveling&&e.pincerSide!=0)
+                ty=LaneRules.stageWaypointY(e.x,stage)+
+                        EnemyCoordinationV075.pincerOffset(e.x,e.pincerSide);
             else if(traveling&&terrain!=null)
                 ty+=terrain.waypointOffset(e.x,e.y);
             float d=distance(e.x,e.y,tx,ty);
             // Final fortress boundary, not each intermediate lane sample,
             // determines how close monsters may stop to attack.
-            float stop=traveling?3f:toCaravan?61f:victim>=0?57f:
+            float stop=retreating?3f:traveling?3f:toCaravan?61f:
+                    victim>=0?57f:coordinatedRaid?
+                    EnemyCoordinationV075.towerStop(e.kind):
                     MovementRules.enemyStopDistance(hunt,e.kind);
             // World bosses lock their position during a telegraphed cast.
             // Otherwise the ring would chase the player while charging.
@@ -1159,6 +1203,14 @@ public final class RiftGameView extends View {
             int siegeTower=(!hunt&&(e.kind==4||
                     SquadTacticsV065.attacksTowers(e.squadRole,squadPlan)))?
                     nearestBuiltTower(e.x,e.y,squadPlan==SquadTacticsV065.SIEGE?205f:174f):-1;
+            if(coordinatedRaid){
+                // The displayed target and actual shot are the SAME pad.
+                // Do not silently switch to whichever tower is nearest.
+                siegeTower=distance(e.x,e.y,
+                        towerX[siegeFocusPad],towerY[siegeFocusPad])<=
+                        EnemyCoordinationV075.towerStrikeRange(e.kind)?
+                        siegeFocusPad:-1;
+            }
             if(!hunt&&relicHp>0&&trial!=null&&trial.type==MemoryTrial.RELIC&&
                     (e.kind==1||e.kind==4||e.kind==5)&&
                     distance(e.x,e.y,relicX,relicY)<195f){
@@ -1173,10 +1225,13 @@ public final class RiftGameView extends View {
             }else if(siegeTower>=0){
                 e.attackTimer-=dt;
                 if(e.attackTimer<=0){
-                    damageTower(siegeTower,(e.kind==2?46f:e.kind==5?32f:26f)*
+                    float strike=(e.kind==2?46f:e.kind==5?32f:26f)*
                             DifficultyRules.enemyDamage(difficultyMode)*
                             SquadTacticsV065.towerAttackMultiplier(
-                                    e.squadRole,squadPlan,commanderAlive));
+                                    e.squadRole,squadPlan,commanderAlive);
+                    if(coordinatedRaid)strike=Math.min(strike,
+                            TowerDurability.maxHp(towers[siegeTower],fortressRank)*.22f);
+                    damageTower(siegeTower,strike);
                     e.attackAnim=.42f;
                     e.attackTimer=e.kind==2?1.55f:2.05f;
                 }
@@ -1680,6 +1735,8 @@ public final class RiftGameView extends View {
         }
         enemy.variant=random.nextInt(4);
         enemy.squadRole=SquadTacticsV065.role(kind,elite,Campaign.world(stage));
+        enemy.pincerSide=EnemyCoordinationV075.pincerSide(stage,wave,squadPlan,
+                kind,remaining,enemy.flankRoute);
         if(kind==6)enemy.dashCooldown=1.6f;
         if(kind==4)enemy.shamanCooldown=1.8f;
         enemy.boss=elite;
@@ -2005,6 +2062,28 @@ public final class RiftGameView extends View {
         }
     }
 
+    /** Pick one real, visible gun target for the full siege wave.
+     * Only retarget on wave change or destruction, never track hidden inputs.
+     */
+    private void updateRaidFocus(){
+        if(wave!=siegeFocusWave){
+            siegeFocusWave=wave;siegeFocusPad=-1;
+        }
+        if(!EnemyCoordinationV075.raidActive(stage,wave,squadPlan,
+                SiegeMissionsV069.active(stage,wave),caveMode,0)){
+            siegeFocusPad=-1;return;
+        }
+        if(siegeFocusPad>=0&&siegeFocusPad<activeTowerCount&&
+                towers[siegeFocusPad]>0&&towerHp[siegeFocusPad]>0)return;
+        int prior=siegeFocusPad;
+        siegeFocusPad=EnemyCoordinationV075.focusTower(towers,towerHp,
+                activeTowerCount,fortressRank);
+        if(siegeFocusPad>=0&&siegeFocusPad!=prior&&
+                !waiting&&enemies.size()>0){
+            announce("SIEGE RAID • PAD "+(siegeFocusPad+1)+" MARKED • INTERCEPT!");
+            audio.play(GameAudio.BOSS_WARN);
+        }
+    }
     private int countArmedTowers(){
         int n=0;for(int i=0;i<activeTowerCount;i++)if(towers[i]>0)n++;
         return n;
@@ -2528,6 +2607,7 @@ public final class RiftGameView extends View {
             }
         }
         drawPlacedSkills(c);
+        if(scene==Scene.PLAY)drawEnemySquadOrders(c);
         if(scene==Scene.PLAY)drawFieldObjectives(c);
         if(trial!=null&&trial.type==MemoryTrial.RELIC)drawMemoryRelic(c);
         if(scene==Scene.PLAY&&selectedTowerPad>=0&&selectedTowerPad<activeTowerCount){
@@ -3325,6 +3405,20 @@ public final class RiftGameView extends View {
         }
     }
     /** Gameplay-linked cart and flank markers, layered above original terrain. */
+    /** World-space signals, never HUD overlays or fake tactical buttons. */
+    private void drawEnemySquadOrders(Canvas c){
+        if(EnemyCoordinationV075.raidActive(stage,wave,squadPlan,
+                SiegeMissionsV069.active(stage,wave),caveMode,siegeFocusPad)
+                &&siegeFocusPad<activeTowerCount&&towers[siegeFocusPad]>0){
+            float x=towerX[siegeFocusPad],y=towerY[siegeFocusPad];
+            float r=65f+(float)Math.sin(gameTime*3.1f)*5f;
+            circleStroke(c,x,y-22,r,0xd8ffb17d,4);
+            circleStroke(c,x,y-22,r-14,0x77ffd5ae,2);
+            line(c,x-32,y-78,x+32,y-78,0xaaffc78d,3);
+            text(c,"RAID TARGET • PAD "+(siegeFocusPad+1),
+                    x,y-111,18,0xffffcf97,true);
+        }
+    }
     private void drawFieldObjectives(Canvas c){
         if(!SiegeMissionsV069.active(stage,wave))return;
         int type=SiegeMissionsV069.mode(stage);
@@ -3457,6 +3551,17 @@ public final class RiftGameView extends View {
         }
     }
     private void drawEnemy(Canvas c,Enemy e) {
+        if(e.retreatTime>0f){
+            circleStroke(c,e.x,e.y-44,43,0x99b1f5d2,3);
+            polygon(c,e.x+13,e.y-78,e.x+37,e.y-66,e.x+13,e.y-55,
+                    0xffb5f0d4);
+            text(c,"FALL BACK",e.x,e.y-111,17,0xffbbffdd,true);
+        }else if(e.pincerSide!=0&&e.moving){
+            circleStroke(c,e.x,e.y-42,38,0x88c4a9ff,2);
+            polygon(c,e.x+e.pincerSide*23,e.y-82,e.x,e.y-66,
+                    e.x-e.pincerSide*23,e.y-82,0xffcebcff);
+            text(c,"PINCER",e.x,e.y-101,14,0xffe1d1ff,true);
+        }
         if(e.kind==6 && e.dashWindup>0){
             line(c,e.x,e.y-30,heroX,heroY-18,0xaaffb778,4);
             text(c,"CHARGE!",e.x,e.y-98,20,0xffffd69b,true);
