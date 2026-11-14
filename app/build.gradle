@@ -2,6 +2,16 @@ plugins {
     id 'com.android.application'
 }
 
+// Optional production signing uses protected CI environment variables.
+// NO keystore or password is stored in the repository. Without ALL inputs,
+// the original development release bundle stays deliberately unsigned.
+def releaseKeystoreFile = System.getenv('RIFTGUARD_RELEASE_KEYSTORE_FILE')
+def releaseStorePassword = System.getenv('RIFTGUARD_RELEASE_STORE_PASSWORD')
+def releaseAlias = System.getenv('RIFTGUARD_RELEASE_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('RIFTGUARD_RELEASE_KEY_PASSWORD')
+def productionSigningEnabled = [releaseKeystoreFile, releaseStorePassword,
+        releaseAlias, releaseKeyPassword].every { it != null && !it.isEmpty() }
+
 android {
     namespace 'com.lokij07.riftguard'
     compileSdk 36
@@ -10,12 +20,27 @@ android {
         applicationId 'com.lokij07.riftguard'
         minSdk 24
         targetSdk 36
-        versionCode 68
-        versionName '0.71.0-alpha1'
+        versionCode 69
+        versionName '0.72.0-alpha1'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    signingConfigs {
+        if (productionSigningEnabled) {
+            production {
+                storeFile file(releaseKeystoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         release {
+            // Production workflow refuses alpha versions and checks the JAR
+            // signature on the final AAB. Normal dev CI stays unsigned.
+            if (productionSigningEnabled) {
+                signingConfig signingConfigs.production
+            }
             minifyEnabled false
         }
     }
