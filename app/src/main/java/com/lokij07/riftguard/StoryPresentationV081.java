@@ -124,7 +124,7 @@ public final class StoryPresentationV081 {
 
     /** Identifies only actual 273x62 memory cards (not grid gutters). */
     public static int chronicleMemoryHit(float x,float y){
-        if(y<210||y>=552)return -1;
+        if(y<210||y>552)return -1;
         int row=(int)((y-210)/70);
         if(row<0||row>=5||y>210+row*70+62)return -1;
         int col=x>=615&&x<=888?0:x>=906&&x<=1179?1:-1;
