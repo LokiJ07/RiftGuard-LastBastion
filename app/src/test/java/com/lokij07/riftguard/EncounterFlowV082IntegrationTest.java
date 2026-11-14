@@ -40,7 +40,7 @@ public final class EncounterFlowV082IntegrationTest {
         Context c=RuntimeEnvironment.getApplication();
         RiftGameView game=start(c,31); // stage 31 has no scripted mission
         set(game,"wave",2);
-        set(game,"remaining",10); // signature slot in wave 2
+        set(game,"remaining",5); // actual ordinary signature slot in wave 2
         assertEquals(EncounterRhythmV082.HEX,EncounterRhythmV082.plan(31,2));
         invoke(game,"spawnEnemy",new Class<?>[0]);
         List<?> enemies=(List<?>)field(game,"enemies");
