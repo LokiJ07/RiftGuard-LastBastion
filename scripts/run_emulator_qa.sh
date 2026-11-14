@@ -46,6 +46,13 @@ adb pull /sdcard/rg-ascension.png emulator-qa/05-ascension-upgrade-tree.png
 adb shell input tap 204 656
 adb shell input tap 204 656
 sleep 1
+# The actual HOME WARDEN LV tile opens a fully native, interactive stat sheet.
+adb shell input tap 449 389
+sleep 2
+adb shell screencap -p /sdcard/rg-warden-level.png
+adb pull /sdcard/rg-warden-level.png emulator-qa/05b-warden-level-and-stats.png
+adb shell input tap 202 655
+sleep 1
 adb shell input tap 220 452
 sleep 2
 adb shell screencap -p /sdcard/rg-map.png

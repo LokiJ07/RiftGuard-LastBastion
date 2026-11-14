@@ -4568,7 +4568,9 @@ public final class RiftGameView extends View {
         text(c,"+"+DifficultyRules.bonusWaves(difficultyMode)+" WAVES    BONUS +"+
                         DifficultyRules.supplyBonus(difficultyMode,baseReward)+"%",
                 905,679,15,INK,false);
-        text(c,"CLEARED  "+unlocked+" / 300",1110,699,15,GOLD,true);
+        text(c,"WARDEN EXP +"+WardenLevelsV078.stageXp(chosen,
+                difficultyMode,chosen>=unlocked),905,699,15,0xffa9e8c5,false);
+        text(c,"CLEARED  "+unlocked+" / 300",1143,699,15,GOLD,true);
     }
 
     private static final String[] KINGDOM_TABS={
