@@ -942,7 +942,11 @@ public final class RiftGameView extends View {
             // determines how close monsters may stop to attack.
             float stop=traveling?3f:toCaravan?61f:
                     MovementRules.enemyStopDistance(hunt,e.kind);
-            e.moving=d>stop;
+            // World bosses lock their position during a telegraphed cast.
+            // Otherwise the ring would chase the player while charging.
+            boolean frozenDuringRealmCast=RealmBossV071.enabled(
+                    stage,e.worldBoss,caveMode)&&e.specialCharge>0;
+            e.moving=d>stop&&!frozenDuringRealmCast;
             if(e.moving&&Math.abs(tx-e.x)>1.5f)e.faceX=tx<e.x?-1f:1f;
             if(e.moving) {
                 float speedFactor=(e.flankRoute?1.18f:e.siegeEngine?.74f:
@@ -3688,6 +3692,10 @@ public final class RiftGameView extends View {
                         (RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
                                 RealmBossV071.name(stage):BossTactics.warning(stage))+
                         " • WATCH THE MARK",640,190,580,20,0xffffc18f,true);
+            if(e.specialCharge>0&&RealmBossV071.enabled(
+                    stage,e.worldBoss,caveMode))
+                textFit(c,RealmBossV071.counter(stage),
+                        640,218,610,16,0xffe4d6b7,true);
             return true;
         }
         return false;

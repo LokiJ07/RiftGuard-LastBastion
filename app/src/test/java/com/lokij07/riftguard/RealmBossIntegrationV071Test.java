@@ -95,6 +95,23 @@ public class RealmBossIntegrationV071Test {
         strike(g,e);
         assertEquals(healed,(Float)field(e,"hp"),.001f);
     }
+    @Test public void telegraphedWorldBossHoldsItsGroundUntilImpact()throws Exception{
+        int stage=Campaign.stage(10,2);RiftGameView g=game(stage);
+        Object e=boss(stage,1220f,520f);
+        set(e,"specialCharge",1.25f);
+        set(e,"specialTimer",5f);
+        @SuppressWarnings("unchecked")
+        List<Object> mobs=(List<Object>)field(g,"enemies");
+        mobs.add(e);
+        set(g,"waiting",false);set(g,"firstWavePending",false);
+        set(g,"remaining",0);set(g,"wave",2);
+        float x=(Float)field(e,"x"),y=(Float)field(e,"y");
+        call(g,"update",new Class<?>[]{float.class},.05f);
+        assertEquals(x,(Float)field(e,"x"),.001f);
+        assertEquals(y,(Float)field(e,"y"),.001f);
+        assertTrue((Float)field(e,"specialCharge")<1.25f);
+        assertTrue((Float)field(e,"specialCharge")>0f);
+    }
     @Test public void rendererActuallyPaintsAllTenDifferentTelegraphs(){
         Bitmap bmp=Bitmap.createBitmap(640,480,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bmp);
