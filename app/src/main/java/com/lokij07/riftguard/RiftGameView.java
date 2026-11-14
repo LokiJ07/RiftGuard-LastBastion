@@ -4292,6 +4292,19 @@ public final class RiftGameView extends View {
                 SquadTacticsV065.name(squadPlan),180,135,350,16,0xffffce9e,true);
         text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
         text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
+        // XP widget lives below the TOP HUD, outside every draggable control.
+        // The progress bar uses the same values as the character screen.
+        round(c,420,105,845,150,12,0xdd19343e);
+        text(c,"LV "+wardenLevel.level(),438,133,21,0xffffd390,false);
+        if(wardenLevel.level()>=WardenLevelsV078.MAX_LEVEL){
+            text(c,"WARDEN MAX LEVEL",538,133,18,0xffb8f1d2,false);
+        }else{
+            bar(c,531,113,202,12,wardenLevel.progress(),0xff9ce1bc);
+            text(c,"XP "+wardenLevel.xpIntoLevel()+"/"+wardenLevel.xpNeeded(),
+                    531,145,15,0xffc9dfdf,false);
+        }
+        if(wardenLevel.unspent()>0)
+            text(c,"PTS "+wardenLevel.unspent(),738,135,16,GOLD,false);
         round(c,1146,25,1223,89,16,0xff344c55);
         text(c,"II",1184,71,31,INK,true);
     }
@@ -4336,13 +4349,15 @@ public final class RiftGameView extends View {
         rect(c,93,259,577,264,0xff709c9d);
         text(c,"RECLAIM THE TEN REALMS",94,318,26,0xffe2b995,false);
         text(c,"Defend • Earn Supplies • Upgrade • Unlock",94,355,23,INK,false);
-        button(c,95,368,590,409,"RESOURCES  /  OFFLINE ART PACK",0xff33596c);
+        button(c,95,368,336,409,"RESOURCES",0xff33596c);
+        button(c,347,368,590,409,"WARDEN  LV "+wardenLevel.level(),0xff497d70);
         button(c,95,415,336,490,"CAMPAIGN",0xffa56a49);
         button(c,348,415,590,490,"CHRONICLE",0xff73567e);
         button(c,95,509,328,572,"ARMORY",0xff3d6971);
         button(c,348,509,590,572,"FORTRESS",0xff44645c);
-        text(c,"FORTRESS RANK "+fortressRank+"   •   SUPPLIES "+supplies,
-                98,614,21,GOLD,false);
+        textFit(c,"WARDEN LV "+wardenLevel.level()+"  •  "+
+                wardenLevel.unspent()+" FREE POINTS  •  FORT "+fortressRank+
+                "  •  SUPPLIES "+supplies,98,614,482,19,GOLD,false);
         text(c,"NO ADS  •  OFFLINE PLAY  •  OPTIONAL DOWNLOADS",101,643,15,0xff9eb8bb,false);
     }
 
@@ -4753,6 +4768,94 @@ public final class RiftGameView extends View {
             }
             invalidate();
         });
+    }
+
+
+    /** Real, save-backed Warden RPG sheet. The illustrated avatar is the
+     * SAME equipped animated character/gear, scaled for a portrait preview.
+     * Button/touch geometry uses UpgradeActionLayout and explicit card rects.
+     */
+    private void drawCharacter(Canvas c){
+        drawBackdrop(c);
+        round(c,43,28,1237,695,24,0xf018313e);
+        text(c,"WARDEN • CHARACTER PROGRESSION",75,83,40,GOLD,false);
+        text(c,"LEVEL TO 100  •  WIN CAMPAIGN BATTLES  •  SPEND POINTS ON YOUR BUILD",
+                79,116,18,0xffc5dcd8,false);
+        round(c,73,149,445,598,18,0xff243d4b);
+        border(c,73,149,445,598,18,0xff749a97,2);
+        textFit(c,storyProgress.wardenName().toUpperCase(),260,190,320,23,
+                0xfff6d7a4,true);
+        text(c,"LV "+wardenLevel.level()+"  •  "+
+                (wardenLevel.level()<20?"RECRUIT":
+                 wardenLevel.level()<40?"SENTINEL":
+                 wardenLevel.level()<60?"VANGUARD":
+                 wardenLevel.level()<80?"CHAMPION":"RIFT LEGEND"),
+                260,219,18,0xffbadfd5,true);
+        // Draw the equipped Warden rig at 1.9x world scale, including
+        // the purchased armor and weapon forms, not a generic avatar icon.
+        c.save();
+        c.clipRect(96,232,428,509);
+        c.translate(260f,430f);
+        c.scale(1.9f,1.9f);
+        c.translate(-heroX,-heroY);
+        drawHeroActor(c,false);
+        EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
+        EvolutionEffects.greaves(c,heroX,heroY,speedForm());
+        c.restore();
+        textFit(c,"EQUIPPED: "+Progression.WEAPONS[equippedWeapon].name.toUpperCase(),
+                260,536,325,18,INK,true);
+        round(c,107,552,406,587,9,wardenLevel.unspent()>0?0xff536d51:0xff345564);
+        text(c,"UNSPENT ATTRIBUTE POINTS  "+wardenLevel.unspent(),
+                257,578,18,GOLD,true);
+
+        round(c,465,137,1204,226,15,0xff263f4b);
+        text(c,"CHARACTER LEVEL "+wardenLevel.level()+" / 100",487,165,24,GOLD,false);
+        text(c,"TOTAL EXPERIENCE  "+wardenLevel.totalXp()+" / "+WardenLevelsV078.maxXp(),
+                1184,166,17,0xffc6ddd5,true);
+        bar(c,490,181,675,15,wardenLevel.progress(),0xff9fe2bb);
+        text(c,wardenLevel.level()>=100?"MAX LEVEL • ALL POINTS EARNED":
+                "XP "+wardenLevel.xpIntoLevel()+" / "+wardenLevel.xpNeeded()+
+                " TO LV "+(wardenLevel.level()+1)+"  •  NEXT LEVEL +"+
+                WardenLevelsV078.pointsOnLevel(wardenLevel.level()+1)+" POINTS",
+                490,217,15,0xffdceada,false);
+        final int[] accents={0xffa5e9be,0xffffb99a,0xffa6dcf1,0xffcfb8ff};
+        for(int i=0;i<WardenLevelsV078.ATTRIBUTE_COUNT;i++){
+            int col=i%2,row=i/2;
+            float x=469+col*367f,y=242+row*160f;
+            boolean selected=i==selectedWardenAttribute;
+            round(c,x-4,y-4,x+352,y+148,15,selected?0xffe5bd81:0xff46616f);
+            round(c,x,y,x+348,y+144,12,selected?0xff304d54:0xff243e49);
+            circle(c,x+37,y+38,23,accents[i]&0x88ffffff);
+            text(c,i==WardenLevelsV078.VITALITY?"♥":
+                    i==WardenLevelsV078.POWER?"✦":
+                    i==WardenLevelsV078.AGILITY?"»":"✧",
+                    x+37,y+46,28,accents[i],true);
+            text(c,WardenLevelsV078.NAMES[i],x+78,y+39,24,accents[i],false);
+            text(c,wardenLevel.attribute(i)+" / "+WardenLevelsV078.MAX_ATTRIBUTE,
+                    x+325,y+39,19,INK,true);
+            textFit(c,WardenLevelsV078.DESCRIPTIONS[i],x+21,y+80,304,16,
+                    0xffd0e0dc,false);
+            bar(c,x+19,y+95,310,12,wardenLevel.attribute(i)/
+                    (float)WardenLevelsV078.MAX_ATTRIBUTE,accents[i]);
+            text(c,selected?"SELECTED • ALLOCATE BELOW":"TAP TO SELECT",
+                    x+23,y+132,16,selected?GOLD:0xff95b5b8,false);
+        }
+        text(c,"HERO HP +"+wardenLevel.healthBonus()+
+                "  |  ATTACK +"+Math.round((wardenLevel.attackMultiplier()-1)*100)+"%"+
+                "  |  MOVE +"+Math.round((wardenLevel.moveMultiplier()-1)*100)+"%"+
+                "  |  SPELL -"+Math.round(wardenLevel.skillCooldownReduction()*100)/100f+"s",
+                471,578,17,0xffc4eee0,false);
+        upgradeActions(c,"HOME","ARMORY","+1 POINT","+5 POINTS",
+                wardenLevel.unspent()>=5&&wardenLevel.attribute(selectedWardenAttribute)<=
+                        WardenLevelsV078.MAX_ATTRIBUTE-5);
+    }
+    /** Spend exactly the selected amount; no currency, no accidental taps. */
+    private void spendWardenPoints(int amount){
+        if(wardenLevel.spend(selectedWardenAttribute,amount)){
+            audio.play(GameAudio.EVOLUTION);
+            announce(WardenLevelsV078.NAMES[selectedWardenAttribute]+
+                    " +"+amount+" • "+wardenLevel.unspent()+" POINTS LEFT");
+        }else announce("NOT ENOUGH POINTS OR ATTRIBUTE IS MAXED");
     }
 
     private void drawArmory(Canvas c) {
@@ -5369,6 +5472,14 @@ public final class RiftGameView extends View {
         }
         text(c,"Enemies defeated: "+kills+"     Gold earned: "+gold,
                 640,388,21,INK,true);
+        if(scene==Scene.WIN){
+            round(c,414,104,868,160,13,0xee203a43);
+            textFit(c,"WARDEN EXP +"+lastEarnedWardenXp+"  •  LV "+
+                    wardenLevel.level()+
+                    (lastGainedWardenLevels>0?"  LEVEL UP! +"+
+                            lastEarnedWardenPoints+" PTS":""),640,139,
+                    414,20,lastGainedWardenLevels>0?0xffffd48d:0xffb1ecd0,true);
+        }
         if(scene==Scene.WIN)
             textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES"+
                     (contractBonus>0?" • FIELD +"+contractBonus:""),640,418,
@@ -5380,7 +5491,10 @@ public final class RiftGameView extends View {
                 (WaveCheckpointV065.retries(difficultyMode)-waveRetriesUsed)+" LEFT)":
                 "RETRY STAGE",0xffae7652);
         button(c,435,520,845,585,waveRetry?"RESTART STAGE":"CAMPAIGN MAP",0xff3f626e);
-        if(waveRetry)button(c,435,590,845,651,"CAMPAIGN MAP",0xff485e66);
+        if(scene==Scene.WIN)button(c,435,594,845,651,
+                wardenLevel.unspent()>0?"SPEND "+wardenLevel.unspent()+" WARDEN POINTS":
+                "WARDEN LEVEL / STATS",0xff547b6f);
+        else if(waveRetry)button(c,435,590,845,651,"CAMPAIGN MAP",0xff485e66);
     }
     /**
      * Storybook mission panel is a real tap-gated overlay above a live battlefield.
@@ -6118,11 +6232,23 @@ public final class RiftGameView extends View {
             else if(x>1007 && x<1216 && y>39 && y<104)audio.toggle();
             else if(x>710 && x<1004 && y>39 && y<104)cycleGraphicsMode();
             else if(x>665 && x<1205 && y>447 && y<517)scene=Scene.KINGDOM;
-            else if(x>93 && x<610 && y>361 && y<412)scene=Scene.RESOURCES;
+            else if(x>93 && x<341 && y>361 && y<412)scene=Scene.RESOURCES;
+            else if(x>343 && x<610 && y>361 && y<412)scene=Scene.CHARACTER;
             else if(x>93 && x<345 && y>408 && y<492)scene=Scene.MAP;
             else if(x>=345 && x<610 && y>408 && y<492)scene=Scene.CHRONICLE;
             else if(x>93 && x<337 && y>502 && y<580)scene=Scene.ARMORY;
             else if(x>345 && x<610 && y>502 && y<580)scene=Scene.FORTRESS;
+        }else if(scene==Scene.CHARACTER){
+            int action=UpgradeActionLayout.hit(x,y);
+            if(action==0)scene=Scene.HOME;
+            else if(action==1)scene=Scene.ARMORY;
+            else if(action==2)spendWardenPoints(1);
+            else if(action==3)spendWardenPoints(5);
+            else if(x>=469&&x<=1184&&y>=238&&y<=548){
+                int col=x<823?0:x>=836?1:-1;
+                int row=y<390?0:y>=398?1:-1;
+                if(col>=0&&row>=0)selectedWardenAttribute=row*2+col;
+            }
         }else if(scene==Scene.KINGDOM) {
             tapKingdom(x,y);
         }else if(scene==Scene.RESOURCES) {
@@ -6228,6 +6354,8 @@ public final class RiftGameView extends View {
             }else if(x>420 && x<860 && y>514 && y<588){
                 if(canRetryWave())start(stage);
                 else {scene=Scene.MAP;caveMode=false;}
+            }else if(scene==Scene.WIN&&x>420&&x<860&&y>=590&&y<=660){
+                scene=Scene.CHARACTER;
             }else if(x>420&&x<860&&y>=590&&canRetryWave()){
                 scene=Scene.MAP;caveMode=false;
             }
