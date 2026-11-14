@@ -1,7 +1,7 @@
 # RiftGuard v0.79 — Warden Oaths (progression milestone pass)
 
-This branch stacks on `feature/v078-warden-level-100` (draft PR #38).
-**Not merged to main.** The original level 1–100 XP, point economy, character
+Originally developed on `feature/v078-warden-level-100` as a stacked review.
+**Merged to `main` with PR #40 on 14 November 2026.** The original level 1–100 XP, point economy, character
 upgrade screen, fortress upgrades, weapon mastery and 300-stage campaign stay
 unchanged.
 
