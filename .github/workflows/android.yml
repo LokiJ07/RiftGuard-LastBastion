@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, feature/v067-combat-feel-hud-boss-polish]
   workflow_dispatch:
   # Nightly automated regression run: 11:21 AM in Asia/Manila (UTC+8).
   # These runs are visible in GitHub Actions; they do not automatically change code.
