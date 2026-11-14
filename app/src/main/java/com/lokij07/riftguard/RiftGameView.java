@@ -4350,18 +4350,20 @@ public final class RiftGameView extends View {
     /** Boss display is a real HP snapshot, not a painted label. */
     private boolean drawBossHud(Canvas c) {
         for(Enemy e:enemies)if(e.boss&&e.hp>0) {
-            round(c,415,109,865,166,14,0xe91f2536);
+            round(c,415,109,865,166,14,0xff1f2536);
             String name=caveMode?(e.bossPhase>=3?
                     "CAEL • THE FIRST WARDEN":"THE ECLIPSE TITAN"):
                     e.worldBoss?DifficultyRules.worldBossName(stage):
                     "ELITE SIEGE COMMANDER";
             text(c,name,640,130,20,0xffffd2a0,true);
             bar(c,441,137,399,16,Math.max(0,e.hp/e.maxHp),0xffc881d8);
-            if(e.specialCharge>0)
+            if(e.specialCharge>0){
+                round(c,353,171,927,235,11,0xe91b3038);
                 textFit(c,"PHASE "+e.bossPhase+" / 3 • "+
                         (RealmBossV071.enabled(stage,e.worldBoss,caveMode)?
                                 RealmBossV071.name(stage):BossTactics.warning(stage))+
-                        " • WATCH THE MARK",640,190,580,20,0xffffc18f,true);
+                        " • WATCH THE MARK",640,193,550,19,0xffffc18f,true);
+            }
             if(e.specialCharge>0&&RealmBossV071.enabled(
                     stage,e.worldBoss,caveMode)){
                 float needed=BossCounterplayV083.pressureRequired(
@@ -4369,12 +4371,14 @@ public final class RiftGameView extends View {
                 textFit(c,BossCounterplayV083.prompt(stage)+"  •  "+
                         Math.round(100f*BossCounterplayV083.fraction(
                                 e.counterPressure,needed))+"%",
-                        640,218,630,16,0xffbaf1d1,true);
+                        640,218,540,16,0xffbaf1d1,true);
             }else if(e.counterStagger>0f&&RealmBossV071.enabled(
-                    stage,e.worldBoss,caveMode))
+                    stage,e.worldBoss,caveMode)){
+                round(c,364,173,916,211,10,0xeb1b3937);
                 textFit(c,"STAGGERED • WARDEN HITS +14% • "+
                         (int)Math.ceil(e.counterStagger)+"s",
                         640,198,520,18,0xffaef5cd,true);
+            }
             return true;
         }
         return false;
@@ -4419,19 +4423,26 @@ public final class RiftGameView extends View {
                 SquadTacticsV065.name(squadPlan),180,135,350,16,0xffffce9e,true);
         text(c,DifficultyRules.NAMES[difficultyMode],1120,110,17,GOLD,true);
         text(c,"FORT "+fortressRank+"   /   "+Progression.WEAPONS[equippedWeapon].name,870,83,17,GOLD,false);
-        // XP widget lives below the TOP HUD, outside every draggable control.
-        // The progress bar uses the same values as the character screen.
-        round(c,420,105,845,150,12,0xdd19343e);
-        text(c,"LV "+wardenLevel.level(),438,133,21,0xffffd390,false);
-        if(wardenLevel.level()>=WardenLevelsV078.MAX_LEVEL){
-            text(c,"WARDEN MAX LEVEL",538,133,18,0xffb8f1d2,false);
-        }else{
-            bar(c,531,113,202,12,wardenLevel.progress(),0xff9ce1bc);
-            text(c,"XP "+wardenLevel.xpIntoLevel()+"/"+wardenLevel.xpNeeded(),
-                    531,145,15,0xffc9dfdf,false);
+        // When a living boss owns the center-top combat HUD, suppress the
+        // redundant XP panel behind it. XP/progression remains unchanged and
+        // returns the instant the boss is defeated.
+        boolean bossVisible=false;
+        for(Enemy foe:enemies)if(foe.boss&&foe.hp>0){
+            bossVisible=true;break;
         }
-        if(wardenLevel.unspent()>0)
-            text(c,"PTS "+wardenLevel.unspent(),738,135,16,GOLD,false);
+        if(!bossVisible){
+            round(c,420,105,845,150,12,0xdd19343e);
+            text(c,"LV "+wardenLevel.level(),438,133,21,0xffffd390,false);
+            if(wardenLevel.level()>=WardenLevelsV078.MAX_LEVEL){
+                text(c,"WARDEN MAX LEVEL",538,133,18,0xffb8f1d2,false);
+            }else{
+                bar(c,531,113,202,12,wardenLevel.progress(),0xff9ce1bc);
+                text(c,"XP "+wardenLevel.xpIntoLevel()+"/"+wardenLevel.xpNeeded(),
+                        531,145,15,0xffc9dfdf,false);
+            }
+            if(wardenLevel.unspent()>0)
+                text(c,"PTS "+wardenLevel.unspent(),738,135,16,GOLD,false);
+        }
         round(c,1146,25,1223,89,16,0xff344c55);
         text(c,"II",1184,71,31,INK,true);
     }
