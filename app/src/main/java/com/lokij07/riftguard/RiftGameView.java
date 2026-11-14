@@ -43,7 +43,7 @@ public final class RiftGameView extends View {
         0xff95d38d,0xffb1dc92,0xff9fc58a,0xffffae69,0xffb7d6ed,
         0xffffbb87,0xffa7eaff,0xffc1a5ff,0xffee97b9,0xffff8d77
     };
-    private enum Scene { HOME, MAP, ARMORY, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, OUTRO, WIN, LOSE, CAVE_CHOICE, CAVE_END }
+    private enum Scene { HOME, MAP, ARMORY, CHARACTER, WEAPON_TREE, SKILLS, FORTRESS, ASCENSION, RESOURCES, KINGDOM, CHRONICLE, PLAY, OUTRO, WIN, LOSE, CAVE_CHOICE, CAVE_END }
     private Scene scene=Scene.HOME;
     private static final float TREE_LEFT=75f,TREE_TOP=148f,TREE_RIGHT=906f,
             TREE_BOTTOM=592f;
@@ -162,6 +162,10 @@ public final class RiftGameView extends View {
     private int focusedBossPart=BossAnatomyV065.ARMOR;
     private final StoryProgress storyProgress;
     private final KingdomMeta kingdom;
+    private final WardenLevelsV078 wardenLevel;
+    private int selectedWardenAttribute=WardenLevelsV078.VITALITY;
+    private int lastEarnedWardenXp=0,lastGainedWardenLevels=0,lastEarnedWardenPoints=0;
+    private int lastWardenFromLevel=1;
     private final AscensionTree ascension;
     private final WeaponMastery weaponMastery;
     private final GameAudio audio;
@@ -376,6 +380,9 @@ public final class RiftGameView extends View {
         audio=new GameAudio(context,prefs);
         combatFeel.setReducedMotion(prefs.getBoolean("reduced_motion",false));
         unlocked=Math.max(0,Math.min(Campaign.STAGES,prefs.getInt("unlocked",0)));
+        // Old save migration derives XP from previously CLEARED stage count;
+        // character points/stats remain separate from purchased upgrades.
+        wardenLevel=new WardenLevelsV078(prefs);
         savedWave=durableBattle.load(unlocked);
         supplies=Math.max(0,prefs.getInt("supplies",0));
         fortressRank=Math.max(1,Math.min(Progression.MAX_RANK,prefs.getInt("fortress_rank",1)));
@@ -509,6 +516,7 @@ public final class RiftGameView extends View {
         if (scene==Scene.HOME) drawHome(canvas);
         else if (scene==Scene.MAP) drawMap(canvas);
         else if (scene==Scene.ARMORY) drawArmory(canvas);
+        else if (scene==Scene.CHARACTER) drawCharacter(canvas);
         else if (scene==Scene.SKILLS) drawSkills(canvas);
         else if (scene==Scene.FORTRESS) drawFortress(canvas);
         else if (scene==Scene.ASCENSION) drawAscension(canvas);
@@ -566,7 +574,7 @@ public final class RiftGameView extends View {
         }
     }
 
-    private float heroMaxHp(){return kingdom.heroMaxHp()*DifficultyRules.heroHealth(difficultyMode)+ascension.heroHp();}
+    private float heroMaxHp(){return kingdom.heroMaxHp()*DifficultyRules.heroHealth(difficultyMode)+ascension.heroHp()+wardenLevel.healthBonus();}
     private float coreMaxHp(){return Progression.maxCoreHp(fortressRank)+kingdom.coreBonusHp()+ascension.coreHp();}
     private int arsenalTier(){return EvolutionProgress.fortressArsenal(ascension,fortressRank);}
     private int weaponForm(int weapon){return EvolutionProgress.weaponForm(weaponMastery,weapon);}
@@ -713,7 +721,8 @@ public final class RiftGameView extends View {
         boolean dashing=dodgeTime>0;
         float activeDodgeStep=dashing?Math.min(dt,dodgeTime):0f;
         // Dash ignores movement slow but respects world walls and real towers.
-        float speed=245f*ascension.moveMultiplier()*(hazardSlowTimer>0?.71f:1f);
+        float speed=245f*ascension.moveMultiplier()*wardenLevel.moveMultiplier()*
+                (hazardSlowTimer>0?.71f:1f);
         float mx=revival.isDown()?0:dashing?dodgeDirX:axisX;
         float my=revival.isDown()?0:dashing?dodgeDirY:axisY;
         float movementTime=dashing?activeDodgeStep:dt;
@@ -2233,12 +2242,12 @@ public final class RiftGameView extends View {
             pendingMeleeTerrain=prop;
         } else if(prop!=null){
             terrainBolts.add(new TerrainBolt(muzzleX,muzzleY,
-                    weapon.damage*comboPower*ascension.attackMultiplier()*
+                    weapon.damage*comboPower*ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                     weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,equippedWeapon,prop));
         }else{
             Shot shot=new Shot(muzzleX,muzzleY,weapon.damage*comboPower*
-                    ascension.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
+                    ascension.attackMultiplier()*wardenLevel.attackMultiplier()*weaponMastery.damageMultiplier(equippedWeapon),
                     equippedWeapon==4?900:730,target,false);
             shot.weaponId=equippedWeapon;
             shots.add(shot);
@@ -2261,7 +2270,7 @@ public final class RiftGameView extends View {
             if(!prop.broken()&&distance(heroX,heroY,prop.x,prop.y)<
                     weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon))
                 damageTerrainProp(prop,weapon.damage*pendingMeleePower*
-                        ascension.attackMultiplier()*
+                        ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                         weaponMastery.damageMultiplier(pendingMeleeWeapon));
             pendingMeleeTerrain=null;pendingMeleeWeapon=-1;pendingMeleePower=1f;
             return;
@@ -2272,7 +2281,7 @@ public final class RiftGameView extends View {
                     weapon.range+weaponMastery.bonusRange(pendingMeleeWeapon),
                     e.x,e.y))continue;
             float meleeDamage=weapon.damage*pendingMeleePower*
-                    ascension.attackMultiplier()*
+                    ascension.attackMultiplier()*wardenLevel.attackMultiplier()*
                     weaponMastery.damageMultiplier(pendingMeleeWeapon);
             e.hp-=meleeDamage*bossArmorMultiplier(e)*
                     SquadTacticsV065.incomingDamage(e.squadRole,squadPlan,commanderPresent());
@@ -2321,7 +2330,7 @@ public final class RiftGameView extends View {
         int skill=equippedSkill;
         WardenSkills.Skill info=WardenSkills.SKILLS[skill];
         pulseCooldown=Math.max(3f,WardenSkills.effectiveCooldown(skill,kingdom.shopRank(3))
-                -ascension.spellCooldownReduction());
+                -ascension.spellCooldownReduction()-wardenLevel.skillCooldownReduction());
         if(heroAnimation.cast()){
             // Casting interrupts a melee windup. No invisible late sword hit
             // is allowed after the visibly different skill clip begins.
@@ -2524,10 +2533,13 @@ public final class RiftGameView extends View {
                 DifficultyRules.supplyBonus(difficultyMode,reward)+earnedObjective+
                 earnedContract;
         int newUnlocked=Campaign.unlockedAfter(unlocked,stage);
+        WardenLevelsV078.Award expAward=wardenLevel.planVictory(
+                stage,difficultyMode,firstClear);
         // Permanent rewards, new unlocks and deleting the replayable
         // checkpoint are one durable transaction. A failed commit must NOT
         // show the victory scene or change any in-memory permanent balance.
-        if(!durableBattle.commitVictory(newUnlocked,newSupplies)){
+        if(!durableBattle.commitVictory(newUnlocked,newSupplies,
+                expAward.newTotalXp)){
             paused=true;
             clearTouchControls();
             announce("SAVE FAILED • FREE SPACE, THEN RESUME TO RETRY");
@@ -2535,6 +2547,11 @@ public final class RiftGameView extends View {
         }
         supplies=newSupplies;
         unlocked=newUnlocked;
+        wardenLevel.applyCommittedAward(expAward);
+        lastEarnedWardenXp=expAward.xpGained;
+        lastWardenFromLevel=expAward.oldLevel;
+        lastGainedWardenLevels=expAward.levelsGained;
+        lastEarnedWardenPoints=expAward.pointsGained;
         contractBonus=earnedContract;
         objectiveBonus=earnedObjective+earnedContract;
         savedWave=null;
@@ -4049,7 +4066,7 @@ public final class RiftGameView extends View {
         HudActionFeedbackV067.cooldown(c,pulseHudX(),pulseHudY(),
                 hudLayout.radius(HudLayoutV065.SKILL),pulseCooldown,
                 Math.max(3f,WardenSkills.effectiveCooldown(equippedSkill,
-                        kingdom.shopRank(3))-ascension.spellCooldownReduction()),
+                        kingdom.shopRank(3))-ascension.spellCooldownReduction()-wardenLevel.skillCooldownReduction()),
                 0xffddc6ff);
         HudActionFeedbackV067.charge(c,attackHudX(),attackHudY(),
                 hudLayout.radius(HudLayoutV065.ATTACK),
