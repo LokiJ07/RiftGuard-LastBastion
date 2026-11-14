@@ -1,5 +1,45 @@
 # RIFTGUARD: Last Bastion
 
+[![Android CI](https://github.com/LokiJ07/RiftGuard-LastBastion/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/LokiJ07/RiftGuard-LastBastion/actions/workflows/android.yml)
+
+> **Current source status (14 November 2026):** The **v0.79 feature milestone is integrated into `main`** through [PR #40](https://github.com/LokiJ07/RiftGuard-LastBastion/pull/40) (merge commit `3057927`). This is a **development alpha**, not a signed production build or a Google Play launch. The Android package still declares `versionName "0.78.0-alpha1"` and `versionCode 75` in `app/build.gradle`; feature milestones and package version are not yet synchronized.
+
+**RiftGuard** is a single-player, offline Android action / fortress-defense game written in **Java with native Canvas rendering** (not a WebView). Defend and upgrade the Last Bastion while guiding a controllable Warden through **10 kingdoms, 100 campaign levels and three maps per level (300 stages)**.
+
+## What's in `main` (v0.67–v0.79)
+
+- **Warden RPG levels 1–100:** Independent of the 100-level campaign. Winning stages awards XP scaled to Easy, Normal, Hard or Expert; first clears earn substantially more than replays. XP required per level increases; the cumulative reward is **402 attribute points** at level 100, awarded in rising tiers of +2 to +6.
+- **Permanent character builds:** Spend points on **Vitality** (maximum health), **Power** (Warden attack), **Agility** (movement), and **Arcana** (ability cooldown). Each attribute has a 120-point cap. The character screen shows the equipped Warden, level, XP progress, spendable points, current bonuses and next unlock.
+- **Milestone oaths:** Six automatic Warden-only rewards unlock at levels 10, 25, 40, 60, 80 and 100, including a capped on-kill heal, animated combat aura and capstone mastery. Details below.
+- **Combat and defenses:** Six weapon families with evolving purchased mastery forms, real fortress artillery, five fortress ranks, buildable/upgradable turret pads, dodge and active skills. Tactical encounters, enemy coordination, clearer attack telegraphs, realm bosses and interactive mission features expand the later campaign.
+- **Campaign and repeat play:** Three mission types per level, stage-specific objectives and contracts, four difficulties, side challenges, story progression, boss encounters and the offline Kingdom Hub's repeatable rewards. Encounter balance favors meaningful enemy durability and mechanics over uncontrolled spawn counts.
+- **Actual battlefield presentation:** Ten realm palettes, 30 environment districts and deterministic stage variation with animated native scenery, moving characters, weapon/equipment changes, damage VFX and offline sound. These are **procedural/illustrated environments, not 300 separately hand-painted HD maps**.
+- **Mobile UI and continuity:** Adjustable touch HUD with aligned visual buttons/hit areas, campaign map previews, battle result scenes, Warden character progression, save-backed upgrades and old-save XP migration. Campaign victory XP and unlocks commit together to avoid duplicate permanent rewards.
+
+### Warden milestone oaths (v0.79)
+
+| Warden level | Oath | Actual reward |
+| --- | --- | --- |
+| 10 | Guardian Heart | +12 maximum Warden HP |
+| 25 | Rift Siphon | Heal 6 HP on every eighth credited enemy kill while alive and injured (never above max HP) |
+| 40 | Battle Focus | +4% Warden attack and a subtle animated Warden aura |
+| 60 | Arc Conduit | -0.20 seconds ability cooldown, respecting the existing 3-second floor |
+| 80 | Vanguard Stride | +4% Warden movement speed |
+| 100 | Rift Sovereign | An additional +6% Warden attack (10% total oath attack) and enhanced aura |
+
+Oaths derive from the existing save-backed Warden level; they require no purchase or additional currency. Bonuses apply to the **Warden only**, not to fortress turrets or enemy statistics. See [Level 100 progression and balance](docs/V078_WARDEN_LEVELS_AND_STATS.md) and [milestone implementation notes](docs/V079_WARDEN_OATHS.md). Those documents record the original development phases; both features were subsequently integrated through PR #40.
+
+### Current verification and release limits
+
+- **Main integration checks:** [Android CI](https://github.com/LokiJ07/RiftGuard-LastBastion/actions/runs/43576850652) and [dedicated Android emulator QA](https://github.com/LokiJ07/RiftGuard-LastBastion/actions/runs/43576850680) both passed for the exact v0.79 integration head before PR #40 merged. The badge above tracks subsequent `main` builds.
+- **Automated coverage:** JUnit/Robolectric tests cover XP curves, stat spending, save migration, victory transactions, milestone boundaries, combat healing, character rendering and existing gameplay systems. Android emulator jobs exercise APK installation, touch input and graphics diagnostics.
+- **Still required before public release:** Extended physical-device playtesting (including performance, battery/thermal behavior, saves and campaign pacing), asset-rights/privacy/store review, stable package version, protected production signing and release approval. A green CI build **does not** certify full gameplay quality or publish the game.
+- **Release packaging:** [Commercial release gates](docs/V072_COMMERCIAL_RELEASE_GATES.md) and [signed release candidate workflow](.github/workflows/release-candidate.yml). The protected release workflow is manual; it does not publish to Google Play.
+
+## Historical development notes (v0.60 and earlier)
+
+The following version sections are retained as a development history; labels such as "under test", "candidate" and "stable" describe those **older snapshots**, not the current v0.79 main-branch release status.
+
 ## v0.60.0-dev4 — Living Warden & Enemy Style Variants (tested development build)
 
 - **Three distinct Warden combat appearances:** equipped crossbow/repeater = hooded Ranger, greatsword/sabre = armored Vanguard, staff/frost lance = crystal-crowned Arcanist. Distinct cloaks, helmets, shoulder geometry, gear and rune details render **on the real controllable Warden** in Home and battles.
@@ -53,7 +93,7 @@ This release candidate moves the v0.40 plan forward with **real playable code**,
 - Regression coverage: new `KingdomsAtWarTest` checks all 300 pad configurations, collision clearance, real turret purchases, dash physics, boss reinforcements, exact phase boundaries, animation cancellation and mission bonus requirements. Original saves remain in `riftguard_campaign_v1`.
 - **Not yet complete** for the v0.40 target: full hand-illustrated environment packs, high-quality hero/enemy sprite overhaul, original boss animations, sound/music overhaul and physical-device performance certification. The build MUST pass GitHub CI and screenshot inspection before merging.
 
-## Current stable version: V0.30.0 — LokiJ Identity and Consistent Upgrade UI
+## Historical milestone: v0.30.0 — LokiJ Identity and Consistent Upgrade UI
 
 - **Real Android startup branding:** `LokiSplashView` presents the RIFTGUARD crest, `THE LAST BASTION`, and the creator credit **LokiJ** during actual game initialization. Indeterminate visual ornament is never a fake download percent, and no network is required.
 - **New launcher artwork:** `res/drawable/ic_launcher.xml` is a genuinely bundled, scalable high-contrast shield with a rune blade, battlements, gilded trim and contrast-safe colors.
@@ -199,20 +239,27 @@ The user supplied `RiftGuard World and Environment.html`, showing layered Verdan
 - **Remaining limitation:** native Canvas illustrated/vector layers are derived from the provided HTML style; the source HTML was NOT directly embedded. These are not custom HD pixel-painted 300 maps. Detailed hand-painted assets and physical Android GPU profiling remain future milestones.
 
 ## Playing
-1. Home → CAMPAIGN → choose a region, stage A/B/C (only unlocked stages are playable).
-2. Move using left thumb, hold ATTACK to use equipped weapon, use PULSE and BUILD to defend.
-3. Win to earn permanent supplies. Home → FORTRESS → upgrade rank to unlock weapons and abilities.
-4. In FORTRESS tap ASCENSION / UPGRADE TREE; swipe up from the Origin and buy connected combat upgrades using supplies.
-5. Home → ARMORY → tap an unlocked weapon to equip it; choose EQUIP COMBAT ABILITIES to set a distinct skill.
-6. On the Home screen tap SOUND ON/OFF to control the locally generated game sounds.
+1. From **Home → Campaign**, select a kingdom and unlocked level, choose **Map A/B/C** and set **Easy / Normal / Hard / Expert** before deploying.
+2. Move the Warden using the left joystick; use **ATTACK** (tap/chain or hold for a charged strike), **DODGE**, your equipped skill and **BUILD / UPGRADE** on real available turret pads. HUD controls can be repositioned while their touch targets stay aligned.
+3. Win a stage to earn permanent **supplies** and **Warden XP**. XP increases with stage and difficulty; replays yield reduced XP and defeats do not award character XP.
+4. From **Home → Warden LV**, view the level 1–100 character sheet, track XP, and invest earned points in Vitality, Power, Agility or Arcana. Automatic oaths unlock at the listed milestone levels.
+5. From **Home → Fortress / Ascension**, buy fortress and connected combat upgrades using supplies. From **Armory**, equip unlocked weapons and abilities; purchased upgrade nodes affect actual battle stats and appearances.
+6. Use the **Kingdom Hub** for optional repeatable quests/rewards, or revisit cleared maps at higher difficulty. Sound and graphics settings are available in-game.
 
-## Build
-Android Gradle Plugin 8.7.3, Gradle 8.10.2, JDK 17, Android SDK 35. On GitHub see Actions → Android CI → successful run → Artifacts → `RiftGuard-debug-apk`.
+## Build and test (development)
 
-Debug CI builds are not a release-signed APK. Reinstall conflicts may occur across different debug signing keys. Do not use debug keys for production distribution.
+- **Android project:** Java, Android Gradle Plugin **8.7.3**, **JDK 17**, **Android SDK API 36** and build tools **36.0.0**; CI uses **Gradle 8.11.1**. Minimum supported SDK: **24**; target SDK: **36**.
+- **Local commands** (with Android SDK configured and Gradle 8.11.1 available):
+  ```bash
+  gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
+  ```
+- **GitHub build artifacts:** Open [Actions → Android CI](https://github.com/LokiJ07/RiftGuard-LastBastion/actions/workflows/android.yml), choose a successful run on `main`, then download `RiftGuard-debug-apk` from **Artifacts**. The workflow also uploads test results and emulator QA artifacts.
+- **Signing:** CI debug APKs use a development signing identity. Regular CI release bundles are **unsigned**; the protected, manually dispatched signed release candidate is separate and requires explicit QA approval and secrets. Do not use debug keys for production distribution. Installing an APK with a different signer can cause an install conflict; protect existing saves before changing signing identities.
+
+**Versioning note:** The v0.79 milestone describes integrated game functionality. The Android package currently remains `0.78.0-alpha1` (versionCode `75`) pending a separate version bump and release process.
 
 ## Development roadmap
-[Full production plan](docs/PRODUCTION_PLAN.md) · [Asset and unlock pack](docs/CONTENT_INTEGRATION_V1.md)
+[Full production plan](docs/PRODUCTION_PLAN.md) · [Asset and unlock pack](docs/CONTENT_INTEGRATION_V1.md) · [Commercial release gates](docs/V072_COMMERCIAL_RELEASE_GATES.md)
 
 ## V0.6.0 combat and progression update
 - Map selection has **Easy / Normal / Hard / Expert** difficulty controls persisted between sessions. Hard and Expert have more waves and larger enemy rosters, stronger/faster enemies, more damage, and higher supply rewards.
