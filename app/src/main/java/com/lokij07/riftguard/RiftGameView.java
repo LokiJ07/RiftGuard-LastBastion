@@ -4063,7 +4063,9 @@ public final class RiftGameView extends View {
                 progressRemaining=FieldObjectivesV074.SEAL_SECONDS-sealCharge[i];
                 break;
             }
-        String action=CombatReadabilityV076.missionAction(mode,caravanGuarded(),
+        String action=mode==SiegeMissionsV069.ENGINE&&engineStopped?
+                "ENGINE DISABLED • DEFEND THE KEEP":
+                CombatReadabilityV076.missionAction(mode,caravanGuarded(),
                 caravanHp/Math.max(1f,CampaignEncountersV073.cartMaxHp(stage,difficultyMode)),
                 villagersSaved,villagersLost,riftsSealed,progressRemaining,
                 sealPulseTimer,cannonCharge);

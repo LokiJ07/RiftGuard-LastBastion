@@ -51,6 +51,8 @@ public class CombatReadabilityV076Test {
                 0,8,0).contains("LOST"));
         assertTrue(CombatReadabilityV076.missionAction(R,false,0,2,0,0,
                 0,8,0).contains("FINAL"));
+        assertTrue(CombatReadabilityV076.missionAction(R,false,0,2,1,0,
+                0,8,0).contains("SECURED"));
         assertTrue(CombatReadabilityV076.missionAction(S,false,0,0,0,1,
                 1.2f,8,0).contains("1.2s"));
         assertTrue(CombatReadabilityV076.missionAction(S,false,0,0,0,1,

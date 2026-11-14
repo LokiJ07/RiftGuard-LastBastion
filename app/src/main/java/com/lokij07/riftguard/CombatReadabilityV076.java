@@ -46,6 +46,8 @@ public final class CombatReadabilityV076 {
             case SiegeMissionsV069.SPLIT:
                 return "WATCH BOTH BRANCHES • INTERCEPT RAIDERS";
             case SiegeMissionsV069.RESCUE:
+                if(saved+lost>=FieldObjectivesV074.SURVIVORS)
+                    return "SURVIVORS SECURED • DEFEND THE KEEP";
                 if(lost>0)return "VILLAGER LOST • SAVE THE OTHER TWO!";
                 if(saved>=2)return "SAVE THE FINAL VILLAGER FOR EXTRA GOLD";
                 return "RUN TO GOLD CIRCLES • RESCUE 2 OF 3";
