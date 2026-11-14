@@ -6114,11 +6114,10 @@ public final class RiftGameView extends View {
                         openStory(StoryScript.worldOpening(world,storyProgress.wardenName()));
                     }
                 }
-                // Short, skippable mid-chapter character beat on the first
-                // Map A clear every 3 levels. Cosmetic-only seen flag: never
-                // touches story keys, rewards, stage unlocks, or victory saves.
-                if(Campaign.map(stage)==0&&Campaign.level(stage)%3==0&&
-                        stage>=unlocked){
+                // One skippable mid-chapter beat every 3 levels on Map A.
+                // Replay access also lets existing saves see new dialogue once.
+                // Cosmetic-only seen flag never affects permanent rewards.
+                if(Campaign.map(stage)==0&&Campaign.level(stage)%3==0){
                     int level=Campaign.level(stage);
                     String beatKey="story.v080.banterSeen."+level;
                     if(!prefs.getBoolean(beatKey,false)){
