@@ -67,6 +67,8 @@ public final class RiftGameView extends View {
     private boolean storyOpen=false;
     private StoryScript.Line[] storyLines;
     private int storyIndex;
+    // Computed once per authored dialogue beat, not per Canvas frame.
+    private StoryPresentationV081.TextLayout storyTextLayout;
     // Chronicle flashbacks belong to their OWN world, not the last battle.
     private int chronicleMemoryStage=-1;
     private final List<StoryScript.Line[]> pendingStory=new ArrayList<>();
@@ -5611,19 +5613,20 @@ public final class RiftGameView extends View {
     private void nextStoryBlock(){
         if(pendingStory.isEmpty()){
             storyOpen=false;storyLines=null;storyIndex=0;
-            chronicleMemoryStage=-1;return;
+            storyTextLayout=null;chronicleMemoryStage=-1;return;
         }
         storyLines=pendingStory.remove(0);
-        storyIndex=0;storyOpen=true;cinematicBeatStart=gameTime;clearTouchControls();
+        storyIndex=0;storyTextLayout=null;
+        storyOpen=true;cinematicBeatStart=gameTime;clearTouchControls();
     }
     private void advanceStoryLine(){
         if(!storyOpen)return;
         if(++storyIndex>=storyLines.length)nextStoryBlock();
-        else cinematicBeatStart=gameTime;
+        else {storyTextLayout=null;cinematicBeatStart=gameTime;}
     }
     private void dismissStory(){
         pendingStory.clear();storyOpen=false;storyLines=null;storyIndex=0;
-        chronicleMemoryStage=-1;
+        storyTextLayout=null;chronicleMemoryStage=-1;
         clearTouchControls();
     }
     /** Story is staged as a full-bleed moving world shot, not an opaque modal.
@@ -5692,23 +5695,43 @@ public final class RiftGameView extends View {
                     world<4?0:world<7?1:2);
         }
 
-        int panelAlpha=Math.round(230f*CinematicDirectionV065.reveal(seconds,dramatic));
-        rect(c,0,492,1280,680,(panelAlpha<<24)|0x000c1624);
-        rect(c,0,489,1280,492,cael?0xffab88dd:0xffd8aa73);
+        // Keep the animated painted world/characters; upgrade only the
+        // narrative layer. Every subtitle fits the 1280x720 logical canvas.
+        if(storyTextLayout==null){
+            p.setTypeface(FONT);
+            storyTextLayout=StoryPresentationV081.fitText(ln.text,p);
+        }
+        int panelAlpha=Math.round(238f*CinematicDirectionV065.reveal(seconds,dramatic));
+        round(c,22,459,1258,710,20,(panelAlpha<<24)|0x000f1e29);
+        border(c,22,459,1258,710,20,cael?0xff9f86c7:0xff9f8661,2);
+        rect(c,33,513,1247,516,cael?0xffb79fe0:0xffc9a467);
         String speaker=who.equals("WARDEN")?storyProgress.wardenName():who;
         int captionAlpha=CinematicDirectionV065.subtitleAlpha(seconds,dramatic);
         int accent=(cael?0x00dabdff:0x00ffcb68)|(captionAlpha<<24);
-        textFit(c,speaker.toUpperCase(),78,539,600,26,accent,false);
-        // Lines settle into frame after the camera cut. Preserve complete text
-        // and manual advance for accessibility and Chronicle replay.
-        drawStoryParagraph(c,ln.text,78,583,1100,25,38,
-                (captionAlpha<<24)|(INK&0x00ffffff));
+        textFit(c,speaker.toUpperCase(),79,496,775,27,accent,false);
+        String chapter=memory?"RECOVERED MEMORY":"CHAPTER SCENE";
+        textFit(c,chapter+"  "+(storyIndex+1)+" / "+storyLines.length,
+                1139,493,214,17,0xffd1c6b5,true);
+        // Paint measure and text baselines agree; no truncation of authored
+        // narrative and no overlap with the separate continue hint.
+        c.save();
+        c.clipRect(77,526,1210,668);
+        for(int line=0;line<storyTextLayout.lines.size();line++){
+            text(c,storyTextLayout.lines.get(line),StoryPresentationV081.TEXT_LEFT,
+                    StoryPresentationV081.TEXT_TOP+
+                            line*StoryPresentationV081.TEXT_LINE_HEIGHT,
+                    storyTextLayout.fontSize,
+                    (captionAlpha<<24)|(INK&0x00ffffff),false);
+        }
+        c.restore();
+        text(c,"TAP TO CONTINUE  •  "+(storyIndex+1)+"/"+storyLines.length,
+                1060,689,17,0xffb9d2d3,true);
         text(c,memory?"MEMORY REVEALED":"SCENE "+(storyIndex+1)+" / "+storyLines.length,
                 83,76,19,0xffffe2ae,false);
-        text(c,"TAP ANYWHERE TO CONTINUE",982,650,17,0xffb9d2d3,true);
-        // BACK gestures are not reliable on every Android 16 immersive phone.
-        // Make chapter skipping an obvious, accessible on-screen action;
-        // does not erase any unlocked memories or permanent progress.
+        round(c,78,104,420,110,3,0x99526970);
+        round(c,78,104,78+342f*(storyIndex+1)/storyLines.length,110,3,
+                cael?0xffa697ea:0xffe2c58d);
+        // Skip remains where the input handler checks its exact hitbox.
         round(c,STORY_SKIP_LEFT,STORY_SKIP_TOP,
                 STORY_SKIP_RIGHT,STORY_SKIP_BOTTOM,13,0xd3243949);
         border(c,STORY_SKIP_LEFT,STORY_SKIP_TOP,
@@ -5722,30 +5745,46 @@ public final class RiftGameView extends View {
         round(c,43,24,1237,691,24,0xf017303d);
         text(c,"THE WARDEN'S CHRONICLE",79,84,47,GOLD,false);
         text(c,"WARDEN: "+storyProgress.wardenName(),79,123,21,INK,false);
-        textFit(c,"MEMORIES "+storyProgress.total()+"/100   •   CAEL "+
+        round(c,665,90,1207,138,12,0xff1b3640);
+        textFit(c,"TOTAL "+storyProgress.total()+"/100  •  CAEL "+
                 storyProgress.caelCount()+"/"+StoryProgress.caelTotal()+
-                "   •   SEALS "+storyProgress.ownedSeals()+"/10",
-                909,115,600,19,GOLD,true);
+                "  •  SEALS "+storyProgress.ownedSeals()+"/10",
+                938,120,516,19,GOLD,true);
+        // The true-ending threshold is readable before the final Cave,
+        // but the primary story and other endings are not gated by keys.
+        textFit(c,"SAVE CAEL  "+Math.min(storyProgress.caelCount(),
+                StoryProgress.caelNeeded())+"/"+StoryProgress.caelNeeded()+
+                "  •  OPTIONAL MEMORIES",905,163,528,16,0xffb4e6da,true);
         for(int world=0;world<10;world++){
             float y=149+world*45;
             round(c,72,y,572,y+41,8,chronicleWorld==world?0xff70674d:0xff2c4b55);
-            textFit(c,(world+1)+". "+Campaign.WORLDS[world],90,y+27,372,19,INK,false);
-            text(c,storyProgress.count(world)+"/10",540,y+27,19,
+            textFit(c,(world+1)+". "+Campaign.WORLDS[world],90,y+27,336,19,INK,false);
+            round(c,441,y+29,518,y+34,2,0xff1b323b);
+            if(storyProgress.count(world)>0)
+                round(c,441,y+29,441+77f*storyProgress.count(world)/10f,
+                        y+34,2,0xff9ad0b2);
+            text(c,storyProgress.count(world)+"/10",542,y+27,18,
                     storyProgress.count(world)==10?0xff91dfb6:GOLD,true);
         }
         round(c,594,148,1202,597,16,0xff233f4b);
-        textFit(c,Campaign.WORLDS[chronicleWorld],898,189,556,26,GOLD,true);
+        textFit(c,Campaign.WORLDS[chronicleWorld],898,192,556,24,GOLD,true);
+        // Transparent distinction between recovered memories (tap to read)
+        // and missing optional trials (replay stage C).
+        textFit(c,"SELECT A MEMORY  •  GREEN = RECOVERED",898,588,560,15,
+                0xffabc9c1,true);
         for(int key=0;key<10;key++){
             int level=chronicleWorld*10+key+1;
             int stageId=Campaign.stage(level,2);
             boolean owned=storyProgress.hasMemory(stageId);
             int row=key/2,col=key%2;
             float x=615+col*291,y=210+row*70;
-            round(c,x,y,x+273,y+62,9,owned?0xff426a64:0xff354653);
-            text(c,owned?"MEMORY "+(key+1)+" • OPEN":"MEMORY "+(key+1)+" • LOCKED",
-                    x+19,y+28,19,owned?INK:0xffadbaba,false);
-            text(c,owned?"RECOVERED":"REPLAY LEVEL "+level+"-C",
-                    x+19,y+51,14,owned?0xffb5e9c7:0xffd1b6a2,false);
+            round(c,x,y,x+273,y+62,9,owned?0xff34695f:0xff303e49);
+            border(c,x,y,x+273,y+62,9,owned?0xff7bd2ab:0xff56656e,1.4f);
+            rect(c,x+9,y+12,x+13,y+49,owned?0xff9ee3ba:0xff8a8584);
+            text(c,owned?"MEMORY "+(key+1)+"  •  READ":"MEMORY "+(key+1)+"  •  HIDDEN",
+                    x+25,y+28,18,owned?INK:0xffc2c9c8,false);
+            text(c,owned?"TAP TO REVISIT":"REPLAY LEVEL "+level+"-C",
+                    x+25,y+50,14,owned?0xffb5e9c7:0xffd1b6a2,false);
         }
         button(c,76,610,298,673,"BACK",0xff43606e);
         button(c,312,610,795,673,"RENAME WARDEN",0xff705b54);
@@ -5758,15 +5797,11 @@ public final class RiftGameView extends View {
             else openStory(StoryScript.prologue(storyProgress.wardenName()));
             return;
         }
-        if(x>=72&&x<=572&&y>=149&&y<599){
-            int selected=(int)((y-149)/45);
-            if(selected>=0&&selected<10)chronicleWorld=selected;
-            return;
-        }
-        if(x>=615&&x<=1189&&y>=210&&y<560){
-            int col=x>=906?1:0,row=(int)((y-210)/70);
-            if(row<0||row>=5)return;
-            int level=chronicleWorld*10+row*2+col+1;
+        int world=StoryPresentationV081.chronicleWorldHit(x,y);
+        if(world>=0){chronicleWorld=world;return;}
+        int key=StoryPresentationV081.chronicleMemoryHit(x,y);
+        if(key>=0){
+            int level=chronicleWorld*10+key+1;
             int stageId=Campaign.stage(level,2);
             if(storyProgress.hasMemory(stageId)){
                 chronicleMemoryStage=stageId;
@@ -5798,13 +5833,10 @@ public final class RiftGameView extends View {
         announce("THE FIRST WARDEN FALLS • MAKE YOUR CHOICE");
     }
     private void tapCaveChoice(float x,float y){
-        if(y>=405&&y<=502&&x>=110&&x<610)
-            chooseCaveEnding(StoryProgress.ENDING_GOOD);
-        else if(y>=405&&y<=502&&x>=648&&x<1170&&
-                storyProgress.trueEndingUnlocked())
-            chooseCaveEnding(StoryProgress.ENDING_TRUE);
-        else if(y>=522&&y<=601&&x>=110&&x<1170)
-            chooseCaveEnding(StoryProgress.ENDING_PARTIAL);
+        // Shared rectangles prevent "looks tappable but doesn't work" gaps.
+        int ending=StoryPresentationV081.caveChoiceHit(
+                x,y,storyProgress.trueEndingUnlocked());
+        if(ending!=StoryProgress.ENDING_NONE)chooseCaveEnding(ending);
     }
     private void chooseCaveEnding(int ending){
         if(!storyProgress.saveEnding(ending))return;
@@ -6037,8 +6069,9 @@ public final class RiftGameView extends View {
         }
         if(scene==Scene.CAVE_END){
             if(action==MotionEvent.ACTION_DOWN){
-                if(y>510&&x<640)startEclipseCave();
-                else if(y>510){scene=Scene.HOME;caveMode=false;}
+                int target=StoryPresentationV081.caveEndingHit(x,y);
+                if(target==1)startEclipseCave();
+                else if(target==2){scene=Scene.HOME;caveMode=false;}
             }
             invalidate();return true;
         }
