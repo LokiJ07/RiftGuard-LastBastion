@@ -71,6 +71,9 @@ public final class StoryScreensV081IntegrationTest {
         assertFalse((Boolean)value(game,"storyOpen"));
         tap(game,645,238);
         assertTrue((Boolean)value(game,"storyOpen"));
+        // The cinematic intentionally fades in from black. Capture the actual
+        // readable layout AFTER its reveal, not the dark transition's first frame.
+        set(game,"cinematicBeatStart",-6f);
         snap(game,1280,720,"282-v081-dialogue-illustrated-panel.png");
         StoryPresentationV081.TextLayout layout=
                 (StoryPresentationV081.TextLayout)value(game,"storyTextLayout");
@@ -120,6 +123,7 @@ public final class StoryScreensV081IntegrationTest {
         call(game,"startEclipseCave");
         call(game,"completeEclipseCave");
         call(game,"dismissStory");
+        set(game,"caveChoiceCutAt",-100f); // clear the transition overlay
         snap(game,2340,1080,"285-v081-cave-choices-ultrawide.png");
         // The 210px letterbox offset and 1.5x scaling are shared by
         // actual rendering and onTouchEvent; test the visible card center.
