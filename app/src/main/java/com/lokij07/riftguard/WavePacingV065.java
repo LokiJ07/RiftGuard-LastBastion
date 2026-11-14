@@ -3,8 +3,10 @@ package com.lokij07.riftguard;
 /** Normal preparation auto-advances; manual early start awards capped gold. */
 public final class WavePacingV065 {
     private WavePacingV065(){}
-    private static final int[] NORMAL={25,20,15,10};
-    private static final int[] BOSS={50,40,30,25};
+    // Trim idle waiting during a 300-stage campaign while retaining
+    // a meaningful turret-preparation window and longer boss telegraphs.
+    private static final int[] NORMAL={22,17,13,10};
+    private static final int[] BOSS={44,34,28,23};
     public static int seconds(int mode,boolean bossIncoming){
         return (bossIncoming?BOSS:NORMAL)[DifficultyRules.safe(mode)];
     }
