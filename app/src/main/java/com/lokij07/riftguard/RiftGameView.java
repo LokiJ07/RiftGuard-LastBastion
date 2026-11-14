@@ -877,6 +877,14 @@ public final class RiftGameView extends View {
                 // Smaller formations must not bankrupt tower upgrades.
                 gold+=SiegeBalanceV066.killGold(stage,wave,difficultyMode,e.kind);
                 kills++;
+                // LV25 Rift Siphon: a visible, capped sustain pulse for every
+                // eight credited enemy defeats; never on individual damage hits.
+                int siphon=WardenMilestonesV079.healOnCreditedKill(
+                        wardenLevel.level(),kills);
+                if(siphon>0&&!revival.isDown()&&heroHp>0&&heroHp<heroMaxHp()){
+                    heroHp=Math.min(heroMaxHp(),heroHp+siphon);
+                    puff(heroX,heroY-31,9,0xff9fe6ce);
+                }
                 if(pickups.size()<28 && random.nextFloat()<
                         SiegeBalanceV066.pickupChance(stage,wave,difficultyMode))
                     pickups.add(new Pickup(e.x,e.y,random.nextFloat()<.58f?0:1));
@@ -3901,6 +3909,16 @@ public final class RiftGameView extends View {
             EvolutionEffects.armor(c,heroX,heroY,armorForm(),gameTime);
             EvolutionEffects.greaves(c,heroX,heroY,speedForm());
         }
+        // LV40 battle focus marks the actual character, not the fortress;
+        // the LV100 capstone intensifies this restrained, animated aura.
+        if(wardenLevel.level()>=40){
+            boolean master=wardenLevel.level()>=100;
+            float wave=(float)Math.sin(gameTime*4.5f);
+            circleStroke(c,heroX,heroY+20,30f+wave*2.5f,
+                    master?0x99f3ce7d:0x6682d8c5,master?3f:2f);
+            if(master)circleStroke(c,heroX,heroY-30,47f+wave*3f,
+                    0x55e8ca90,2f);
+        }
     }
     private void drawHeroActor(Canvas c,boolean forcedHurt) {
         // State-machine clocks drive actual poses. Legacy preview callers
@@ -4849,6 +4867,14 @@ public final class RiftGameView extends View {
                 "  |  MOVE +"+Math.round((wardenLevel.moveMultiplier()-1)*100)+"%"+
                 "  |  SPELL -"+Math.round(wardenLevel.skillCooldownReduction()*100)/100f+"s",
                 471,578,17,0xffc4eee0,false);
+        int oath=WardenMilestonesV079.currentIndex(wardenLevel.level());
+        int nextOath=WardenMilestonesV079.nextIndex(wardenLevel.level());
+        String oathLabel=oath>=0?"ACTIVE OATH: "+WardenMilestonesV079.NAMES[oath]+
+                " • "+WardenMilestonesV079.DETAILS[oath]:"OATHS NOT YET UNLOCKED";
+        String nextOathLabel=nextOath>=0?"  |  NEXT LV "+
+                WardenMilestonesV079.LEVELS[nextOath]+": "+
+                WardenMilestonesV079.NAMES[nextOath]:"  |  ALL SIX OATHS UNLOCKED";
+        textFit(c,oathLabel+nextOathLabel,640,612,1060,16,0xffffd89f,true);
         upgradeActions(c,"HOME","ARMORY","+1 POINT","+5 POINTS",
                 wardenLevel.unspent()>=5&&wardenLevel.attribute(selectedWardenAttribute)<=
                         WardenLevelsV078.MAX_ATTRIBUTE-5);
@@ -5492,6 +5518,12 @@ public final class RiftGameView extends View {
                     (lastGainedWardenLevels>0?"  •  LEVEL UP +"+
                             lastEarnedWardenPoints+" POINTS":""),640,139,
                     414,20,lastGainedWardenLevels>0?0xffffd48d:0xffb1ecd0,true);
+            int newOath=WardenMilestonesV079.latestUnlocked(
+                    lastWardenFromLevel,wardenLevel.level());
+            if(newOath>=0)textFit(c,"NEW WARDEN OATH • "+
+                    WardenMilestonesV079.NAMES[newOath]+"  |  "+
+                    WardenMilestonesV079.DETAILS[newOath],
+                    640,204,530,18,0xffffd89f,true);
         }
         if(scene==Scene.WIN)
             textFit(c,"TACTICAL BONUS  +"+objectiveBonus+" SUPPLIES"+
