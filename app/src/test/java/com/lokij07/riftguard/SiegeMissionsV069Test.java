@@ -27,9 +27,11 @@ public class SiegeMissionsV069Test {
                 assertEquals(SiegeMissionsV069.orders(stage),brief.order);
             }
         }
-        assertEquals(32,seen[SiegeMissionsV069.ESCORT]);
-        assertEquals(32,seen[SiegeMissionsV069.ENGINE]);
-        assertEquals(32,seen[SiegeMissionsV069.SPLIT]);
+        assertEquals(26,seen[SiegeMissionsV069.ESCORT]);
+        assertEquals(26,seen[SiegeMissionsV069.ENGINE]);
+        assertEquals(26,seen[SiegeMissionsV069.SPLIT]);
+        assertEquals(9,seen[SiegeMissionsV069.RESCUE]);
+        assertEquals(9,seen[SiegeMissionsV069.SEAL]);
         assertThrows(IllegalArgumentException.class,()->SiegeMissionsV069.mode(300));
     }
     @Test public void siegeEngineReplacesOnlyOneNormalWaveSpawn(){

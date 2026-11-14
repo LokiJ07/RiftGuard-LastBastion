@@ -5,13 +5,13 @@ import static org.junit.Assert.*;
 /** Full 300-stage encounter audit with four difficulty levels. */
 public class CampaignEncountersV073Test {
     @Test public void exactlyNinetySixLiveEventsCoverTenRealmsAndThreeActs(){
-        int[][] perRealm=new int[10][4];
-        int[][] perAct=new int[3][4];
+        int[][] perRealm=new int[10][6];
+        int[][] perAct=new int[3][6];
         int total=0;
         for(int stage=0;stage<Campaign.STAGES;stage++){
             int realm=Campaign.world(stage),mode=SiegeMissionsV069.mode(stage);
             assertEquals(CampaignEncountersV073.mode(stage),mode);
-            assertTrue(mode>=0&&mode<=3);
+            assertTrue(mode>=0&&mode<=5);
             perRealm[realm][mode]++;
             perAct[RealmActsV071.act(stage)][mode]++;
             assertFalse(DifficultyRules.worldBoss(stage)&&mode!=0);
@@ -25,13 +25,23 @@ public class CampaignEncountersV073Test {
         }
         assertEquals(96,total);
         for(int realm=0;realm<10;realm++){
-            int count=perRealm[realm][1]+perRealm[realm][2]+perRealm[realm][3];
+            int count=0;
+            for(int type=1;type<=5;type++)count+=perRealm[realm][type];
             assertEquals(realm==0?15:9,count);
-            for(int type=1;type<=3;type++)
-                assertEquals(realm==0?5:3,perRealm[realm][type]);
+            if(realm==0){
+                for(int type=1;type<=3;type++)assertEquals(5,perRealm[realm][type]);
+                assertEquals(0,perRealm[realm][SiegeMissionsV069.RESCUE]);
+                assertEquals(0,perRealm[realm][SiegeMissionsV069.SEAL]);
+            }else{
+                for(int type=1;type<=3;type++)assertTrue(perRealm[realm][type]>=1);
+                assertEquals(1,perRealm[realm][SiegeMissionsV069.RESCUE]);
+                assertEquals(1,perRealm[realm][SiegeMissionsV069.SEAL]);
+            }
         }
         for(int act=0;act<3;act++)for(int type=1;type<=3;type++)
-            assertTrue("missing act/mode "+act+"/"+type,perAct[act][type]>=9);
+            assertTrue("missing act/mode "+act+"/"+type,perAct[act][type]>=6);
+        assertEquals(9,perAct[RealmActsV071.ESCALATION][SiegeMissionsV069.RESCUE]);
+        assertEquals(9,perAct[RealmActsV071.SIEGE][SiegeMissionsV069.SEAL]);
         assertEquals(SiegeMissionsV069.NONE,SiegeMissionsV069.mode(21));
         assertEquals(SiegeMissionsV069.ENGINE,SiegeMissionsV069.mode(32));
         assertEquals(SiegeMissionsV069.ESCORT,SiegeMissionsV069.mode(38));

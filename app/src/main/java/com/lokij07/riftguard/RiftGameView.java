@@ -3346,8 +3346,8 @@ public final class RiftGameView extends View {
                     continue;
                 }
                 float bob=(float)Math.sin(gameTime*2.8f+i)*3f;
-                circle(c,x,y-31,FieldObjectivesV074.RESCUE_RADIUS,0x1558ffe0);
-                circleStroke(c,x,y-31,FieldObjectivesV074.RESCUE_RADIUS,
+                circle(c,x,y,FieldObjectivesV074.RESCUE_RADIUS,0x1558ffe0);
+                circleStroke(c,x,y,FieldObjectivesV074.RESCUE_RADIUS,
                         0x99ffdb90,3.5f);
                 oval(c,x-23,y+2,x+24,y+14,0x770a1b29);
                 polygon(c,x-22,y-42,x,y-58+bob,x+23,y-41,x+18,y+4,
@@ -3369,9 +3369,9 @@ public final class RiftGameView extends View {
                         y=FieldObjectivesV074.sealY(stage,i);
                 boolean done=sealDone[i];
                 float pulse=(float)Math.sin(gameTime*3+i)*5f;
-                circle(c,x,y-36,FieldObjectivesV074.SEAL_RADIUS,
+                circle(c,x,y,FieldObjectivesV074.SEAL_RADIUS,
                         done?0x2252ffbf:0x334a2c95);
-                circleStroke(c,x,y-36,FieldObjectivesV074.SEAL_RADIUS+pulse,
+                circleStroke(c,x,y,FieldObjectivesV074.SEAL_RADIUS+pulse,
                         done?0xff8be3a9:0xffccadfa,4f);
                 for(int k=0;k<6;k++){
                     float angle=k*(float)Math.PI/3+gameTime*.28f;
