@@ -67,7 +67,7 @@ The final Cave is still **locked until the full 300-stage campaign is completed*
 gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease
 ```
 
-For downloadable debug builds, open [GitHub Actions → Android CI](https://github.com/LokiJ07/RiftGuard-LastBastion/actions/workflows/android.yml), select a **successful** run, and obtain `RiftGuard-debug-apk` from **Artifacts**. The CI also publishes test reports and emulator diagnostics. Android 10 and 16 emulator checks are not a replacement for real-device FPS, thermal, battery and long-session playtesting.
+For downloadable debug builds, open [GitHub Actions → Android CI](https://github.com/LokiJ07/RiftGuard-LastBastion/actions/workflows/android.yml), select a **successful** run, and obtain `RiftGuard-debug-apk` from **Artifacts**. The CI also publishes test reports and emulator diagnostics. Its automated APK smoke-test matrix runs on Android 10 (API 29) and Android 15 (API 35), with separate screenshot, crash-log and frame-diagnostic artifacts for each OS. These emulator checks are not a replacement for real-device FPS, thermal, battery and long-session playtesting.
 
 **Release warning:** CI debug APKs use development signing. Standard release bundles from CI are unsigned. The manually dispatched [signed release candidate workflow](.github/workflows/release-candidate.yml) has separate protected prerequisites and does **not** publish to Google Play.
 
