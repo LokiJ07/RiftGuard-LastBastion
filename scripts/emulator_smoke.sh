@@ -8,6 +8,14 @@ APK="app/build/outputs/apk/debug/app-debug.apk"
 OUT="app/build/emulator-qa"
 mkdir -p "$OUT"
 adb wait-for-device
+# Verify the requested API actually booted; give each CI matrix leg a trustworthy report.
+ACTUAL_ANDROID_API="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+if [[ ! "$ACTUAL_ANDROID_API" =~ ^[0-9]+$ ]] || { [[ -n "${ANDROID_TEST_API:-}" ]] && [[ "$ANDROID_TEST_API" != "$ACTUAL_ANDROID_API" ]]; }; then
+  echo "Unexpected emulator API: expected ${ANDROID_TEST_API:-any}, actual ${ACTUAL_ANDROID_API}" | tee "$OUT/failure.txt" >&2
+  exit 1
+fi
+export ANDROID_TEST_API="$ACTUAL_ANDROID_API"
+printf '%s\n' "$ACTUAL_ANDROID_API" > "$OUT/device-api.txt"
 adb shell wm size 1280x720
 adb shell wm density 240
 adb shell settings put system accelerometer_rotation 0 || true
@@ -140,7 +148,7 @@ adb shell dumpsys activity top > "$OUT/activity-top.txt" || true
 adb logcat -d -v time > "$OUT/logcat.txt" || true
 # Frame completion sample is diagnostic, not a guarantee of physical-device FPS.
 python3 - "$OUT" <<'PY'
-import sys, pathlib, json, statistics
+import sys, pathlib, json, statistics, os
 p=pathlib.Path(sys.argv[1])
 text=(p/"gfxinfo-framestats.txt").read_text(errors="replace")
 values=[]
@@ -162,7 +170,7 @@ for raw in text.splitlines():
         continue
 values.sort()
 report={
-    "test_environment":"GitHub Actions Android emulator API 29 x86_64",
+    "test_environment":f"GitHub Actions Android emulator API {os.environ['ANDROID_TEST_API']} x86_64",
     "physical_device_tested":False,
     "frame_samples":len(values),
     "median_frame_ms":round(statistics.median(values),2) if values else None,
